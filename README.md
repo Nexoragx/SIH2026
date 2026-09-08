@@ -24,7 +24,7 @@ An AI-driven psychological monitoring and crisis response platform designed to d
 ## Directory Structure
 
 ```
-Mental/
+Nexora/
 ├── backend/                  # FastAPI Application
 │   ├── src/
 │   │   ├── config/          # Environment & settings
@@ -36,21 +36,18 @@ Mental/
 │   │   └── services/        # AI & Emergency dispatch services
 │   ├── server.py            # Local backend server runner
 │   └── test_e2e.py          # End-to-end integration test suite
-├── new_frontend/             # Production React 19 + Vite Application (Vercel Deployed)
+├── frontend/                 # React 19 + TypeScript + Vite Application (Vercel Deployed)
 │   ├── src/
-│   │   ├── components/      # UI components (AssessmentForm, ObserverDashboard, etc.)
-│   │   ├── context/         # AuthContext & useAuth hook
-│   │   ├── services/        # API service layers
-│   │   ├── styles/          # Modern CSS styling (100% black text theme, vibrant accents)
-│   │   └── utils/           # Local storage & client validators
-│   └── vercel.json          # Vercel SPA routing
-├── frontend/                 # Prototype React + TypeScript Components (from proto branch)
-│   └── src/
-│       └── components/      # Victim, observer, and analytics prototype widgets
+│   │   ├── components/      # UI components (LandingPage, AuthModal, ObserverDashboard, etc.)
+│   │   ├── api/             # Typed API client layer (auth, interview, observer, system)
+│   │   └── utils/           # Helper utilities & translations
+│   ├── vercel.json          # Vercel SPA routing
+│   ├── package.json         # Dependencies & build scripts
+│   └── vite.config.ts       # Vite config & API reverse proxy
 ├── SIH_26094_System_Design.md# Comprehensive System Architecture & Engineering Specs
 ├── architechtur.md           # High-level architecture documentation
 ├── server.py                 # Root backend launcher
-├── vercel.json               # Root monorepo Vercel configuration
+├── vercel.json               # Monorepo Vercel configuration
 └── .gitignore                # Git exclusion rules
 ```
 
@@ -62,8 +59,6 @@ Mental/
 
 ```bash
 # From project root
-source .venv/bin/activate
-pip install -r backend/requirements.txt   # (or ensure fastapi, uvicorn, pymongo, bcrypt, pyjwt installed)
 python3 server.py
 ```
 - API Server: `http://localhost:8000`
@@ -72,7 +67,7 @@ python3 server.py
 ### 2. Frontend Setup
 
 ```bash
-cd new_frontend
+cd frontend
 npm install
 npm run dev
 ```
@@ -82,11 +77,10 @@ npm run dev
 
 ## Vercel Deployment
 
-The project includes `vercel.json` configured for seamless deployment:
 1. Push repository to GitHub.
 2. In the Vercel Dashboard, click **Add New Project** and import the repository.
-3. Vercel automatically detects Vite:
-   - **Build Command**: `npm --prefix new_frontend run build`
-   - **Output Directory**: `new_frontend/dist`
-   - **Install Command**: `npm --prefix new_frontend install`
+3. In **Project Settings**:
+   - Set **Root Directory**: `frontend`
+   - Leave **Framework Preset**: `Vite` (default)
+   - Do **NOT** enable any command overrides (Vercel automatically uses standard `npm install` and `npm run build`).
 4. Click **Deploy**.
