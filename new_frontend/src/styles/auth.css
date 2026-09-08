@@ -1,0 +1,102 @@
+/* Auth Modal & Form Styling - Black Text Theme */
+.auth-tabs {
+  display: flex;
+  border-bottom: 2px solid var(--border);
+  margin-bottom: 1.5rem;
+}
+
+.auth-tab-btn {
+  flex: 1;
+  padding: 0.75rem 0.5rem;
+  background: transparent;
+  border: none;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #000000;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: all 0.2s ease;
+  opacity: 0.6;
+}
+
+.auth-tab-btn.active {
+  color: #000000;
+  border-bottom-color: #000000;
+  opacity: 1;
+  font-weight: 800;
+}
+
+.form-group {
+  margin-bottom: 1.15rem;
+}
+
+.form-label {
+  display: block;
+  font-size: 0.88rem;
+  font-weight: 700;
+  margin-bottom: 0.4rem;
+  color: #000000;
+}
+
+.form-input, .form-select {
+  width: 100%;
+  padding: 0.75rem 0.95rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  border: 1.5px solid var(--border-dark);
+  border-radius: var(--radius-md);
+  background: #ffffff;
+  color: #000000;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.form-input:focus, .form-select:focus {
+  outline: none;
+  border-color: #000000;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1);
+}
+
+.form-row {
+  display: flex;
+  gap: 1rem;
+}
+
+.form-row .form-group {
+  flex: 1;
+}
+
+.form-error-banner {
+  background: #fee2e2;
+  border: 1.5px solid #ef4444;
+  color: #000000;
+  font-weight: 700;
+  padding: 0.85rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.88rem;
+  margin-bottom: 1.25rem;
+  display: none;
+}
+
+.form-error-banner.visible {
+  display: block;
+}
+
+.form-footer-hint {
+  text-align: center;
+  margin-top: 1.25rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #000000;
+}
+
+.form-footer-hint a {
+  color: #000000;
+  font-weight: 800;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.form-footer-hint a:hover {
+  opacity: 0.8;
+}

@@ -1,0 +1,23 @@
+{
+  "name": "sih26094-mental-health-backend",
+  "version": "1.0.0",
+  "description": "AI-Powered Dynamic Mental Health Monitoring and Distress Prediction System for Victims of Atrocities (FastAPI)",
+  "scripts": {
+    "start": "python3 server.py",
+    "dev": "python3 server.py",
+    "test": "python3 test_e2e.py",
+    "test:ai": "PYTHONPATH=. python3 src/services/test.py"
+  },
+  "keywords": [
+    "sih26094",
+    "fastapi",
+    "mental-health",
+    "distress-prediction",
+    "atrocity-monitoring",
+    "xgboost",
+    "lstm",
+    "108-ambulance"
+  ],
+  "author": "SIH Team",
+  "license": "MIT"
+}
