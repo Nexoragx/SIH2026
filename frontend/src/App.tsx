@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Navbar } from './components/Navbar';
 import { Onboarding } from './components/victim/Onboarding';
 import { TileQuestionnaire } from './components/victim/TileQuestionnaire';
@@ -11,7 +11,10 @@ import { ObserverDashboard } from './components/observer/ObserverDashboard';
 import { NationalAnalytics } from './components/analytics/NationalAnalytics';
 import { ResourceDirectory } from './components/resources/ResourceDirectory';
 import { UserProfile, AssessmentResponse, AssessmentResultData, RiskLevel, ChatMessage } from './types';
-import { Bot, MessageSquare } from 'lucide-react';
+import { Bot, MessageSquare, Sparkles } from 'lucide-react';
+import { assessmentApi, authApi, systemApi } from './api';
+import { AuthModal } from './components/auth/AuthModal';
+import { LandingPage } from './components/landing/LandingPage';
 
 export const App: React.FC = () => {
   // Global State
@@ -23,7 +26,63 @@ export const App: React.FC = () => {
   const [isChatbotOpen, setIsChatbotOpen] = useState<boolean>(false);
   const [isObserverChatOpen, setIsObserverChatOpen] = useState<boolean>(false);
   const [voiceCheckinDone, setVoiceCheckinDone] = useState<boolean>(false);
-  const [voiceData, setVoiceData] = useState<{ transcript: string; stressScore: number; audioUrl?: string } | null>(null);
+  const [voiceData, setVoiceData] = useState<{ transcript: string; stressScore: number; audioUrl?: string; audioBlob?: Blob } | null>(null);
+  const [isSubmittingAssessment, setIsSubmittingAssessment] = useState<boolean>(false);
+  const [backendOnline, setBackendOnline] = useState<boolean>(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+  const [authModalMode, setAuthModalMode] = useState<'login' | 'register'>('login');
+  const [currentUser, setCurrentUser] = useState<any | null>(null);
+
+  // Check backend health and local session on mount
+  useEffect(() => {
+    let mounted = true;
+    systemApi.checkHealth()
+      .then((res) => {
+        if (mounted) setBackendOnline(res.status === 'healthy');
+      })
+      .catch(() => {
+        if (mounted) setBackendOnline(false);
+      });
+
+    const localUser = authApi.getCurrentLocalUser();
+    if (localUser) {
+      setCurrentUser(localUser);
+      if (localUser.role === 'victim') {
+        setUserProfile((prev) => ({
+          ...prev,
+          id: localUser.id || prev.id,
+          name: localUser.full_name || prev.name,
+          phone: localUser.phone || prev.phone,
+          district: localUser.district || prev.district,
+          state: localUser.state || prev.state,
+        }));
+      }
+    }
+
+    return () => { mounted = false; };
+  }, []);
+
+  const handleAuthSuccess = (user: any) => {
+    setCurrentUser(user);
+    if (user.role === 'victim') {
+      setUserProfile((prev) => ({
+        ...prev,
+        id: user.id || prev.id,
+        name: user.full_name || prev.name,
+        phone: user.phone || prev.phone,
+        district: user.district || prev.district,
+        state: user.state || prev.state,
+      }));
+    } else if (user.role?.startsWith('observer')) {
+      setActiveTab('observer');
+    }
+  };
+
+  const handleLogout = async () => {
+    await authApi.logout();
+    setCurrentUser(null);
+    setVictimStep('onboarding');
+  };
 
   // Victim flow state: 'onboarding' | 'questionnaire' | 'result'
   const [victimStep, setVictimStep] = useState<'onboarding' | 'questionnaire' | 'result'>('onboarding');
@@ -111,10 +170,12 @@ export const App: React.FC = () => {
     ],
   });
 
-  const computeClinicalScore = (
+  const computeClinicalScore = async (
     responses: AssessmentResponse[],
-    voiceSample?: { transcript: string; stressScore: number; audioUrl?: string }
+    voiceSample?: { transcript: string; stressScore: number; audioUrl?: string; audioBlob?: Blob }
   ) => {
+    setIsSubmittingAssessment(true);
+
     const rawMadrs = responses.reduce((sum, r) => sum + r.madrsScore, 0);
     const madrsNorm = (rawMadrs / 60) * 40;
     const phq9Raw = Math.min(27, Math.round((rawMadrs / 60) * 27));
@@ -122,78 +183,175 @@ export const App: React.FC = () => {
     const voiceScore = voiceSample ? (voiceSample.stressScore / 100) * 10 : 4.0;
     const nlpScore = 9.0;
     const contextBonus = userProfile.caseCategory === 'caste_violence' || userProfile.caseCategory === 'sexual_violence' ? 10 : 6;
-    const totalScore = Math.min(100, Math.round((madrsNorm + phq9Norm + voiceScore + nlpScore + contextBonus) * 10) / 10);
-
-    let riskLevel: RiskLevel = 'low';
-    let checkinDays = 14;
-
-    if (totalScore >= 76) {
-      riskLevel = 'critical';
-      checkinDays = 1;
-    } else if (totalScore >= 51) {
-      riskLevel = 'high';
-      checkinDays = 3;
-    } else if (totalScore >= 26) {
-      riskLevel = 'moderate';
-      checkinDays = 7;
-    } else {
-      riskLevel = 'low';
-      checkinDays = 14;
-    }
+    const fallbackScore = Math.min(100, Math.round((madrsNorm + phq9Norm + voiceScore + nlpScore + contextBonus) * 10) / 10);
 
     const q10Response = responses.find((r) => r.questionId === 10);
     const hasCrisisFlag = q10Response ? q10Response.madrsScore >= 4 : false;
 
-    if (hasCrisisFlag) {
-      riskLevel = 'crisis';
-      checkinDays = 1;
-    }
+    // Prepare payload for FastAPI multi-modal pipeline
+    const madrsAnswers = responses.map((r) => r.madrsScore);
+    const payload = {
+      touchpoint_type: 'web_portal' as const,
+      language: currentLang,
+      madrs: { answers: madrsAnswers },
+      phq9: { answers: [Math.min(3, Math.round(rawMadrs / 20))] },
+      text_content: voiceSample?.transcript || `${userProfile.caseCategory} survivor check-in from ${userProfile.district}, ${userProfile.state}`,
+      context_score: userProfile.caseCategory === 'caste_violence' || userProfile.caseCategory === 'sexual_violence' ? 80.0 : 40.0,
+      district: userProfile.district,
+      state: userProfile.state,
+    };
 
-    const computedResult: AssessmentResultData = {
-      sessionId: `SES-${Date.now().toString().slice(-4)}`,
-      date: new Date().toISOString().split('T')[0],
-      userId: userProfile.id,
-      totalMadrs: rawMadrs,
-      phq9Equivalent: phq9Raw,
-      nlpSentimentScore: nlpScore,
-      voiceStressScore: voiceScore,
-      contextualBonus: contextBonus,
-      finalDistressScore: totalScore,
-      riskLevel,
-      crisisFlag: hasCrisisFlag,
-      threatFlag: userProfile.caseCategory === 'witness_intimidation' || rawMadrs > 30,
-      dsm5Probable: rawMadrs >= 20,
-      shapFactors: [
+    try {
+      let backendRes;
+      if (voiceSample?.audioBlob) {
+        backendRes = await assessmentApi.submitVoiceAssessment(voiceSample.audioBlob, payload);
+      } else {
+        backendRes = await assessmentApi.submitAssessment(payload);
+      }
+
+      setBackendOnline(true);
+
+      const sevMap: Record<string, RiskLevel> = {
+        CRITICAL: 'critical',
+        HIGH: 'high',
+        MODERATE: 'moderate',
+        LOW: 'low',
+      };
+      let riskLevel: RiskLevel = sevMap[backendRes.severity_level] || 'moderate';
+      if (hasCrisisFlag || backendRes.ambulance_108_dispatched) {
+        riskLevel = 'crisis';
+      }
+
+      const shapFactors = backendRes.shap_explainability?.features?.map((f) => ({
+        name: f.feature,
+        impact: Math.round(f.shap_value * 100),
+        description: f.impact,
+      })) || [
         { name: 'Apparent & Reported Sadness (MADRS 1-2)', impact: 26, description: 'Dominant depressive affect' },
         { name: 'Sleep & Somatic Fatigue (MADRS 4,7)', impact: 24, description: 'Severe sleep disruption' },
         { name: 'Inner Dread & Anxiety (MADRS 3)', impact: 22, description: 'Threat and safety tension' },
-        { name: 'Vocal Biomarker Tension', impact: 14, description: 'Micro-tremor and speaking rate latency' },
-        { name: 'Legal & Case Hardship Context', impact: 14, description: 'Court anxiety and social ostracism' },
-      ],
-      predictedScoreNextWeek: Math.min(100, totalScore + 4.5),
-      trendVelocity: 1.4,
-      trendDirection: 'escalating',
-      recommendedCheckinDays: checkinDays,
-      personalizedSuggestions: [
-        {
-          category: 'immediate',
-          title: '5-4-3-2-1 Sensory Grounding',
-          description: 'Notice 5 things to reconnect with present safety.',
-          actionLabel: 'Start Grounding',
-          actionType: 'activity',
-        },
-        {
-          category: 'coping',
-          title: '4-7-8 Tranquil Breath Pacer',
-          description: 'Soothing rhythm to lower stress biomarkers.',
-          actionLabel: 'Begin Breath',
-          actionType: 'activity',
-        },
-      ],
-    };
+      ];
 
-    setResultData(computedResult);
-    setVictimStep('result');
+      const trendDir = backendRes.temporal_trend?.trend_direction?.toLowerCase() || 'escalating';
+      const mappedDirection = trendDir.includes('worsen') ? 'escalating' : trendDir.includes('improv') ? 'improving' : 'stable';
+
+      const backendResult: AssessmentResultData = {
+        sessionId: backendRes.session_id,
+        date: new Date(backendRes.created_at || Date.now()).toISOString().split('T')[0],
+        userId: userProfile.id,
+        totalMadrs: rawMadrs,
+        phq9Equivalent: phq9Raw,
+        nlpSentimentScore: nlpScore,
+        voiceStressScore: voiceScore,
+        contextualBonus: contextBonus,
+        finalDistressScore: backendRes.distress_score,
+        riskLevel,
+        crisisFlag: hasCrisisFlag || backendRes.ambulance_108_dispatched,
+        threatFlag: userProfile.caseCategory === 'witness_intimidation' || rawMadrs > 30,
+        dsm5Probable: rawMadrs >= 20,
+        shapFactors,
+        predictedScoreNextWeek: backendRes.temporal_trend?.projected_7d_score || Math.min(100, backendRes.distress_score + 4.5),
+        trendVelocity: 1.4,
+        trendDirection: mappedDirection,
+        recommendedCheckinDays: riskLevel === 'critical' || riskLevel === 'crisis' ? 1 : riskLevel === 'high' ? 3 : 7,
+        personalizedSuggestions: [
+          {
+            category: 'immediate',
+            title: '5-4-3-2-1 Sensory Grounding',
+            description: 'Notice 5 things to reconnect with present safety.',
+            actionLabel: 'Start Grounding',
+            actionType: 'activity',
+          },
+          {
+            category: 'coping',
+            title: '4-7-8 Tranquil Breath Pacer',
+            description: 'Soothing rhythm to lower stress biomarkers.',
+            actionLabel: 'Begin Breath',
+            actionType: 'activity',
+          },
+          {
+            category: 'safety',
+            title: backendRes.ambulance_108_dispatched ? '108 Emergency Ambulance Dispatched' : '1:1 Health Observer Connect',
+            description: backendRes.ambulance_108_dispatched
+              ? '108 Emergency protocol initiated with District Control Room.'
+              : 'Connect with Dr. Anita Joshi from District Nodal Unit.',
+            actionLabel: 'Chat Now',
+            actionType: 'counsellor',
+          },
+        ],
+      };
+
+      setResultData(backendResult);
+      if (backendRes.ambulance_108_dispatched) {
+        setIsCrisisOpen(true);
+      }
+    } catch (err) {
+      console.warn('Backend unavailable, using local clinical assessment heuristics:', err);
+      let riskLevel: RiskLevel = 'low';
+      let checkinDays = 14;
+
+      if (fallbackScore >= 76) {
+        riskLevel = 'critical';
+        checkinDays = 1;
+      } else if (fallbackScore >= 51) {
+        riskLevel = 'high';
+        checkinDays = 3;
+      } else if (fallbackScore >= 26) {
+        riskLevel = 'moderate';
+        checkinDays = 7;
+      }
+
+      if (hasCrisisFlag) {
+        riskLevel = 'crisis';
+        checkinDays = 1;
+      }
+
+      const computedResult: AssessmentResultData = {
+        sessionId: `SES-${Date.now().toString().slice(-4)}`,
+        date: new Date().toISOString().split('T')[0],
+        userId: userProfile.id,
+        totalMadrs: rawMadrs,
+        phq9Equivalent: phq9Raw,
+        nlpSentimentScore: nlpScore,
+        voiceStressScore: voiceScore,
+        contextualBonus: contextBonus,
+        finalDistressScore: fallbackScore,
+        riskLevel,
+        crisisFlag: hasCrisisFlag,
+        threatFlag: userProfile.caseCategory === 'witness_intimidation' || rawMadrs > 30,
+        dsm5Probable: rawMadrs >= 20,
+        shapFactors: [
+          { name: 'Apparent & Reported Sadness (MADRS 1-2)', impact: 26, description: 'Dominant depressive affect' },
+          { name: 'Sleep & Somatic Fatigue (MADRS 4,7)', impact: 24, description: 'Severe sleep disruption' },
+          { name: 'Inner Dread & Anxiety (MADRS 3)', impact: 22, description: 'Threat and safety tension' },
+        ],
+        predictedScoreNextWeek: Math.min(100, fallbackScore + 4.5),
+        trendVelocity: 1.4,
+        trendDirection: 'escalating',
+        recommendedCheckinDays: checkinDays,
+        personalizedSuggestions: [
+          {
+            category: 'immediate',
+            title: '5-4-3-2-1 Sensory Grounding',
+            description: 'Notice 5 things to reconnect with present safety.',
+            actionLabel: 'Start Grounding',
+            actionType: 'activity',
+          },
+          {
+            category: 'coping',
+            title: '4-7-8 Tranquil Breath Pacer',
+            description: 'Soothing rhythm to lower stress biomarkers.',
+            actionLabel: 'Begin Breath',
+            actionType: 'activity',
+          },
+        ],
+      };
+
+      setResultData(computedResult);
+    } finally {
+      setIsSubmittingAssessment(false);
+      setVictimStep('result');
+    }
   };
 
   const handleOnboardingComplete = (profile: UserProfile) => {
@@ -205,7 +363,7 @@ export const App: React.FC = () => {
     computeClinicalScore(responses, voiceData || undefined);
   };
 
-  const handleSaveVoiceSample = (data: { transcript: string; stressScore: number; audioUrl?: string }) => {
+  const handleSaveVoiceSample = (data: { transcript: string; stressScore: number; audioUrl?: string; audioBlob?: Blob }) => {
     setVoiceData(data);
     setVoiceCheckinDone(true);
   };
@@ -246,81 +404,122 @@ export const App: React.FC = () => {
         activeTab={activeTab}
         onTabChange={setActiveTab}
         onTriggerCrisis={() => setIsCrisisOpen(true)}
+        backendOnline={backendOnline}
+        currentUser={currentUser}
+        onOpenAuthModal={(m) => {
+          setAuthModalMode(m || 'login');
+          setIsAuthModalOpen(true);
+        }}
+        onLogout={handleLogout}
       />
+
+      {/* AI Multi-Modal Fusion Loading Overlay */}
+      {isSubmittingAssessment && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-950/70 backdrop-blur-sm text-white animate-fadeIn">
+          <div className="liquid-glass-panel p-8 rounded-3xl flex flex-col items-center max-w-sm text-center shadow-2xl bg-white/95 text-slate-900 border border-indigo-200">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-white mb-4 animate-bounce">
+              <Sparkles className="w-7 h-7" />
+            </div>
+            <h3 className="text-lg font-extrabold text-slate-900">AI Multi-Modal Fusion</h3>
+            <p className="text-xs text-slate-600 mt-2 font-medium">
+              Transmitting to Nexora AI Engine... Running MADRS scoring, NLP emotion analysis, and XGBoost distress modeling.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Main Content Area */}
       <main className="flex-1 pb-16 relative z-10">
-        {activeTab === 'victim' && (
-          <div>
-            {victimStep === 'onboarding' && (
-              <Onboarding
-                currentLang={currentLang}
-                onLanguageChange={setCurrentLang}
-                voiceGuidance={voiceGuidance}
-                onToggleVoiceGuidance={() => setVoiceGuidance(!voiceGuidance)}
-                onComplete={handleOnboardingComplete}
-              />
+        {!currentUser ? (
+          <LandingPage
+            onOpenAuth={(mode) => {
+              setAuthModalMode(mode || 'login');
+              setIsAuthModalOpen(true);
+            }}
+            onStartGuestScreening={() => {
+              setVictimStep('questionnaire');
+              setActiveTab('victim');
+            }}
+            onTriggerCrisis={() => setIsCrisisOpen(true)}
+            currentLang={currentLang}
+          />
+        ) : (
+          <>
+            {activeTab === 'victim' && (
+              <div>
+                {victimStep === 'onboarding' && (
+                  <Onboarding
+                    currentLang={currentLang}
+                    onLanguageChange={setCurrentLang}
+                    voiceGuidance={voiceGuidance}
+                    onToggleVoiceGuidance={() => setVoiceGuidance(!voiceGuidance)}
+                    onComplete={handleOnboardingComplete}
+                  />
+                )}
+
+                {victimStep === 'questionnaire' && (
+                  <TileQuestionnaire
+                    currentLang={currentLang}
+                    voiceGuidance={voiceGuidance}
+                    userProfile={userProfile}
+                    onComplete={handleQuestionnaireComplete}
+                    onTriggerCrisis={() => setIsCrisisOpen(true)}
+                    onOpenVoiceModal={() => setIsVoiceModalOpen(true)}
+                    voiceCheckinDone={voiceCheckinDone}
+                  />
+                )}
+
+                {victimStep === 'result' && (
+                  <AssessmentResult
+                    currentLang={currentLang}
+                    resultData={resultData}
+                    userProfile={userProfile}
+                    onRestart={handleRestart}
+                    onOpenObserverView={() => setActiveTab('observer')}
+                    onOpenChatbot={() => setIsChatbotOpen(true)}
+                    onOpenObserverChat={() => setIsObserverChatOpen(true)}
+                  />
+                )}
+              </div>
             )}
 
-            {victimStep === 'questionnaire' && (
-              <TileQuestionnaire
-                currentLang={currentLang}
-                voiceGuidance={voiceGuidance}
-                userProfile={userProfile}
-                onComplete={handleQuestionnaireComplete}
-                onTriggerCrisis={() => setIsCrisisOpen(true)}
-                onOpenVoiceModal={() => setIsVoiceModalOpen(true)}
-                voiceCheckinDone={voiceCheckinDone}
-              />
+            {activeTab === 'observer' && (
+              <ObserverDashboard onTriggerCrisisGlobal={() => setIsCrisisOpen(true)} />
             )}
 
-            {victimStep === 'result' && (
-              <AssessmentResult
-                currentLang={currentLang}
-                resultData={resultData}
-                userProfile={userProfile}
-                onRestart={handleRestart}
-                onOpenObserverView={() => setActiveTab('observer')}
-                onOpenChatbot={() => setIsChatbotOpen(true)}
-                onOpenObserverChat={() => setIsObserverChatOpen(true)}
-              />
-            )}
-          </div>
+            {activeTab === 'analytics' && <NationalAnalytics />}
+
+            {activeTab === 'resources' && <ResourceDirectory />}
+          </>
         )}
-
-        {activeTab === 'observer' && (
-          <ObserverDashboard onTriggerCrisisGlobal={() => setIsCrisisOpen(true)} />
-        )}
-
-        {activeTab === 'analytics' && <NationalAnalytics />}
-
-        {activeTab === 'resources' && <ResourceDirectory />}
       </main>
 
-      {/* Floating Action Buttons: AI Saathi & 1:1 Observer Chat */}
-      <div className="fixed bottom-5 right-5 z-40 flex flex-col gap-2.5">
-        {/* 1:1 Observer Chat Floating Button */}
-        <button
-          type="button"
-          onClick={() => setIsObserverChatOpen(true)}
-          className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white px-4 py-2.5 rounded-full shadow-lg shadow-emerald-600/30 transition-all font-bold text-xs border border-emerald-400/40"
-          title="1:1 Chat with Health Observer"
-        >
-          <MessageSquare className="w-4 h-4" />
-          <span className="hidden sm:inline">1:1 Observer Chat</span>
-        </button>
+      {/* Floating Action Buttons: AI Saathi & 1:1 Observer Chat (Only for authenticated users) */}
+      {currentUser && (
+        <div className="fixed bottom-5 right-5 z-40 flex flex-col gap-2.5">
+          {/* 1:1 Observer Chat Floating Button */}
+          <button
+            type="button"
+            onClick={() => setIsObserverChatOpen(true)}
+            className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white px-4 py-2.5 rounded-full shadow-lg shadow-emerald-600/30 transition-all font-bold text-xs border border-emerald-400/40"
+            title="1:1 Chat with Health Observer"
+          >
+            <MessageSquare className="w-4 h-4" />
+            <span className="hidden sm:inline">1:1 Observer Chat</span>
+          </button>
 
-        {/* AI Saathi Floating Button */}
-        <button
-          type="button"
-          onClick={() => setIsChatbotOpen(true)}
-          className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 active:scale-95 text-white px-4 py-2.5 rounded-full shadow-lg shadow-indigo-600/30 transition-all font-bold text-xs border border-indigo-400/40"
-          title="ANVAYA Saathi AI Companion"
-        >
-          <Bot className="w-4 h-4" />
-          <span className="hidden sm:inline">AI Saathi (साथी)</span>
-        </button>
-      </div>
+          {/* AI Saathi Floating Button */}
+          <button
+            type="button"
+            onClick={() => setIsChatbotOpen(true)}
+            className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 active:scale-95 text-white px-4 py-2.5 rounded-full shadow-lg shadow-indigo-600/30 transition-all font-bold text-xs border border-indigo-400/40"
+            title="ANVAYA Saathi AI Companion"
+          >
+            <Bot className="w-4 h-4" />
+            <span className="hidden sm:inline">AI Saathi (साथी)</span>
+          </button>
+        </div>
+      )}
 
       {/* Real-time Voice Recording Modal */}
       <VoiceRecorder
@@ -355,6 +554,14 @@ export const App: React.FC = () => {
         onClose={() => setIsCrisisOpen(false)}
         currentLang={currentLang}
         userProfile={userProfile}
+      />
+
+      {/* MongoDB Authentication Modal (Login & Register) */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onAuthSuccess={handleAuthSuccess}
+        initialMode={authModalMode}
       />
 
       {/* Footer */}

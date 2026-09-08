@@ -6,7 +6,7 @@ interface VoiceRecorderProps {
   isOpen: boolean;
   onClose: () => void;
   currentLang: string;
-  onSaveVoice: (voiceData: { transcript: string; stressScore: number; audioUrl?: string }) => void;
+  onSaveVoice: (voiceData: { transcript: string; stressScore: number; audioUrl?: string; audioBlob?: Blob }) => void;
 }
 
 export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
@@ -304,7 +304,13 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
   };
 
   const handleConfirmSave = () => {
-    onSaveVoice({ transcript, stressScore, audioUrl: audioUrl || undefined });
+    let blob: Blob | undefined;
+    if (audioChunksRef.current.length > 0) {
+      try {
+        blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+      } catch (e) {}
+    }
+    onSaveVoice({ transcript, stressScore, audioUrl: audioUrl || undefined, audioBlob: blob });
     onClose();
   };
 
