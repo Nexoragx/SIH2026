@@ -145,6 +145,50 @@ class AuthController:
         Authenticates user credentials against MongoDB 'user' collection and issues JWT tokens.
         """
         user = db.user.find_one({"email": data.email}) or db.users.find_one({"email": data.email})
+
+        # Auto-provision standard SIH demo accounts if not yet created in the active database instance
+        if not user:
+            demo_accounts = {
+                "survivor.demo@sih.gov.in": {
+                    "full_name": "Courageous Survivor",
+                    "role": "victim",
+                    "district": "Nashik",
+                    "state": "Maharashtra",
+                    "phone": "+91 98231 14566",
+                    "password": "Password123!"
+                },
+                "observer.district@sih.gov.in": {
+                    "full_name": "Dr. Anita Joshi (District Nodal Officer)",
+                    "role": "observer_district",
+                    "district": "Nashik",
+                    "state": "Maharashtra",
+                    "phone": "+91 94222 10800",
+                    "password": "ObserverPassword123!"
+                }
+            }
+            email_lower = data.email.lower().strip()
+            if email_lower in demo_accounts and data.password == demo_accounts[email_lower]["password"]:
+                now = datetime.now(timezone.utc)
+                demo_info = demo_accounts[email_lower]
+                user_doc = {
+                    "email": email_lower,
+                    "hashed_password": hash_password(demo_info["password"]),
+                    "full_name": demo_info["full_name"],
+                    "role": demo_info["role"],
+                    "phone": demo_info["phone"],
+                    "district": demo_info["district"],
+                    "state": demo_info["state"],
+                    "oauth_provider": "local",
+                    "oauth_id": None,
+                    "is_active": True,
+                    "created_at": now,
+                    "updated_at": now
+                }
+                res = db.user.insert_one(user_doc)
+                user_doc["_id"] = res.inserted_id
+                sync_user_to_all_dbs(user_doc)
+                user = user_doc
+
         if not user or not user.get("hashed_password"):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,

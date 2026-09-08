@@ -73,6 +73,7 @@ export const App: React.FC = () => {
 
   const handleAuthSuccess = (user: any) => {
     setCurrentUser(user);
+    setIsGuestMode(false);
     if (user.role === 'victim') {
       setUserProfile((prev) => ({
         ...prev,
@@ -82,6 +83,8 @@ export const App: React.FC = () => {
         district: user.district || prev.district,
         state: user.state || prev.state,
       }));
+      setVictimStep('dashboard');
+      setActiveTab('victim');
     } else if (user.role?.startsWith('observer')) {
       setActiveTab('observer');
     }

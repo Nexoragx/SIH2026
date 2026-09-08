@@ -88,9 +88,50 @@ def init_db():
             target_db.interview_reports.create_index([("victim_id", ASCENDING)])
             target_db.interview_reports.create_index([("created_at", DESCENDING)])
             target_db.interview_reports.create_index([("distress_score", DESCENDING)])
-            target_db.interview_reports.create_index([("severity_level", ASCENDING)])
         except Exception as e:
             logger.warning(f"Error while ensuring indexes on {target_db.name}: {e}")
+
+    # Pre-seed default SIH demo accounts (citizen & observer)
+    try:
+        from src.middlewares.auth_middleware import hash_password
+        from datetime import datetime, timezone
+        now = datetime.now(timezone.utc)
+        demo_accounts = [
+            {
+                "email": "survivor.demo@sih.gov.in",
+                "hashed_password": hash_password("Password123!"),
+                "full_name": "Courageous Survivor",
+                "role": "victim",
+                "phone": "+91 98231 14566",
+                "district": "Nashik",
+                "state": "Maharashtra",
+                "oauth_provider": "local",
+                "is_active": True,
+                "created_at": now,
+                "updated_at": now
+            },
+            {
+                "email": "observer.district@sih.gov.in",
+                "hashed_password": hash_password("ObserverPassword123!"),
+                "full_name": "Dr. Anita Joshi (District Nodal Officer)",
+                "role": "observer_district",
+                "phone": "+91 94222 10800",
+                "district": "Nashik",
+                "state": "Maharashtra",
+                "oauth_provider": "local",
+                "is_active": True,
+                "created_at": now,
+                "updated_at": now
+            }
+        ]
+        for acc in demo_accounts:
+            existing = db.user.find_one({"email": acc["email"]}) or db.users.find_one({"email": acc["email"]})
+            if not existing:
+                res = db.user.insert_one(acc)
+                acc["_id"] = res.inserted_id
+                sync_user_to_all_dbs(acc)
+    except Exception as e:
+        logger.warning(f"Demo accounts seeding skipped: {e}")
 
     logger.info(f"MongoDB indexes initialized on database: {db.name}")
 
