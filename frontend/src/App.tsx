@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Navbar } from './components/Navbar';
 import { Onboarding } from './components/victim/Onboarding';
+import { VictimDashboard } from './components/victim/VictimDashboard';
 import { TileQuestionnaire } from './components/victim/TileQuestionnaire';
+import { OptionalHistoryCard } from './components/victim/OptionalHistoryCard';
+import { CheckinScheduleModal } from './components/victim/CheckinScheduleModal';
 import { AssessmentResult } from './components/victim/AssessmentResult';
 import { VoiceRecorder } from './components/victim/VoiceRecorder';
 import { CrisisModal } from './components/victim/CrisisModal';
@@ -32,6 +35,12 @@ export const App: React.FC = () => {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [authModalMode, setAuthModalMode] = useState<'login' | 'register'>('login');
   const [currentUser, setCurrentUser] = useState<any | null>(null);
+  const [isGuestMode, setIsGuestMode] = useState<boolean>(false);
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState<boolean>(false);
+  const [cachedResponses, setCachedResponses] = useState<AssessmentResponse[]>([]);
+
+  // Victim flow state: 'dashboard' | 'questionnaire' | 'history' | 'result'
+  const [victimStep, setVictimStep] = useState<'dashboard' | 'questionnaire' | 'history' | 'result'>('dashboard');
 
   // Check backend health and local session on mount
   useEffect(() => {
@@ -81,11 +90,9 @@ export const App: React.FC = () => {
   const handleLogout = async () => {
     await authApi.logout();
     setCurrentUser(null);
-    setVictimStep('onboarding');
+    setIsGuestMode(false);
+    setVictimStep('dashboard');
   };
-
-  // Victim flow state: 'onboarding' | 'questionnaire' | 'result'
-  const [victimStep, setVictimStep] = useState<'onboarding' | 'questionnaire' | 'result'>('onboarding');
 
   const [userProfile, setUserProfile] = useState<UserProfile>({
     id: 'USR-26094',
@@ -172,7 +179,8 @@ export const App: React.FC = () => {
 
   const computeClinicalScore = async (
     responses: AssessmentResponse[],
-    voiceSample?: { transcript: string; stressScore: number; audioUrl?: string; audioBlob?: Blob }
+    voiceSample?: { transcript: string; stressScore: number; audioUrl?: string; audioBlob?: Blob },
+    personalHistory?: string
   ) => {
     setIsSubmittingAssessment(true);
 
@@ -195,7 +203,9 @@ export const App: React.FC = () => {
       language: currentLang,
       madrs: { answers: madrsAnswers },
       phq9: { answers: [Math.min(3, Math.round(rawMadrs / 20))] },
-      text_content: voiceSample?.transcript || `${userProfile.caseCategory} survivor check-in from ${userProfile.district}, ${userProfile.state}`,
+      text_content: personalHistory || voiceSample?.transcript || `${userProfile.caseCategory} survivor check-in from ${userProfile.district}, ${userProfile.state}`,
+      personal_history: personalHistory,
+      is_crisis_halt: hasCrisisFlag,
       context_score: userProfile.caseCategory === 'caste_violence' || userProfile.caseCategory === 'sexual_violence' ? 80.0 : 40.0,
       district: userProfile.district,
       state: userProfile.state,
@@ -360,7 +370,16 @@ export const App: React.FC = () => {
   };
 
   const handleQuestionnaireComplete = (responses: AssessmentResponse[]) => {
-    computeClinicalScore(responses, voiceData || undefined);
+    setCachedResponses(responses);
+    setVictimStep('history');
+  };
+
+  const handleHistorySubmit = (historyText: string) => {
+    computeClinicalScore(cachedResponses, voiceData || undefined, historyText);
+  };
+
+  const handleHistorySkip = () => {
+    computeClinicalScore(cachedResponses, voiceData || undefined, undefined);
   };
 
   const handleSaveVoiceSample = (data: { transcript: string; stressScore: number; audioUrl?: string; audioBlob?: Blob }) => {
@@ -369,9 +388,10 @@ export const App: React.FC = () => {
   };
 
   const handleRestart = () => {
-    setVictimStep('onboarding');
+    setVictimStep('dashboard');
     setVoiceCheckinDone(false);
     setVoiceData(null);
+    setCachedResponses([]);
   };
 
   const handleSendVictimObserverMessage = (text: string) => {
@@ -413,16 +433,16 @@ export const App: React.FC = () => {
         onLogout={handleLogout}
       />
 
-      {/* AI Multi-Modal Fusion Loading Overlay */}
+      {/* Sensitive Wellbeing Saving Overlay */}
       {isSubmittingAssessment && (
         <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-950/70 backdrop-blur-sm text-white animate-fadeIn">
           <div className="liquid-glass-panel p-8 rounded-3xl flex flex-col items-center max-w-sm text-center shadow-2xl bg-white/95 text-slate-900 border border-indigo-200">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-white mb-4 animate-bounce">
+            <div className="w-14 h-14 rounded-2xl bg-slate-900 flex items-center justify-center text-white mb-4 animate-bounce">
               <Sparkles className="w-7 h-7" />
             </div>
-            <h3 className="text-lg font-extrabold text-slate-900">AI Multi-Modal Fusion</h3>
+            <h3 className="text-lg font-extrabold text-black">Saving Your Check-in</h3>
             <p className="text-xs text-slate-600 mt-2 font-medium">
-              Transmitting to Nexora AI Engine... Running MADRS scoring, NLP emotion analysis, and XGBoost distress modeling.
+              Updating your personal wellbeing record gently and securely...
             </p>
           </div>
         </div>
@@ -430,13 +450,14 @@ export const App: React.FC = () => {
 
       {/* Main Content Area */}
       <main className="flex-1 pb-16 relative z-10">
-        {!currentUser ? (
+        {!currentUser && !isGuestMode ? (
           <LandingPage
             onOpenAuth={(mode) => {
               setAuthModalMode(mode || 'login');
               setIsAuthModalOpen(true);
             }}
             onStartGuestScreening={() => {
+              setIsGuestMode(true);
               setVictimStep('questionnaire');
               setActiveTab('victim');
             }}
@@ -447,13 +468,14 @@ export const App: React.FC = () => {
           <>
             {activeTab === 'victim' && (
               <div>
-                {victimStep === 'onboarding' && (
-                  <Onboarding
+                {victimStep === 'dashboard' && (
+                  <VictimDashboard
+                    onStartCheckin={() => setVictimStep('questionnaire')}
+                    onOpenSupport={() => setActiveTab('resources')}
+                    onOpenChat={() => setIsChatbotOpen(true)}
+                    onOpenEmergency={() => setIsCrisisOpen(true)}
+                    onOpenSchedule={() => setIsScheduleModalOpen(true)}
                     currentLang={currentLang}
-                    onLanguageChange={setCurrentLang}
-                    voiceGuidance={voiceGuidance}
-                    onToggleVoiceGuidance={() => setVoiceGuidance(!voiceGuidance)}
-                    onComplete={handleOnboardingComplete}
                   />
                 )}
 
@@ -469,6 +491,14 @@ export const App: React.FC = () => {
                   />
                 )}
 
+                {victimStep === 'history' && (
+                  <OptionalHistoryCard
+                    onContinue={handleHistorySubmit}
+                    onSkip={handleHistorySkip}
+                    onBack={() => setVictimStep('questionnaire')}
+                  />
+                )}
+
                 {victimStep === 'result' && (
                   <AssessmentResult
                     currentLang={currentLang}
@@ -478,6 +508,8 @@ export const App: React.FC = () => {
                     onOpenObserverView={() => setActiveTab('observer')}
                     onOpenChatbot={() => setIsChatbotOpen(true)}
                     onOpenObserverChat={() => setIsObserverChatOpen(true)}
+                    onViewSupport={() => setActiveTab('resources')}
+                    onDone={() => setVictimStep('dashboard')}
                   />
                 )}
               </div>
@@ -562,6 +594,16 @@ export const App: React.FC = () => {
         onClose={() => setIsAuthModalOpen(false)}
         onAuthSuccess={handleAuthSuccess}
         initialMode={authModalMode}
+      />
+
+      {/* Check-in Schedule Modal */}
+      <CheckinScheduleModal
+        isOpen={isScheduleModalOpen}
+        onClose={() => setIsScheduleModalOpen(false)}
+        onStartEarly={() => {
+          setIsScheduleModalOpen(false);
+          setVictimStep('questionnaire');
+        }}
       />
 
       {/* Footer */}

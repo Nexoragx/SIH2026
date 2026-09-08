@@ -3,3 +3,5 @@ export * from './authApi';
 export * from './assessmentApi';
 export * from './observerApi';
 export * from './systemApi';
+export * from './supportApi';
+

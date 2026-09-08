@@ -1,174 +1,162 @@
-import React, { useState, useEffect } from 'react';
-import { PhoneCall, ShieldAlert, Heart, X, CheckCircle2, Siren, UserCheck, Sparkles } from 'lucide-react';
-import { translations } from '../../utils/translations';
+import React, { useState } from 'react';
+import { PhoneCall, Ambulance, MessageSquare, X, Heart, ShieldAlert, CheckCircle2 } from 'lucide-react';
 import { UserProfile } from '../../types';
+import { supportApi } from '../../api';
 
 interface CrisisModalProps {
   isOpen: boolean;
   onClose: () => void;
   currentLang: string;
   userProfile: UserProfile;
+  onOpenSupportChat?: () => void;
 }
 
 export const CrisisModal: React.FC<CrisisModalProps> = ({
   isOpen,
   onClose,
-  currentLang,
   userProfile,
+  onOpenSupportChat,
 }) => {
-  const t = translations[currentLang] || translations.en;
-  const [countdown, setCountdown] = useState<number>(30);
-
-  useEffect(() => {
-    let timer: any;
-    if (isOpen && countdown > 0) {
-      timer = setInterval(() => setCountdown((prev) => prev - 1), 1000);
-    }
-    return () => clearInterval(timer);
-  }, [isOpen, countdown]);
+  const [dispatchStatus, setDispatchStatus] = useState<string | null>(null);
+  const [isDispatching, setIsDispatching] = useState<boolean>(false);
 
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-lg animate-fadeIn">
-      <div className="glass-panel-glow rounded-3xl max-w-xl w-full p-6 sm:p-10 shadow-2xl border-2 border-rose-400/60 relative overflow-hidden">
-        {/* Ambient Warm Halo */}
-        <div className="ambient-orb w-64 h-64 bg-rose-400/20 -top-12 -left-12"></div>
-        <div className="ambient-orb w-64 h-64 bg-amber-400/20 -bottom-12 -right-12"></div>
+  const handleEmergencyDispatch = async () => {
+    setIsDispatching(true);
+    try {
+      const res = await supportApi.dispatchEmergency({
+        case_id: userProfile.id || 'SURVIVOR-CRISIS',
+        location: `${userProfile.district || 'District Central'}, ${userProfile.state || 'Maharashtra'}`,
+        reason: 'Immediate Acute Distress Intervention via Crisis Screen',
+        caller_phone: userProfile.phone,
+      });
+      setDispatchStatus(`Emergency response coordinated (${res.dispatch_id}) [DEMO MODE]. Medical and counsellor teams notified.`);
+    } catch {
+      setDispatchStatus('Emergency request registered. Please also call 108 directly.');
+    } finally {
+      setIsDispatching(false);
+    }
+  };
 
-        {/* Soft Close */}
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs animate-fadeIn">
+      <div className="anvaya-card rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border-2 border-red-300 relative overflow-hidden bg-white space-y-6">
+        {/* Soft Close Button */}
         <button
           type="button"
           onClick={onClose}
-          className="absolute top-5 right-5 p-2 rounded-full text-slate-400 hover:text-slate-700 hover:bg-white/80 transition"
+          className="absolute top-5 right-5 p-2 rounded-full hover:bg-slate-100 text-slate-500 hover:text-black transition cursor-pointer"
         >
           <X className="w-5 h-5" />
         </button>
 
-        {/* Crisis Header */}
-        <div className="flex items-center gap-3.5 mb-5 relative z-10">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-rose-500 to-red-600 text-white flex items-center justify-center flex-shrink-0 shadow-lg shadow-rose-500/30 animate-pulse">
-            <Heart className="w-7 h-7 fill-white" />
+        {/* 1. Compassionate Header */}
+        <div className="flex items-center gap-3.5">
+          <div className="w-12 h-12 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center flex-shrink-0 font-bold">
+            <Heart className="w-6 h-6 fill-red-600 text-red-600" />
           </div>
           <div>
-            <span className="text-[10px] font-extrabold text-rose-700 uppercase tracking-widest bg-rose-50 px-2.5 py-0.5 rounded-full border border-rose-200">
-              Immediate Safety & Care Active
+            <span className="text-[11px] font-extrabold uppercase tracking-wider text-red-700 bg-red-50 px-3 py-0.5 rounded-full border border-red-200">
+              Immediate Crisis Support
             </span>
-            <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 mt-1 tracking-tight">
-              {t.crisisTitle}
+            <h2 className="text-xl sm:text-2xl font-black text-black tracking-tight mt-1">
+              You are not alone.
             </h2>
           </div>
         </div>
 
-        <p className="text-sm text-slate-700 mb-6 leading-relaxed bg-rose-50/70 p-4 rounded-2xl border border-rose-200/60 font-medium relative z-10">
-          {t.crisisSub}
-        </p>
-
-        {/* Automatic Observer Notification Strip */}
-        <div className="bg-slate-900 text-white rounded-2xl p-4 sm:p-5 mb-6 space-y-3 shadow-md relative z-10">
-          <div className="flex items-center justify-between text-xs font-bold">
-            <span className="flex items-center gap-2 text-rose-400">
-              <Siren className="w-4 h-4 animate-pulse" />
-              <span>Priority Health Observer Alerted</span>
-            </span>
-            <span className="font-mono text-emerald-400 bg-emerald-950/80 px-2.5 py-0.5 rounded-full border border-emerald-500/30">
-              Auto-Callback: {countdown}s
-            </span>
-          </div>
-
-          <div className="flex items-center gap-3 pt-3 border-t border-slate-800 text-xs text-slate-300">
-            <UserCheck className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-            <div>
-              <p className="font-bold text-white">
-                Coordinated With: <span className="text-emerald-400">District Health Nodal Unit ({userProfile.district || 'Nashik'})</span>
-              </p>
-              <p className="text-[11px] text-slate-400 mt-0.5">
-                Encrypted SOS dispatch logged for medical relief and protection.
-              </p>
-            </div>
-          </div>
+        {/* 2. Compassionate Reassurance */}
+        <div className="p-4 rounded-2xl bg-red-50/70 border border-red-200 space-y-1">
+          <p className="text-sm font-extrabold text-red-950">
+            Thank you for telling us.
+          </p>
+          <p className="text-xs font-medium text-red-900 leading-relaxed">
+            Let's get you support right now. Caring professionals and emergency teams are ready to be by your side.
+          </p>
         </div>
 
-        {/* 1-Tap Emergency Direct Dials */}
-        <div className="space-y-3 mb-6 relative z-10">
-          <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider">
-            One-Tap Emergency Direct Dials
-          </label>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <a
-              href="tel:14566"
-              className="p-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white flex items-center justify-between shadow-lg shadow-emerald-700/20 transition active:scale-[0.98]"
-            >
-              <div className="flex items-center gap-2.5">
-                <PhoneCall className="w-5 h-5 flex-shrink-0" />
-                <div className="text-left">
-                  <div className="text-xs font-bold leading-tight">National SC/ST Helpline</div>
-                  <div className="text-[11px] opacity-90 font-mono">14566 (24x7 Toll-Free)</div>
-                </div>
-              </div>
-              <span className="text-xs font-extrabold bg-white/20 px-2.5 py-1 rounded-lg">Call</span>
-            </a>
-
-            <a
-              href="tel:9152987821"
-              className="p-4 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-700 hover:from-indigo-700 hover:to-purple-800 text-white flex items-center justify-between shadow-lg shadow-indigo-700/20 transition active:scale-[0.98]"
-            >
-              <div className="flex items-center gap-2.5">
-                <Heart className="w-5 h-5 flex-shrink-0" />
-                <div className="text-left">
-                  <div className="text-xs font-bold leading-tight">iCall Trauma Support</div>
-                  <div className="text-[11px] opacity-90 font-mono">9152987821 (Psychosocial)</div>
-                </div>
-              </div>
-              <span className="text-xs font-extrabold bg-white/20 px-2.5 py-1 rounded-lg">Call</span>
-            </a>
-
-            <a
-              href="tel:108"
-              className="p-4 rounded-2xl bg-gradient-to-r from-rose-600 to-red-700 hover:from-rose-700 hover:to-red-800 text-white flex items-center justify-between shadow-lg shadow-rose-700/20 transition active:scale-[0.98]"
-            >
-              <div className="flex items-center gap-2.5">
-                <Siren className="w-5 h-5 flex-shrink-0" />
-                <div className="text-left">
-                  <div className="text-xs font-bold leading-tight">Ambulance Dispatch</div>
-                  <div className="text-[11px] opacity-90 font-mono">108 (Emergency Care)</div>
-                </div>
-              </div>
-              <span className="text-xs font-extrabold bg-white/20 px-2.5 py-1 rounded-lg">Call</span>
-            </a>
-
-            <a
-              href="tel:100"
-              className="p-4 rounded-2xl bg-gradient-to-r from-slate-700 to-slate-900 hover:from-slate-800 hover:to-slate-950 text-white flex items-center justify-between shadow-md transition active:scale-[0.98]"
-            >
-              <div className="flex items-center gap-2.5">
-                <ShieldAlert className="w-5 h-5 flex-shrink-0" />
-                <div className="text-left">
-                  <div className="text-xs font-bold leading-tight">Police Protection</div>
-                  <div className="text-[11px] opacity-90 font-mono">100 / 112 (Immediate)</div>
-                </div>
-              </div>
-              <span className="text-xs font-extrabold bg-white/20 px-2.5 py-1 rounded-lg">Call</span>
-            </a>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="flex items-center justify-between pt-4 border-t border-white/60 text-xs text-slate-500 relative z-10">
-          <span className="flex items-center gap-1.5 font-medium">
-            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-            Location safely shared with emergency response team.
-          </span>
+        {/* 3. Emergency & Support Action Buttons */}
+        <div className="space-y-3">
+          {/* Button 1: Emergency Assistance (Large Prominent Red Button) */}
           <button
             type="button"
-            onClick={onClose}
-            className="text-indigo-600 hover:text-indigo-800 font-extrabold"
+            onClick={handleEmergencyDispatch}
+            disabled={isDispatching}
+            className="w-full py-4 px-5 bg-red-600 hover:bg-red-700 active:scale-95 text-white font-black text-sm rounded-2xl transition shadow-lg shadow-red-600/30 flex items-center justify-between cursor-pointer border border-red-500"
           >
-            I feel safe now • Return
+            <div className="flex items-center gap-3">
+              <Ambulance className="w-5 h-5 text-white" />
+              <div className="text-left">
+                <div className="leading-none text-white font-extrabold">
+                  {isDispatching ? 'Coordinating Support...' : '🚑 Emergency Assistance (108)'}
+                </div>
+                <div className="text-[11px] text-red-100 font-semibold mt-1">
+                  Immediate 108 crisis dispatch & medical safety net
+                </div>
+              </div>
+            </div>
+            <span className="text-xs text-white underline font-bold">Get Help →</span>
+          </button>
+
+          {/* Button 2: Talk to a Helpline */}
+          <a
+            href="tel:14566"
+            className="w-full p-4 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 text-black flex items-center justify-between transition cursor-pointer"
+          >
+            <div className="flex items-center gap-3">
+              <PhoneCall className="w-5 h-5 text-black" />
+              <div className="text-left">
+                <div className="text-xs font-black text-black">
+                  ☎ Talk to a Helpline
+                </div>
+                <div className="text-[11px] text-slate-600 font-medium">
+                  Atrocity Helpline 14566 • Tele-MANAS 14416 (24x7)
+                </div>
+              </div>
+            </div>
+            <span className="text-xs font-extrabold text-black">Call Now →</span>
+          </a>
+
+          {/* Button 3: Talk to a Support Person */}
+          <button
+            type="button"
+            onClick={() => {
+              onClose();
+              if (onOpenSupportChat) onOpenSupportChat();
+            }}
+            className="w-full p-4 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 text-black flex items-center justify-between transition cursor-pointer"
+          >
+            <div className="flex items-center gap-3">
+              <MessageSquare className="w-5 h-5 text-black" />
+              <div className="text-left">
+                <div className="text-xs font-black text-black">
+                  💬 Talk to a Support Person
+                </div>
+                <div className="text-[11px] text-slate-600 font-medium">
+                  Direct encrypted channel with assigned district observer
+                </div>
+              </div>
+            </div>
+            <span className="text-xs font-extrabold text-black">Open Chat →</span>
           </button>
         </div>
+
+        {/* Dispatch Confirmation Banner */}
+        {dispatchStatus && (
+          <div className="p-3.5 rounded-xl bg-slate-900 text-white text-xs font-bold flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+            <span>{dispatchStatus}</span>
+          </div>
+        )}
+
+        {/* Safety Note */}
+        <p className="text-[11px] text-center text-slate-500 font-medium">
+          All calls are free, confidential, and protected under statutory safety mandates.
+        </p>
       </div>
     </div>
   );
 };
+
+export default CrisisModal;

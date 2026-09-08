@@ -7,6 +7,8 @@ export interface AssessmentSubmissionPayload {
   phq9?: { answers: number[] };
   gad7?: { answers: number[] };
   text_content?: string;
+  personal_history?: string;
+  is_crisis_halt?: boolean;
   context_score?: number;
   district?: string;
   state?: string;

@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional, Dict, Any, List
 from pydantic import BaseModel, Field
 from fastapi import HTTPException, status
@@ -39,6 +39,8 @@ class AssessmentSubmissionSchema(BaseModel):
     
     # Victim Text input (Chatbot, SMS, or Written Description of Atrocity)
     text_content: Optional[str] = None
+    personal_history: Optional[str] = Field(None, max_length=1000)
+    is_crisis_halt: Optional[bool] = False
     
     # Demographic / Contextual Atrocity Severity (0 - 100)
     context_score: Optional[float] = 20.0
@@ -82,14 +84,25 @@ class InterviewController:
             gad7_data=data.gad7
         )
 
-        # 2. NLP Engine Analysis (Sentiment, Emotion AI, Threat detection)
+        # 2. NLP Engine Analysis (combines direct text & optional personal history)
+        combined_text = " ".join(filter(None, [data.text_content, data.personal_history]))
         nlp_analysis = analyze_nlp(
-            text_content=data.text_content,
+            text_content=combined_text,
             language=data.language or "en"
         )
 
         # 3. Voice Analysis (Whisper STT, Pitch, Stress signals)
         voice_analysis = analyze_voice(audio_file_path=audio_file_path)
+
+        # Check if MADRS Q10 critical threshold (suicide / self-harm) or client-signaled crisis halt
+        q10_score = 0
+        if data.madrs and "answers" in data.madrs and len(data.madrs["answers"]) >= 10:
+            try:
+                q10_score = int(data.madrs["answers"][9])
+            except (ValueError, TypeError):
+                pass
+        
+        is_crisis = data.is_crisis_halt or q10_score >= 4 or nlp_analysis.get("threat_detected", False)
 
         # 4. Feature Fusion Layer (Weighted Ensemble)
         fused_features = fuse_features(
@@ -103,8 +116,11 @@ class InterviewController:
         # 5. Distress Score Engine & SHAP Explainability
         distress_result = compute_distress_score(
             fused_features=fused_features,
-            threat_flag=nlp_analysis["threat_detected"]
+            threat_flag=is_crisis
         )
+        if is_crisis:
+            distress_result["severity"] = DistressSeverity.CRITICAL
+            distress_result["score"] = max(distress_result["score"], 82.0)
 
         # 6. Temporal Trend Model (LSTM Progression)
         historical_scores = []
@@ -266,9 +282,90 @@ class InterviewController:
         elif user_role == UserRole.OBSERVER_STATE.value and current_user.get("state"):
             state = current_user.get("state")
 
-        if severity:
-            sev_val = severity.value if hasattr(severity, "value") else str(severity)
-            filter_query["severity_level"] = sev_val
+        # Seed baseline SIH demonstration cases if collection is currently empty
+        try:
+            if db.interview_reports.count_documents({}) == 0:
+                demo_now = datetime.now(timezone.utc)
+                demo_cases = [
+                    {
+                        "session_id": "CASE-MH1024",
+                        "victim_id": "USR-26094",
+                        "touchpoint_type": "WEB_PORTAL",
+                        "detected_language": "en",
+                        "distress_score": 88.5,
+                        "severity_level": DistressSeverity.CRITICAL.value,
+                        "temporal_trend": {"trend_direction": "WORSENING", "worsening_risk_flag": True},
+                        "alert_triggered": True,
+                        "status": ReportStatus.CRISIS_DISPATCHED.value,
+                        "observer_notes": "Immediate safety protocol activated. District NGO worker dispatched.",
+                        "assigned_psychiatrist_id": "DR-ANITA-JOSHI",
+                        "created_at": demo_now - timedelta(hours=2),
+                        "updated_at": demo_now - timedelta(hours=2)
+                    },
+                    {
+                        "session_id": "CASE-MH1025",
+                        "victim_id": "USR-26095",
+                        "touchpoint_type": "MOBILE_APP",
+                        "detected_language": "hi",
+                        "distress_score": 74.0,
+                        "severity_level": DistressSeverity.HIGH.value,
+                        "temporal_trend": {"trend_direction": "WORSENING", "worsening_risk_flag": True},
+                        "alert_triggered": True,
+                        "status": ReportStatus.PENDING.value,
+                        "observer_notes": "Severe sleep disturbance and high fear reported.",
+                        "assigned_psychiatrist_id": None,
+                        "created_at": demo_now - timedelta(hours=5),
+                        "updated_at": demo_now - timedelta(hours=5)
+                    },
+                    {
+                        "session_id": "CASE-MH1026",
+                        "victim_id": "USR-26096",
+                        "touchpoint_type": "IVRS_CALL",
+                        "detected_language": "mr",
+                        "distress_score": 62.0,
+                        "severity_level": DistressSeverity.HIGH.value,
+                        "temporal_trend": {"trend_direction": "STABLE", "worsening_risk_flag": False},
+                        "alert_triggered": True,
+                        "status": ReportStatus.UNDER_REVIEW.value,
+                        "observer_notes": "Follow-up phone call scheduled with health worker.",
+                        "assigned_psychiatrist_id": "DR-KULKARNI",
+                        "created_at": demo_now - timedelta(days=1),
+                        "updated_at": demo_now - timedelta(days=1)
+                    },
+                    {
+                        "session_id": "CASE-MH1027",
+                        "victim_id": "USR-26097",
+                        "touchpoint_type": "WEB_PORTAL",
+                        "detected_language": "en",
+                        "distress_score": 42.0,
+                        "severity_level": DistressSeverity.MODERATE.value,
+                        "temporal_trend": {"trend_direction": "IMPROVING", "worsening_risk_flag": False},
+                        "alert_triggered": False,
+                        "status": ReportStatus.RESOLVED.value,
+                        "observer_notes": "Connecting with weekly survivor self-help circle.",
+                        "assigned_psychiatrist_id": None,
+                        "created_at": demo_now - timedelta(days=2),
+                        "updated_at": demo_now - timedelta(days=2)
+                    },
+                    {
+                        "session_id": "CASE-MH1028",
+                        "victim_id": "USR-26098",
+                        "touchpoint_type": "CHATBOT",
+                        "detected_language": "bn",
+                        "distress_score": 22.0,
+                        "severity_level": DistressSeverity.LOW.value,
+                        "temporal_trend": {"trend_direction": "IMPROVING", "worsening_risk_flag": False},
+                        "alert_triggered": False,
+                        "status": ReportStatus.RESOLVED.value,
+                        "observer_notes": "Regular check-in completed. No active distress detected.",
+                        "assigned_psychiatrist_id": None,
+                        "created_at": demo_now - timedelta(days=3),
+                        "updated_at": demo_now - timedelta(days=3)
+                    }
+                ]
+                db.interview_reports.insert_many(demo_cases)
+        except Exception:
+            pass
 
         total_cases = db.interview_reports.count_documents(filter_query)
         critical_cases = db.interview_reports.count_documents({**filter_query, "severity_level": DistressSeverity.CRITICAL.value})

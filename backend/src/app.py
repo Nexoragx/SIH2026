@@ -9,6 +9,7 @@ from src.config.config import settings
 from src.db.db import init_db
 from src.routes.auth_routes import router as auth_router
 from src.routes.interview_routes import router as interview_router
+from src.routes.support_routes import router as support_router
 
 # Setup logging
 logging.basicConfig(
@@ -103,6 +104,7 @@ def create_app() -> FastAPI:
     # 3. Mount Routers
     app.include_router(auth_router, prefix=settings.API_V1_PREFIX)
     app.include_router(interview_router, prefix=settings.API_V1_PREFIX)
+    app.include_router(support_router, prefix=settings.API_V1_PREFIX)
 
     # 4. System Health & Architecture Endpoints
     @app.get(f"{settings.API_V1_PREFIX}/health", tags=["System"])

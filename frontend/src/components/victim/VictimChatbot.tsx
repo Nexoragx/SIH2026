@@ -1,12 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MessageSquare, Send, Sparkles, X, Heart, Volume2, ShieldCheck, AlertCircle, Bot, User } from 'lucide-react';
+import { Send, X, Bot, User, Heart, ShieldCheck, PhoneCall } from 'lucide-react';
 import { ChatMessage, RiskLevel } from '../../types';
+import { supportApi } from '../../api';
 
 interface VictimChatbotProps {
   isOpen: boolean;
   onClose: () => void;
   currentLang: string;
-  distressLevel: RiskLevel;
+  distressLevel?: RiskLevel;
   onTriggerCrisis: () => void;
 }
 
@@ -14,36 +15,26 @@ export const VictimChatbot: React.FC<VictimChatbotProps> = ({
   isOpen,
   onClose,
   currentLang,
-  distressLevel,
   onTriggerCrisis,
 }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState<string>('');
   const [isTyping, setIsTyping] = useState<boolean>(false);
+  const [sessionId] = useState<string>(() => `CHAT-${Date.now().toString().slice(-6)}`);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
-
-  const initialGreetings: { [key: string]: string } = {
-    en: 'Namaste. I am Saathi, your confidential AI well-being companion. How are you feeling right now? I am here to listen and help you feel calm.',
-    hi: 'नमस्ते। मैं आपका साथी (Saathi) हूँ। आप अभी कैसा महसूस कर रहे हैं? मैं आपकी बात सुनने और मन को शांत करने के लिए यहाँ हूँ।',
-    bn: 'নমস্কার। আমি আপনার সঙ্গী (Saathi)। আপনি এখন কেমন অনুভব করছেন? আপনার মনের কথা শেয়ার করুন, আমি আপনার পাশে আছি।',
-    ta: 'வணக்கம். நான் உங்கள் தோழன் சாத்தி (Saathi). நீங்கள் இப்போது எப்படி உணர்கிறீர்கள்? உங்களுடன் பேச நான் தயாராக உள்ளேன்.',
-    te: 'నమస్కారం. నేను మీ సాథీ (Saathi). మీరు ఇప్పుడు ఎలా ఉన్నారు? మీ బాధను పంచుకోండి, మేము అండగా ఉంటాము.',
-    mr: 'नमस्ते. मी आपला साथी (Saathi) आहे. आपल्याला सध्या कसे वाटते आहे? मी आपल्याला आधार देण्यासाठी सोबत आहे.',
-  };
 
   useEffect(() => {
     if (messages.length === 0) {
-      const greeting = initialGreetings[currentLang] || initialGreetings.en;
       setMessages([
         {
           id: 'welcome-1',
           sender: 'bot',
           timestamp: 'Just now',
-          text: greeting,
+          text: "Hello. I am ANVAYA Support, your confidential companion. How are things feeling for you today? I'm here to listen at your own pace.",
         },
       ]);
     }
-  }, [currentLang]);
+  }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -51,139 +42,78 @@ export const VictimChatbot: React.FC<VictimChatbotProps> = ({
 
   if (!isOpen) return null;
 
-  const quickPrompts: { [key: string]: string[] } = {
-    en: [
-      'I am having trouble sleeping',
-      'I feel scared and tense',
-      'Can you guide me through breathing?',
-      'How do I get legal relief aid?',
-    ],
-    hi: [
-      'मुझे नींद नहीं आ रही है',
-      'मुझे बहुत घबराहट और डर लग रहा है',
-      'मुझे शांत सांस लेने का तरीका बताएं',
-      'मुआवजा और कानूनी सहायता कैसे मिलेगी?',
-    ],
-    bn: [
-      'আমার ঘুম হচ্ছে না',
-      'আমার খুব ভয় লাগছে',
-      'শান্ত হওয়ার শ্বাসক্রিয়া শেখান',
-      'আইনি সাহায্য কীভাবে পাব?',
-    ],
-    ta: [
-      'எனக்கு தூக்கம் வரவில்லை',
-      'எனக்கு மிகவும் பயமாக உள்ளது',
-      'சுவாசப் பயிற்சி செய்ய உதவுங்கள்',
-    ],
-    te: [
-      'నాకు నిద్ర పట్టడం లేదు',
-      'చాలా ఆందోళనగా ఉంది',
-      'శ్వాస వ్యాయామం చూపించండి',
-    ],
-    mr: [
-      'मला झोप येत नाहीये',
-      'मला खूप भीती वाटते आहे',
-      'श्वासाचा व्यायाम कसा करावा?',
-    ],
-  };
+  const quickPrompts = [
+    "I haven't been sleeping well lately",
+    "Feeling a little overwhelmed today",
+    "Would like to try a calming breath",
+    "Just wanted to check in quietly",
+  ];
 
-  const speakText = (text: string) => {
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      const langMap: { [key: string]: string } = {
-        en: 'en-IN',
-        hi: 'hi-IN',
-        bn: 'bn-IN',
-        ta: 'ta-IN',
-        te: 'te-IN',
-        mr: 'mr-IN',
-      };
-      utterance.lang = langMap[currentLang] || 'en-IN';
-      utterance.rate = 0.9;
-      window.speechSynthesis.speak(utterance);
-    }
-  };
-
-  const generateEmpatheticResponse = (userInput: string): string => {
-    const textLower = userInput.toLowerCase();
-
-    // Crisis keywords detection
-    const crisisKeywords = ['suicide', 'die', 'end life', 'kill myself', 'give up', 'मरना', 'जान देना', 'সব শেষ', 'தற்கொலை', 'చనిపోవాలని'];
-    if (crisisKeywords.some((w) => textLower.includes(w))) {
-      setTimeout(() => onTriggerCrisis(), 1000);
-      return currentLang === 'hi'
-        ? 'कृपया धैर्य रखें। आप अकेले नहीं हैं — हमारी आपातकालीन टीम आपसे तुरंत संपर्क कर रही है।'
-        : 'Please stay with me. You are not alone and help is reaching you right now.';
-    }
-
-    if (textLower.includes('sleep') || textLower.includes('नींद') || textLower.includes('ঘুম')) {
-      return currentLang === 'hi'
-        ? 'नींद न आना आघात के बाद बहुत स्वाभाविक है। आइए 4-7-8 श्वास व्यायाम करें या मंदिर की घंटियों का शांत संगीत सुनें।'
-        : 'Difficulty sleeping is a very natural reaction to stressful events. Trying our 4-7-8 breathing pacer or relaxing soundscape can help release body tension.';
-    }
-
-    if (textLower.includes('fear') || textLower.includes('scared') || textLower.includes('डर') || textLower.includes('ভয়') || textLower.includes('பயம்')) {
-      return currentLang === 'hi'
-        ? 'मैं आपकी भावना को समझता हूँ। आपका डर पूरी तरह स्वाभाविक है। हम आपके साथ हैं और जिला सुरक्षा टीम को आपकी स्थिति ज्ञात है।'
-        : 'Your feeling of fear is completely valid after everything you have been through. Please know you are safe here and our district protection unit is active.';
-    }
-
-    if (textLower.includes('legal') || textLower.includes('compensation') || textLower.includes('मुआवजा') || textLower.includes('আইন')) {
-      return currentLang === 'hi'
-        ? 'अत्याचार निवारण अधिनियम के तहत आपके कानूनी अधिकार और अंतरिम राहत मुआवजा सुनिश्चित है। आप 14566 पर भी सीधे परामर्श ले सकते हैं।'
-        : 'Under the SC/ST Prevention of Atrocities Act, statutory relief compensation and legal protection are your rights. You can also dial 14566 toll-free.';
-    }
-
-    return currentLang === 'hi'
-      ? 'आपकी बात बहुत महत्वपूर्ण है। मैं आपके साथ हर कदम पर हूँ। आप विश्राम के लिए हमारे शांत अभ्यासों का उपयोग कर सकते हैं।'
-      : 'Thank you for sharing this with me. Taking one breath at a time is enough right now. Would you like to try a calming grounding exercise?';
-  };
-
-  const handleSend = (textToSend?: string) => {
-    const text = textToSend || inputMessage;
-    if (!text.trim()) return;
+  const handleSendMessage = async (textToSend?: string) => {
+    const text = (textToSend || inputMessage).trim();
+    if (!text) return;
 
     const userMsg: ChatMessage = {
-      id: `usr-${Date.now()}`,
+      id: `u-${Date.now()}`,
       sender: 'victim',
       timestamp: 'Just now',
-      text: text.trim(),
+      text,
     };
 
     setMessages((prev) => [...prev, userMsg]);
     setInputMessage('');
     setIsTyping(true);
 
-    setTimeout(() => {
-      const reply = generateEmpatheticResponse(text);
+    try {
+      // Call backend empathetic chat service with safety detection
+      const res = await supportApi.sendChatMessage(text, sessionId, currentLang);
+
       const botMsg: ChatMessage = {
-        id: `bot-${Date.now()}`,
+        id: `b-${Date.now()}`,
         sender: 'bot',
         timestamp: 'Just now',
-        text: reply,
+        text: res.reply,
       };
       setMessages((prev) => [...prev, botMsg]);
+
+      // If crisis keywords detected, trigger immediate crisis workflow
+      if (res.crisis_flag) {
+        setTimeout(() => {
+          onTriggerCrisis();
+        }, 1200);
+      }
+    } catch {
+      // Fallback gentle offline response
+      const fallbackMsg: ChatMessage = {
+        id: `b-${Date.now()}`,
+        sender: 'bot',
+        timestamp: 'Just now',
+        text: "Thank you for sharing this with me. Take things one moment at a time. Caring support is always available whenever you need it.",
+      };
+      setMessages((prev) => [...prev, fallbackMsg]);
+    } finally {
       setIsTyping(false);
-    }, 900);
+    }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-slate-950/60 backdrop-blur-md animate-fadeIn">
-      <div className="liquid-glass-panel rounded-t-3xl sm:rounded-3xl max-w-lg w-full h-[85vh] sm:h-[620px] flex flex-col shadow-2xl relative overflow-hidden bg-white">
-        {/* Chatbot Header */}
-        <div className="p-4 sm:p-5 border-b border-slate-200/90 flex items-center justify-between bg-gradient-to-r from-indigo-50/90 to-purple-50/90">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-fadeIn">
+      <div className="anvaya-card rounded-3xl max-w-lg w-full h-[620px] max-h-[92vh] shadow-2xl border border-slate-200 bg-white flex flex-col overflow-hidden">
+        {/* Chat Header */}
+        <div className="p-4 sm:p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50/80">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-600/25">
-              <Bot className="w-5 h-5" />
+            <div className="w-10 h-10 rounded-2xl bg-black text-white flex items-center justify-center font-bold">
+              <Bot className="w-5 h-5 text-white" />
             </div>
             <div>
-              <div className="flex items-center gap-1.5">
-                <h3 className="text-sm font-extrabold text-slate-900">ANVAYA Saathi (साथी)</h3>
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-black text-black">
+                  ANVAYA Support
+                </h3>
+                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
               </div>
-              <p className="text-[10px] text-slate-500 font-medium">
-                Compassionate Multilingual Mental Health Companion
+              <p className="text-[11px] text-slate-600 font-medium">
+                Confidential • Non-clinical companion
               </p>
             </div>
           </div>
@@ -191,93 +121,112 @@ export const VictimChatbot: React.FC<VictimChatbotProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-2 rounded-full text-slate-400 hover:text-slate-700 hover:bg-white transition"
+            className="p-2 rounded-full hover:bg-slate-200 text-slate-600 hover:text-black transition cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Messages Stream */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3.5 bg-slate-50/40">
-          {messages.map((m) => (
-            <div
-              key={m.id}
-              className={`flex flex-col ${
-                m.sender === 'victim' ? 'items-end' : 'items-start'
-              }`}
-            >
+        {/* Messages Scroll Area */}
+        <div className="flex-1 p-4 sm:p-5 overflow-y-auto space-y-3.5 bg-slate-50/40">
+          {/* Non-clinical disclaimer pill */}
+          <div className="text-center">
+            <span className="inline-block text-[11px] font-semibold text-slate-600 bg-slate-100 px-3 py-1 rounded-full border border-slate-200">
+              Support companion • Not a substitute for professional medical care
+            </span>
+          </div>
+
+          {messages.map((msg) => {
+            const isUser = msg.sender === 'victim';
+            return (
               <div
-                className={`max-w-[85%] rounded-3xl p-3.5 text-xs sm:text-sm font-medium leading-relaxed ${
-                  m.sender === 'victim'
-                    ? 'bg-indigo-600 text-white rounded-br-xs shadow-xs'
-                    : 'liquid-tile text-slate-800 rounded-bl-xs shadow-xs bg-white'
-                }`}
+                key={msg.id}
+                className={`flex gap-2.5 ${isUser ? 'justify-end' : 'justify-start'}`}
               >
-                <div className="flex items-start justify-between gap-2">
-                  <span>{m.text}</span>
-                  {m.sender === 'bot' && (
-                    <button
-                      type="button"
-                      onClick={() => speakText(m.text)}
-                      className="text-slate-400 hover:text-indigo-600 p-1 rounded transition flex-shrink-0"
-                      title="Listen"
-                    >
-                      <Volume2 className="w-3.5 h-3.5" />
-                    </button>
-                  )}
+                {!isUser && (
+                  <div className="w-7 h-7 rounded-xl bg-black text-white flex items-center justify-center text-xs flex-shrink-0 mt-0.5 font-bold">
+                    A
+                  </div>
+                )}
+
+                <div
+                  className={`max-w-[82%] p-3.5 rounded-2xl text-xs sm:text-sm font-medium leading-relaxed ${
+                    isUser
+                      ? 'bg-black text-white rounded-tr-xs'
+                      : 'bg-white border border-slate-200 text-black shadow-2xs rounded-tl-xs'
+                  }`}
+                >
+                  <p className={isUser ? 'text-white' : 'text-black'}>{msg.text}</p>
+                  <div
+                    className={`text-[10px] mt-1 text-right font-medium ${
+                      isUser ? 'text-slate-300' : 'text-slate-400'
+                    }`}
+                  >
+                    {msg.timestamp}
+                  </div>
                 </div>
               </div>
-              <span className="text-[9px] text-slate-400 mt-1 px-1">{m.timestamp}</span>
-            </div>
-          ))}
+            );
+          })}
 
           {isTyping && (
-            <div className="flex items-center gap-1.5 p-3 rounded-2xl bg-white border border-slate-200 text-xs text-slate-500 w-24">
-              <span className="w-2 h-2 rounded-full bg-indigo-600 animate-bounce"></span>
-              <span className="w-2 h-2 rounded-full bg-indigo-600 animate-bounce [animation-delay:0.2s]"></span>
-              <span className="w-2 h-2 rounded-full bg-indigo-600 animate-bounce [animation-delay:0.4s]"></span>
+            <div className="flex items-center gap-2 text-xs text-slate-500 font-semibold pl-9">
+              <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce"></span>
+              <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce [animation-delay:0.2s]"></span>
+              <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce [animation-delay:0.4s]"></span>
+              <span>Thinking gently...</span>
             </div>
           )}
+
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Quick Suggested Prompts */}
-        <div className="p-2 border-t border-slate-200/80 bg-white overflow-x-auto no-scrollbar flex gap-1.5">
-          {(quickPrompts[currentLang] || quickPrompts.en).map((prompt, idx) => (
+        {/* Quick Prompts Strip */}
+        <div className="px-4 py-2 border-t border-slate-200 bg-white flex gap-1.5 overflow-x-auto no-scrollbar">
+          {quickPrompts.map((p, idx) => (
             <button
               key={idx}
               type="button"
-              onClick={() => handleSend(prompt)}
-              className="px-3 py-1.5 rounded-xl bg-indigo-50/80 hover:bg-indigo-100 text-indigo-800 text-[11px] font-bold border border-indigo-200/60 whitespace-nowrap transition"
+              onClick={() => handleSendMessage(p)}
+              className="flex-shrink-0 text-[11px] font-bold text-black bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-xl border border-slate-200 transition cursor-pointer"
             >
-              {prompt}
+              {p}
             </button>
           ))}
         </div>
 
-        {/* Input Bar */}
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            handleSend();
-          }}
-          className="p-3 sm:p-4 border-t border-slate-200/80 bg-white flex gap-2"
-        >
-          <input
-            type="text"
-            value={inputMessage}
-            onChange={(e) => setInputMessage(e.target.value)}
-            placeholder="Type your message in your language..."
-            className="flex-1 px-4 py-3 rounded-2xl border border-slate-200 text-xs sm:text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500/30 bg-slate-50/50"
-          />
-          <button
-            type="submit"
-            className="px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-xs font-extrabold shadow-md shadow-indigo-600/25 transition flex items-center justify-center"
+        {/* Chat Input Bar */}
+        <div className="p-3 sm:p-4 border-t border-slate-200 bg-white">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSendMessage();
+            }}
+            className="flex items-center gap-2"
           >
-            <Send className="w-4 h-4" />
-          </button>
-        </form>
+            <input
+              type="text"
+              value={inputMessage}
+              onChange={(e) => setInputMessage(e.target.value)}
+              placeholder="Type your thoughts here..."
+              className="flex-1 px-4 py-2.5 rounded-xl border border-slate-300 bg-slate-50 text-xs sm:text-sm text-black placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-black focus:bg-white transition font-medium"
+            />
+            <button
+              type="submit"
+              disabled={!inputMessage.trim()}
+              className={`p-2.5 rounded-xl transition ${
+                inputMessage.trim()
+                  ? 'bg-black text-white hover:bg-slate-800 cursor-pointer shadow-xs'
+                  : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+              }`}
+            >
+              <Send className="w-4 h-4" />
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   );
 };
+
+export default VictimChatbot;

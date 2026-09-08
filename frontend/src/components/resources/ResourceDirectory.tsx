@@ -1,287 +1,233 @@
-import React, { useState } from 'react';
-import { Users, PhoneCall, Heart, MapPin, ShieldCheck, Search, Filter, Hospital, Building2 } from 'lucide-react';
-import { MOCK_NGOS, MOCK_PSYCHIATRISTS } from '../../data/mockData';
+import React, { useState, useEffect } from 'react';
+import { PhoneCall, ShieldCheck, Heart, Ambulance, Scale, Building2, Search, ExternalLink } from 'lucide-react';
+import { supportApi, SupportResource } from '../../api';
 
 export const ResourceDirectory: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'ngos' | 'psychiatrists' | 'helplines'>('ngos');
+  const [resources, setResources] = useState<SupportResource[]>([]);
+  const [activeCategory, setActiveCategory] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState<string>('');
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  const filteredNgos = MOCK_NGOS.filter(
-    (n) =>
-      n.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      n.district.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      n.type.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  useEffect(() => {
+    supportApi.getResources()
+      .then((data) => {
+        setResources(data);
+      })
+      .catch(() => {
+        // Fallback baseline
+        setResources([
+          {
+            id: 'res-1',
+            category: 'mental_health',
+            name: 'Tele-MANAS (Government of India)',
+            number: '14416',
+            alt_number: '1800-891-4416',
+            availability: '24x7 • Toll-Free',
+            languages: '20+ Regional Languages',
+            description: 'Comprehensive psychological counselling and psychiatric crisis tele-support run by the Ministry of Health.',
+            region: 'National',
+            verified: true,
+          },
+          {
+            id: 'res-2',
+            category: 'victim_support',
+            name: 'National Helpline Against Atrocities (NHAA)',
+            number: '14566',
+            alt_number: '1800-202-1989',
+            availability: '24x7 • Toll-Free',
+            languages: 'Hindi, English & Scheduled Languages',
+            description: 'Statutory support under SC/ST (PoA) Act for atrocity victims, legal protection, FIR filing, and compensation tracking.',
+            region: 'National • MoSJE',
+            verified: true,
+          },
+          {
+            id: 'res-3',
+            category: 'mental_health',
+            name: 'KIRAN Mental Health Helpline',
+            number: '1800-599-0019',
+            alt_number: null,
+            availability: '24x7 • Toll-Free',
+            languages: '13 Regional Languages',
+            description: 'Early screening, first-aid, psychological support, distress management, and mental wellbeing referrals.',
+            region: 'National • DEPwD',
+            verified: true,
+          },
+          {
+            id: 'res-4',
+            category: 'emergency',
+            name: 'National Emergency Ambulance Network',
+            number: '108',
+            alt_number: '112',
+            availability: '24x7 • Immediate Response',
+            languages: 'All States',
+            description: 'Critical emergency medical transport and immediate crisis intervention dispatch.',
+            region: 'All States & UTs',
+            verified: true,
+          },
+          {
+            id: 'res-5',
+            category: 'victim_support',
+            name: 'NALSA Free Legal Services Helpline',
+            number: '15100',
+            alt_number: null,
+            availability: 'Working Hours & Callback',
+            languages: 'English, Hindi & State Benches',
+            description: 'Free legal aid, advocate appointment, and court representation for marginalized communities and atrocity victims.',
+            region: 'National Legal Services Authority',
+            verified: true,
+          },
+        ]);
+      })
+      .finally(() => setIsLoading(false));
+  }, []);
 
-  const filteredPsychiatrists = MOCK_PSYCHIATRISTS.filter(
-    (p) =>
-      p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.district.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.hospital.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredResources = resources.filter((r) => {
+    const matchesCategory = activeCategory === 'all' || r.category === activeCategory;
+    const matchesSearch =
+      r.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      r.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      r.number.includes(searchTerm);
+    return matchesCategory && matchesSearch;
+  });
 
   return (
-    <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-6 animate-fadeInScale">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 to-purple-600 text-white flex items-center justify-center shadow-lg shadow-indigo-500/25">
-            <Users className="w-6 h-6" />
+    <div className="max-w-6xl mx-auto px-4 py-6 sm:py-10 space-y-8 animate-fadeIn">
+      {/* 1. Header */}
+      <div className="border-b border-slate-200 pb-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700">
+              ANVAYA Safeguards
+            </span>
+            <span className="text-slate-300">•</span>
+            <span className="text-xs font-semibold text-slate-500">
+              Government & Institutional Directory
+            </span>
           </div>
-          <div>
-            <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
-              ANVAYA Care Network & District Directory
-            </h1>
-            <p className="text-xs text-slate-500 font-medium">
-              Empanelled Grassroots NGOs, Tele-MANAS Psychiatrists, Legal Desks & 108 Ambulance Units
-            </p>
-          </div>
+          <h1 className="text-2xl sm:text-3xl font-black text-black tracking-tight">
+            Help & Support Resources
+          </h1>
+          <p className="text-sm font-medium text-slate-700 mt-1">
+            Verified, toll-free crisis response networks and statutory legal aid across India.
+          </p>
         </div>
 
-        {/* Search Input */}
-        <div className="relative w-full sm:w-80">
+        {/* Search */}
+        <div className="relative w-full sm:w-72">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search district, provider or service..."
-            className="w-full pl-10 pr-4 py-2.5 rounded-2xl border border-white/90 text-xs font-semibold bg-white/80 outline-none focus:ring-2 focus:ring-indigo-500/30 transition shadow-2xs"
+            placeholder="Search resources or numbers..."
+            className="w-full pl-10 pr-4 py-2 rounded-xl border border-slate-300 text-xs font-semibold text-black bg-white focus:outline-none focus:ring-2 focus:ring-black transition"
           />
         </div>
       </div>
 
-      {/* Glass Pills Tabs */}
-      <div className="flex border-b border-white/80 gap-2">
-        <button
-          type="button"
-          onClick={() => setActiveTab('ngos')}
-          className={`pb-3 px-5 text-xs font-extrabold transition border-b-2 flex items-center gap-2 ${
-            activeTab === 'ngos'
-              ? 'border-indigo-600 text-indigo-700'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          <Building2 className="w-4 h-4" />
-          <span>Empanelled NGOs ({filteredNgos.length})</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('psychiatrists')}
-          className={`pb-3 px-5 text-xs font-extrabold transition border-b-2 flex items-center gap-2 ${
-            activeTab === 'psychiatrists'
-              ? 'border-indigo-600 text-indigo-700'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          <Hospital className="w-4 h-4" />
-          <span>Clinical Psychiatrists ({filteredPsychiatrists.length})</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('helplines')}
-          className={`pb-3 px-5 text-xs font-extrabold transition border-b-2 flex items-center gap-2 ${
-            activeTab === 'helplines'
-              ? 'border-indigo-600 text-indigo-700'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          <PhoneCall className="w-4 h-4" />
-          <span>National Emergency Helplines</span>
-        </button>
+      {/* 2. Category Filter Pills */}
+      <div className="flex flex-wrap gap-2">
+        {[
+          { id: 'all', label: 'All Resources' },
+          { id: 'mental_health', label: 'Mental Health Support' },
+          { id: 'victim_support', label: 'Victim & Legal Support' },
+          { id: 'emergency', label: 'Emergency Services' },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => setActiveCategory(tab.id)}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+              activeCategory === tab.id
+                ? 'bg-black text-white shadow-xs'
+                : 'bg-white border border-slate-200 text-slate-700 hover:text-black hover:border-slate-400'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
-      {/* TAB 1: NGOs */}
-      {activeTab === 'ngos' && (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {filteredNgos.map((ngo) => (
-            <div
-              key={ngo.id}
-              className="glass-tile p-6 rounded-3xl flex flex-col justify-between"
-            >
-              <div>
-                <div className="flex items-start justify-between gap-2 mb-3">
-                  <span className="text-[10px] font-extrabold text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-full border border-indigo-200/60">
-                    {ngo.type}
-                  </span>
-                  {ngo.verified && (
-                    <span className="text-[10px] font-bold text-emerald-700 flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded-full">
-                      <ShieldCheck className="w-3 h-3 text-emerald-600" /> MoSJE Verified
+      {/* 3. Resource Cards Grid */}
+      {isLoading ? (
+        <div className="p-12 text-center text-sm font-bold text-slate-500">
+          Loading verified resources...
+        </div>
+      ) : filteredResources.length === 0 ? (
+        <div className="p-12 text-center text-sm font-bold text-slate-500 bg-white border border-slate-200 rounded-2xl">
+          Nothing here yet matching your search.
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {filteredResources.map((res) => {
+            const isEmergency = res.category === 'emergency';
+            return (
+              <div
+                key={res.id}
+                className={`anvaya-card p-6 bg-white border rounded-2xl shadow-xs flex flex-col justify-between space-y-4 ${
+                  isEmergency ? 'border-red-200 bg-red-50/20' : 'border-slate-200'
+                }`}
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span
+                      className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${
+                        isEmergency
+                          ? 'bg-red-100 text-red-800 border-red-200'
+                          : res.category === 'mental_health'
+                          ? 'bg-slate-100 text-black border-slate-300'
+                          : 'bg-slate-100 text-black border-slate-300'
+                      }`}
+                    >
+                      {res.category.replace('_', ' ')}
                     </span>
-                  )}
+                    <span className="text-[11px] font-bold text-slate-600">
+                      {res.availability}
+                    </span>
+                  </div>
+
+                  <h3 className="text-lg font-black text-black leading-snug">
+                    {res.name}
+                  </h3>
+
+                  <p className="text-xs text-slate-700 font-medium mt-2 leading-relaxed">
+                    {res.description}
+                  </p>
+
+                  <div className="text-[11px] text-slate-500 font-semibold mt-3">
+                    Languages: {res.languages} • Region: {res.region}
+                  </div>
                 </div>
 
-                <h3 className="text-base font-extrabold text-slate-900 mb-1">
-                  {ngo.name}
-                </h3>
-                <p className="text-xs text-slate-500 flex items-center gap-1 mb-3 font-medium">
-                  <MapPin className="w-3.5 h-3.5 text-indigo-500" />
-                  {ngo.district}, {ngo.state}
-                </p>
+                <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                  <div className="text-base font-black text-black tracking-tight">
+                    {res.number}
+                    {res.alt_number && (
+                      <span className="text-xs text-slate-500 font-medium ml-2">
+                        / {res.alt_number}
+                      </span>
+                    )}
+                  </div>
 
-                <div className="bg-white/70 p-3 rounded-2xl border border-white/90 text-xs text-slate-600 space-y-1 font-medium">
-                  <div>Coordinator: <span className="font-bold text-slate-900">{ngo.contactPerson}</span></div>
-                  <div>Active Caseload: <span className="font-mono font-bold text-indigo-700">{ngo.activeCasesCount} active cases</span></div>
+                  <a
+                    href={`tel:${res.number}`}
+                    className={`px-5 py-2.5 rounded-xl text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow-xs ${
+                      isEmergency
+                        ? 'bg-red-600 hover:bg-red-700 text-white'
+                        : 'bg-black hover:bg-slate-800 text-white'
+                    }`}
+                  >
+                    <PhoneCall className="w-3.5 h-3.5" />
+                    <span>{isEmergency ? 'Get Help' : 'Call Now'}</span>
+                  </a>
                 </div>
               </div>
-
-              <div className="flex items-center justify-between pt-4 border-t border-white/70 mt-5">
-                <a
-                  href={`tel:${ngo.phone}`}
-                  className="text-xs font-extrabold text-indigo-600 hover:text-indigo-800 flex items-center gap-1.5"
-                >
-                  <PhoneCall className="w-3.5 h-3.5" />
-                  {ngo.phone}
-                </a>
-                <button
-                  type="button"
-                  onClick={() => alert(`Case referral request dispatched to ${ngo.name}`)}
-                  className="px-4 py-2 bg-gradient-to-r from-slate-900 to-indigo-950 hover:from-slate-800 hover:to-indigo-900 text-white rounded-xl text-xs font-extrabold transition shadow-xs"
-                >
-                  Refer Case
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* TAB 2: Psychiatrists */}
-      {activeTab === 'psychiatrists' && (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {filteredPsychiatrists.map((psy) => (
-            <div
-              key={psy.id}
-              className="glass-tile p-6 rounded-3xl flex flex-col justify-between"
-            >
-              <div>
-                <div className="flex items-start justify-between gap-2 mb-3">
-                  <span className="text-[10px] font-extrabold text-purple-700 bg-purple-50 px-2.5 py-1 rounded-full border border-purple-200/60">
-                    MCI: {psy.mciNumber}
-                  </span>
-                  <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
-                    ● Telehealth Ready
-                  </span>
-                </div>
-
-                <h3 className="text-base font-extrabold text-slate-900 mb-0.5">
-                  {psy.name}
-                </h3>
-                <p className="text-xs text-indigo-600 font-bold mb-1">
-                  {psy.qualification}
-                </p>
-                <p className="text-xs text-slate-500 flex items-center gap-1 mb-3 font-medium">
-                  <Hospital className="w-3.5 h-3.5 text-slate-400" />
-                  {psy.hospital} ({psy.district})
-                </p>
-
-                <div className="bg-emerald-50/90 p-3 rounded-2xl border border-emerald-200/60 text-xs text-emerald-950 font-bold">
-                  {psy.availableSlot}
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between pt-4 border-t border-white/70 mt-5">
-                <a
-                  href={`tel:${psy.phone}`}
-                  className="text-xs font-extrabold text-slate-600 hover:text-slate-900 flex items-center gap-1.5"
-                >
-                  <PhoneCall className="w-3.5 h-3.5" />
-                  {psy.phone}
-                </a>
-                <button
-                  type="button"
-                  onClick={() => alert(`Telepsychiatry consultation reserved with ${psy.name}`)}
-                  className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-xl text-xs font-extrabold transition shadow-xs"
-                >
-                  Book Session
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* TAB 3: Helplines */}
-      {activeTab === 'helplines' && (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {[
-            {
-              name: 'National SC/ST Atrocity Helpline (NHAA)',
-              number: '14566',
-              desc: 'Toll-free 24x7 helpline under Ministry of Social Justice & Empowerment for legal assistance and grievance redressal.',
-              type: 'MoSJE Official',
-              callAction: '14566',
-            },
-            {
-              name: 'iCall Psychosocial Support',
-              number: '9152987821',
-              desc: 'Tata Institute of Social Sciences (TISS) trauma counselling, depression support, and psychological crisis aid.',
-              type: 'Psychological Trauma',
-              callAction: '9152987821',
-            },
-            {
-              name: 'Tele-MANAS National Mental Health',
-              number: '14416',
-              desc: 'Government of India comprehensive mental healthcare and 24x7 multi-language psychiatric counselling.',
-              type: 'Ministry of Health',
-              callAction: '14416',
-            },
-            {
-              name: 'National Emergency Ambulance Service',
-              number: '108',
-              desc: 'Immediate emergency medical response and paramedic evacuation.',
-              type: 'Emergency Medical',
-              callAction: '108',
-            },
-            {
-              name: 'Women in Distress Helpline',
-              number: '181',
-              desc: 'Dedicated 24x7 helpline for women facing harassment, violence, or seeking safe shelter.',
-              type: 'Women Safety',
-              callAction: '181',
-            },
-            {
-              name: 'Police Emergency Response Support',
-              number: '112 / 100',
-              desc: 'Unified emergency response system for immediate physical threat or danger.',
-              type: 'Law Enforcement',
-              callAction: '112',
-            },
-          ].map((h, i) => (
-            <div
-              key={i}
-              className="glass-tile p-6 rounded-3xl flex flex-col justify-between"
-            >
-              <div>
-                <span className="text-[10px] font-extrabold text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-full border border-indigo-200/60">
-                  {h.type}
-                </span>
-                <h3 className="text-base font-extrabold text-slate-900 mt-2 mb-1">
-                  {h.name}
-                </h3>
-                <p className="text-xs text-slate-500 mb-4 font-medium leading-relaxed">
-                  {h.desc}
-                </p>
-              </div>
-
-              <div className="pt-4 border-t border-white/70 flex items-center justify-between">
-                <span className="text-lg font-mono font-black text-indigo-700">
-                  {h.number}
-                </span>
-                <a
-                  href={`tel:${h.callAction}`}
-                  className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white text-xs font-extrabold rounded-xl transition flex items-center gap-1.5 shadow-md shadow-indigo-600/25"
-                >
-                  <PhoneCall className="w-3.5 h-3.5" />
-                  Call Now
-                </a>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
   );
 };
+
+export default ResourceDirectory;
