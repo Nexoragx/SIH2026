@@ -280,58 +280,58 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
       </div>
 
       {/* 2. Frosted Glass Sub-Navigation Tabs (Overview, Exercises, Scale, Community) */}
-      <div className="liquid-glass-panel p-1.5 rounded-2xl flex flex-wrap sm:flex-nowrap gap-1.5 shadow-sm">
+      <div className="liquid-glass-panel p-1.5 rounded-2xl grid grid-cols-2 sm:flex sm:flex-nowrap gap-1.5 shadow-sm">
         <button
           type="button"
           onClick={() => setActiveSubTab('overview')}
-          className={`flex-1 py-2.5 px-3.5 rounded-xl text-xs sm:text-sm font-extrabold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+          className={`flex-1 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-extrabold transition-all flex items-center justify-center gap-2 cursor-pointer min-h-[44px] ${
             activeSubTab === 'overview'
               ? 'bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow-md shadow-indigo-500/20'
               : 'text-slate-700 hover:text-indigo-900 hover:bg-white/60'
           }`}
         >
-          <Sparkles className="w-4 h-4" />
-          <span>Sanctuary Overview</span>
+          <Sparkles className="w-4 h-4 flex-shrink-0" />
+          <span className="truncate">Sanctuary Overview</span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveSubTab('exercises')}
-          className={`flex-1 py-2.5 px-3.5 rounded-xl text-xs sm:text-sm font-extrabold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+          className={`flex-1 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-extrabold transition-all flex items-center justify-center gap-2 cursor-pointer min-h-[44px] ${
             activeSubTab === 'exercises'
               ? 'bg-gradient-to-r from-teal-600 to-emerald-600 text-white shadow-md shadow-teal-500/20'
               : 'text-slate-700 hover:text-teal-900 hover:bg-white/60'
           }`}
         >
-          <Wind className="w-4 h-4" />
-          <span>Therapeutic Exercises</span>
-          <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+          <Wind className="w-4 h-4 flex-shrink-0" />
+          <span className="truncate">Exercises</span>
+          <span className="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0"></span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveSubTab('scale')}
-          className={`flex-1 py-2.5 px-3.5 rounded-xl text-xs sm:text-sm font-extrabold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+          className={`flex-1 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-extrabold transition-all flex items-center justify-center gap-2 cursor-pointer min-h-[44px] ${
             activeSubTab === 'scale'
               ? 'bg-gradient-to-r from-violet-600 to-purple-600 text-white shadow-md shadow-violet-500/20'
               : 'text-slate-700 hover:text-purple-900 hover:bg-white/60'
           }`}
         >
-          <Activity className="w-4 h-4" />
-          <span>Distress Scale & Metrics</span>
+          <Activity className="w-4 h-4 flex-shrink-0" />
+          <span className="truncate">Distress Scale</span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveSubTab('community')}
-          className={`flex-1 py-2.5 px-3.5 rounded-xl text-xs sm:text-sm font-extrabold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+          className={`flex-1 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-extrabold transition-all flex items-center justify-center gap-2 cursor-pointer min-h-[44px] ${
             activeSubTab === 'community'
               ? 'bg-gradient-to-r from-rose-600 to-pink-600 text-white shadow-md shadow-rose-500/20'
               : 'text-slate-700 hover:text-rose-900 hover:bg-white/60'
           }`}
         >
-          <Users className="w-4 h-4" />
-          <span>Hope Wall</span>
+          <Users className="w-4 h-4 flex-shrink-0" />
+          <span className="truncate">Hope Wall</span>
         </button>
       </div>
 

@@ -40,8 +40,8 @@ export const CrisisModal: React.FC<CrisisModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs animate-fadeIn">
-      <div className="anvaya-card rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border-2 border-red-300 relative overflow-hidden bg-white space-y-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/70 backdrop-blur-xs animate-fadeIn">
+      <div className="anvaya-card rounded-3xl max-w-lg w-full p-5 sm:p-8 shadow-2xl border-2 border-red-300 relative bg-white space-y-6 max-h-[92vh] overflow-y-auto">
         {/* Soft Close Button */}
         <button
           type="button"
