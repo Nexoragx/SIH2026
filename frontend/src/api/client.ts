@@ -3,12 +3,11 @@
  * Automatically injects JWT Bearer tokens and handles API prefixes.
  */
 
+const HOSTED_BACKEND_URL = 'https://sih2026-frki.onrender.com/api/v1';
+
 const getBaseUrl = (): string => {
   if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
-  if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
-    return 'http://127.0.0.1:8000/api/v1';
-  }
-  return '/api/v1';
+  return HOSTED_BACKEND_URL;
 };
 
 const API_BASE_URL = getBaseUrl();
