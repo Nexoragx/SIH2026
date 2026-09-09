@@ -63,6 +63,10 @@ export const ObserverDashboard: React.FC<ObserverDashboardProps> = () => {
   const [callNotes, setCallNotes] = useState<string>('');
   const [ambulanceDispatched, setAmbulanceDispatched] = useState<boolean>(false);
   const [dispatchResult, setDispatchResult] = useState<string | null>(null);
+  const [activeTier, setActiveTier] = useState<'L1' | 'L2' | 'L3' | 'L4'>('L1');
+  const [showMotivationModal, setShowMotivationModal] = useState<boolean>(false);
+  const [motivationText, setMotivationText] = useState<string>('We are standing beside you. Your courage inspires our entire care team, and relief is on the way.');
+  const [motivationSentToast, setMotivationSentToast] = useState<boolean>(false);
 
   // Intervention History State
   const [interventions, setInterventions] = useState<{
@@ -315,6 +319,52 @@ export const ObserverDashboard: React.FC<ObserverDashboardProps> = () => {
           </span>
         </div>
       </div>
+
+      {/* 1.5 Role / Tier Hierarchy Switcher (L1 - L4) */}
+      <div className="p-3 bg-slate-100 rounded-2xl border border-slate-200 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-black uppercase tracking-wider text-slate-700 ml-1">
+            Operational Tier:
+          </span>
+          {[
+            { id: 'L1', title: 'L1 — Health Observer (Block/Taluk)' },
+            { id: 'L2', title: 'L2 — District Officer (District HQ)' },
+            { id: 'L3', title: 'L3 — State Coordinator (State)' },
+            { id: 'L4', title: 'L4 — National Admin (MoSJE)' },
+          ].map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setActiveTier(t.id as any)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                activeTier === t.id
+                  ? 'bg-slate-900 text-white shadow-xs'
+                  : 'bg-white text-slate-700 hover:bg-slate-200 border border-slate-200'
+              }`}
+            >
+              {t.title}
+            </button>
+          ))}
+        </div>
+
+        {activeTier === 'L1' && (
+          <button
+            type="button"
+            onClick={() => setShowMotivationModal(true)}
+            className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Send Motivation Push</span>
+          </button>
+        )}
+      </div>
+
+      {motivationSentToast && (
+        <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-2xl text-emerald-900 text-xs font-bold flex items-center gap-2 animate-fadeIn">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+          <span>Curated healing motivation push notification sent to survivor's app.</span>
+        </div>
+      )}
 
       {/* 2. Overview Cards (5 Metrics) */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 sm:gap-4">
@@ -790,6 +840,83 @@ export const ObserverDashboard: React.FC<ObserverDashboardProps> = () => {
           </div>
         </div>
       </div>
+
+      {/* Motivation Push Modal */}
+      {showMotivationModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-fadeIn">
+          <div className="anvaya-card rounded-3xl max-w-lg w-full p-6 bg-white border border-slate-200 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-indigo-600" />
+                <h3 className="text-base font-black text-slate-900">
+                  Send Curated Healing Motivation Push
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowMotivationModal(false)}
+                className="p-1.5 rounded-full hover:bg-slate-100 text-slate-500 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-600 font-medium leading-relaxed">
+              Select or customize a trauma-informed motivational message to deliver as a gentle push notification to <strong>{selectedCase.victimName}</strong>.
+            </p>
+
+            <div className="space-y-2">
+              {[
+                "We are standing beside you. Your courage inspires our entire care team, and relief is on the way.",
+                "Take this day one breath at a time. You have overcome so much, and you do not have to walk alone.",
+                "Your safety and mental peace are our highest priority. We are checking in to let you know you are deeply valued.",
+              ].map((tmpl, idx) => (
+                <div
+                  key={idx}
+                  onClick={() => setMotivationText(tmpl)}
+                  className={`p-3 rounded-xl border text-xs font-medium cursor-pointer transition ${
+                    motivationText === tmpl
+                      ? 'bg-indigo-50 border-indigo-500 text-indigo-950 font-bold'
+                      : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  "{tmpl}"
+                </div>
+              ))}
+            </div>
+
+            <textarea
+              value={motivationText}
+              onChange={(e) => setMotivationText(e.target.value)}
+              rows={3}
+              placeholder="Custom encouragement message..."
+              className="w-full p-3 rounded-xl border border-slate-300 bg-slate-50 text-xs font-medium outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
+            />
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowMotivationModal(false)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowMotivationModal(false);
+                  setMotivationSentToast(true);
+                  setTimeout(() => setMotivationSentToast(false), 3500);
+                }}
+                className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md shadow-indigo-600/20 transition flex items-center gap-1.5 cursor-pointer"
+              >
+                <Send className="w-3.5 h-3.5" />
+                <span>Send Notification</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

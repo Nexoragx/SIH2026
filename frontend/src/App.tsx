@@ -20,15 +20,24 @@ import { AuthModal } from './components/auth/AuthModal';
 import { LandingPage } from './components/landing/LandingPage';
 import { IvrSimulatorModal } from './components/victim/IvrSimulatorModal';
 
+import { CommunityWall } from './components/victim/CommunityWall';
+import { CourtReportModal } from './components/victim/CourtReportModal';
+import { PsychiatristPortal } from './components/portals/PsychiatristPortal';
+import { NgoPortal } from './components/portals/NgoPortal';
+import { PersonalizedActivities } from './components/victim/PersonalizedActivities';
+
 export const App: React.FC = () => {
   // Global State
   const [currentLang, setCurrentLang] = useState<string>('en');
-  const [activeTab, setActiveTab] = useState<'victim' | 'observer' | 'analytics' | 'resources'>('victim');
+  const [activeTab, setActiveTab] = useState<'victim' | 'observer' | 'psychiatrist' | 'ngo' | 'analytics' | 'resources'>('victim');
   const [voiceGuidance, setVoiceGuidance] = useState<boolean>(false);
   const [isCrisisOpen, setIsCrisisOpen] = useState<boolean>(false);
   const [isVoiceModalOpen, setIsVoiceModalOpen] = useState<boolean>(false);
   const [isChatbotOpen, setIsChatbotOpen] = useState<boolean>(false);
   const [isObserverChatOpen, setIsObserverChatOpen] = useState<boolean>(false);
+  const [isCommunityWallOpen, setIsCommunityWallOpen] = useState<boolean>(false);
+  const [isCourtReportOpen, setIsCourtReportOpen] = useState<boolean>(false);
+  const [isTherapeuticOpen, setIsTherapeuticOpen] = useState<boolean>(false);
   const [voiceCheckinDone, setVoiceCheckinDone] = useState<boolean>(false);
   const [voiceData, setVoiceData] = useState<{ transcript: string; stressScore: number; audioUrl?: string; audioBlob?: Blob } | null>(null);
   const [isSubmittingAssessment, setIsSubmittingAssessment] = useState<boolean>(false);
@@ -536,6 +545,9 @@ export const App: React.FC = () => {
                     onOpenChat={() => setIsChatbotOpen(true)}
                     onOpenEmergency={() => setIsCrisisOpen(true)}
                     onOpenSchedule={() => setIsScheduleModalOpen(true)}
+                    onOpenCommunityWall={() => setIsCommunityWallOpen(true)}
+                    onOpenCourtReport={() => setIsCourtReportOpen(true)}
+                    onOpenTherapeutic={() => setIsTherapeuticOpen(true)}
                     currentLang={currentLang}
                   />
                 )}
@@ -580,6 +592,10 @@ export const App: React.FC = () => {
             {activeTab === 'observer' && (
               <ObserverDashboard onTriggerCrisisGlobal={() => setIsCrisisOpen(true)} />
             )}
+
+            {activeTab === 'psychiatrist' && <PsychiatristPortal />}
+
+            {activeTab === 'ngo' && <NgoPortal />}
 
             {activeTab === 'analytics' && <NationalAnalytics />}
 
@@ -675,6 +691,49 @@ export const App: React.FC = () => {
         onCompleteIvrCheckin={handleCompleteIvrCheckin}
         currentLang={currentLang}
       />
+
+      {/* Survivor Community & Hope Wall Modal */}
+      <CommunityWall
+        isOpen={isCommunityWallOpen}
+        onClose={() => setIsCommunityWallOpen(false)}
+        currentLang={currentLang}
+      />
+
+      {/* Official Legal Aid & Court Documentation Modal */}
+      <CourtReportModal
+        isOpen={isCourtReportOpen}
+        onClose={() => setIsCourtReportOpen(false)}
+        resultData={resultData}
+        userProfile={userProfile}
+      />
+
+      {/* Therapeutic & Grounding Activities Modal */}
+      {isTherapeuticOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-fadeIn">
+          <div className="anvaya-card rounded-3xl max-w-2xl w-full max-h-[92vh] bg-white border border-slate-200 shadow-2xl p-6 overflow-y-auto relative">
+            <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-100">
+              <h3 className="text-base font-black text-slate-900">
+                Trauma Recovery & Somatic Relaxation Suite
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsTherapeuticOpen(false)}
+                className="p-1.5 rounded-full hover:bg-slate-100 text-slate-500 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+            <PersonalizedActivities
+              currentLang={currentLang}
+              resultData={resultData}
+              onOpenCounsellorChat={() => {
+                setIsTherapeuticOpen(false);
+                setIsObserverChatOpen(true);
+              }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
       <footer className="liquid-glass-panel border-t border-slate-200/80 py-6 text-center text-xs text-slate-500 mt-auto bg-white/90">

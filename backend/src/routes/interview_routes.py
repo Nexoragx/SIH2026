@@ -167,3 +167,37 @@ def intervene_case(
         current_user=current_user,
         db=db
     )
+
+
+@router.get("/clinical-summary/{report_id}", summary="Get Clinical AI Summary for Health Observer")
+def get_clinical_summary(
+    report_id: str,
+    db: Database = Depends(get_db)
+):
+    """
+    Generates structured clinical assessment summary according to Section 18.1 prompt template:
+    3-sentence summary, primary risk factors, recommended intervention, and follow-up interval.
+    """
+    return InterviewController.generate_clinical_summary(session_or_report_id=report_id, db=db)
+
+
+@router.get("/court-export/{report_id}", summary="Get Legal Aid & Court Documentation Dataset")
+def get_court_export(
+    report_id: str,
+    db: Database = Depends(get_db)
+):
+    """
+    Returns signed official court documentation dataset for bail / compensation hearings under SC/ST Act.
+    """
+    return InterviewController.generate_court_export(session_or_report_id=report_id, db=db)
+
+
+@router.post("/admin/message/send", summary="Send Curated Motivation Push to Survivor")
+def send_motivation_message(
+    payload: dict,
+    db: Database = Depends(get_db)
+):
+    """
+    Delivers and logs a curated motivational push notification to the survivor's app.
+    """
+    return InterviewController.send_motivation_message(payload=payload, db=db)

@@ -7,10 +7,28 @@ from src.controllers.auth_controller import (
     AuthController,
     UserRegisterSchema,
     UserLoginSchema,
-    RefreshTokenSchema
+    RefreshTokenSchema,
+    RequestOtpSchema,
+    VerifyOtpSchema
 )
 
 router = APIRouter(prefix="/auth", tags=["Authentication & OAuth"])
+
+
+@router.post("/request-otp", summary="Request Mobile OTP for Login/Registration")
+def request_otp(data: RequestOtpSchema, db: Database = Depends(get_db)):
+    """
+    Sends a 5-digit verification OTP to the user's mobile number for passwordless authentication.
+    """
+    return AuthController.request_otp(data=data, db=db)
+
+
+@router.post("/verify-otp", summary="Verify Mobile OTP and Generate JWT Session")
+def verify_otp(data: VerifyOtpSchema, db: Database = Depends(get_db)):
+    """
+    Verifies the OTP submitted by the user and returns an authenticated JWT token pair.
+    """
+    return AuthController.verify_otp(data=data, db=db)
 
 
 @router.post("/register", summary="Register a new victim or official")

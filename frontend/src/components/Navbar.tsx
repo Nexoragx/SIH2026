@@ -6,8 +6,8 @@ import { systemApi } from '../api';
 interface NavbarProps {
   currentLang: string;
   onLanguageChange: (lang: string) => void;
-  activeTab: 'victim' | 'observer' | 'analytics' | 'resources';
-  onTabChange: (tab: 'victim' | 'observer' | 'analytics' | 'resources') => void;
+  activeTab: 'victim' | 'observer' | 'analytics' | 'resources' | 'psychiatrist' | 'ngo';
+  onTabChange: (tab: 'victim' | 'observer' | 'analytics' | 'resources' | 'psychiatrist' | 'ngo') => void;
   onTriggerCrisis: () => void;
   backendOnline?: boolean;
   currentUser?: any;
@@ -61,7 +61,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   ];
 
   return (
-    <header className="sticky top-0 z-40 w-full transition-all bg-white">
+    <header className="sticky top-0 z-40 w-full transition-all bg-white/70 backdrop-blur-xl border-b border-white/60">
       {/* Top Ministry Ribbon (Shown when authenticated) */}
       {currentUser && (
         <div className="bg-slate-950 text-slate-300 text-xs px-4 sm:px-8 py-1.5 flex flex-wrap justify-between items-center border-b border-slate-800 font-medium">
@@ -133,7 +133,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <nav className="hidden lg:flex items-center gap-1.5 bg-slate-100/70 p-1.5 rounded-2xl border border-slate-200/80 shadow-inner animate-fadeIn">
               <button
                 onClick={() => onTabChange('victim')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold transition-all ${
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all ${
                   activeTab === 'victim'
                     ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/25'
                     : 'text-slate-700 hover:text-indigo-900 hover:bg-white/80'
@@ -145,39 +145,63 @@ export const Navbar: React.FC<NavbarProps> = ({
 
               <button
                 onClick={() => onTabChange('observer')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold transition-all relative ${
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all relative ${
                   activeTab === 'observer'
                     ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/25'
                     : 'text-slate-700 hover:text-indigo-900 hover:bg-white/80'
                 }`}
               >
                 <Shield className="w-3.5 h-3.5" />
-                <span>Observer Panel</span>
+                <span>Observer (L1–L4)</span>
                 <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
               </button>
 
               <button
+                onClick={() => onTabChange('psychiatrist' as any)}
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all ${
+                  activeTab === ('psychiatrist' as any)
+                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/25'
+                    : 'text-slate-700 hover:text-indigo-900 hover:bg-white/80'
+                }`}
+              >
+                <Activity className="w-3.5 h-3.5" />
+                <span>Psychiatrist</span>
+              </button>
+
+              <button
+                onClick={() => onTabChange('ngo' as any)}
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all ${
+                  activeTab === ('ngo' as any)
+                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/25'
+                    : 'text-slate-700 hover:text-indigo-900 hover:bg-white/80'
+                }`}
+              >
+                <Users className="w-3.5 h-3.5" />
+                <span>NGO Partner</span>
+              </button>
+
+              <button
                 onClick={() => onTabChange('analytics')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold transition-all ${
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all ${
                   activeTab === 'analytics'
                     ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/25'
                     : 'text-slate-700 hover:text-indigo-900 hover:bg-white/80'
                 }`}
               >
                 <BarChart3 className="w-3.5 h-3.5" />
-                <span>MoSJE Analytics</span>
+                <span>Analytics</span>
               </button>
 
               <button
                 onClick={() => onTabChange('resources')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold transition-all ${
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all ${
                   activeTab === 'resources'
                     ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/25'
                     : 'text-slate-700 hover:text-indigo-900 hover:bg-white/80'
                 }`}
               >
-                <Users className="w-3.5 h-3.5" />
-                <span>NGO Network</span>
+                <Globe className="w-3.5 h-3.5" />
+                <span>Helplines</span>
               </button>
             </nav>
           )}
@@ -290,6 +314,28 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               <Shield className="w-3.5 h-3.5" />
               Observer
+            </button>
+            <button
+              onClick={() => onTabChange('psychiatrist')}
+              className={`flex-shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition ${
+                activeTab === 'psychiatrist'
+                  ? 'bg-indigo-600 text-white shadow-md'
+                  : 'bg-white text-slate-700 border border-slate-200 shadow-xs'
+              }`}
+            >
+              <Activity className="w-3.5 h-3.5" />
+              Psychiatrist
+            </button>
+            <button
+              onClick={() => onTabChange('ngo')}
+              className={`flex-shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition ${
+                activeTab === 'ngo'
+                  ? 'bg-indigo-600 text-white shadow-md'
+                  : 'bg-white text-slate-700 border border-slate-200 shadow-xs'
+              }`}
+            >
+              <Users className="w-3.5 h-3.5" />
+              NGO Partner
             </button>
             <button
               onClick={() => onTabChange('analytics')}

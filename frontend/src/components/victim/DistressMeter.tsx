@@ -70,10 +70,10 @@ export const DistressMeter: React.FC<DistressMeterProps> = ({ result }) => {
   const strokeDashoffset = 440 - (440 * score) / 100;
 
   return (
-    <div className="liquid-glass-panel rounded-3xl p-6 sm:p-8 shadow-xl bg-white/95 border border-slate-200/90">
-      <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-200/80">
+    <div className="liquid-glass-panel rounded-3xl p-6 sm:p-8 shadow-md border border-white/80">
+      <div className="flex items-center justify-between mb-6 pb-4 border-b border-indigo-100/60">
         <div className="flex items-center gap-2.5">
-          <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center shadow-xs border border-indigo-100">
+          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-500 text-white flex items-center justify-center shadow-sm">
             <Activity className="w-5 h-5" />
           </div>
           <div>
@@ -86,7 +86,7 @@ export const DistressMeter: React.FC<DistressMeterProps> = ({ result }) => {
           </div>
         </div>
 
-        <span className={`px-3 py-1 rounded-full text-xs font-extrabold border ${info.bgColor} ${info.textColor} ${info.borderColor}`}>
+        <span className={`px-3.5 py-1 rounded-full text-xs font-extrabold border shadow-2xs ${info.bgColor} ${info.textColor} ${info.borderColor}`}>
           {info.badge}
         </span>
       </div>
@@ -103,7 +103,7 @@ export const DistressMeter: React.FC<DistressMeterProps> = ({ result }) => {
                 cx="80"
                 cy="80"
                 r="70"
-                className="stroke-slate-100"
+                className="stroke-slate-100/90"
                 strokeWidth="12"
                 fill="transparent"
               />
@@ -124,10 +124,10 @@ export const DistressMeter: React.FC<DistressMeterProps> = ({ result }) => {
 
             {/* Score Center Label */}
             <div className="absolute flex flex-col items-center justify-center text-center">
-              <span className="text-4xl font-black text-slate-900 font-mono tracking-tight">
+              <span className="text-4xl font-extrabold text-slate-900 font-mono tracking-tight">
                 {score.toFixed(1)}
               </span>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
                 out of 100
               </span>
             </div>
@@ -137,7 +137,7 @@ export const DistressMeter: React.FC<DistressMeterProps> = ({ result }) => {
             <span className="text-xs font-extrabold text-slate-900">
               {info.label}
             </span>
-            <p className="text-[11px] text-slate-500 font-medium max-w-xs mt-0.5">
+            <p className="text-[11px] text-slate-500 font-medium max-w-xs mt-0.5 leading-relaxed">
               {info.desc}
             </p>
           </div>
@@ -150,60 +150,60 @@ export const DistressMeter: React.FC<DistressMeterProps> = ({ result }) => {
             <span>Multi-Modal Feature Decomposition</span>
           </h4>
 
-          <div className="space-y-2.5">
+          <div className="space-y-3">
             {/* 1. MADRS Score (40%) */}
-            <div className="space-y-1">
-              <div className="flex justify-between text-xs font-semibold text-slate-700">
+            <div className="p-3 rounded-2xl pastel-indigo space-y-1.5">
+              <div className="flex justify-between text-xs font-bold text-indigo-950">
                 <span>MADRS Depressive Symptoms (40% Weight)</span>
-                <span className="font-mono font-bold text-indigo-700">{result.totalMadrs}/60 pts</span>
+                <span className="font-mono font-extrabold text-indigo-800">{result.totalMadrs}/60 pts</span>
               </div>
-              <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+              <div className="w-full bg-indigo-200/50 h-2 rounded-full overflow-hidden">
                 <div
-                  className="bg-indigo-600 h-full rounded-full transition-all duration-700"
+                  className="bg-gradient-to-r from-indigo-500 to-indigo-700 h-full rounded-full transition-all duration-700"
                   style={{ width: `${(result.totalMadrs / 60) * 100}%` }}
                 />
               </div>
             </div>
 
             {/* 2. Estimated PHQ-9 Equivalent (20%) */}
-            <div className="space-y-1">
-              <div className="flex justify-between text-xs font-semibold text-slate-700">
-                <span>DSM-5 / PHQ-9 Functional Burden (20% Weight)</span>
-                <span className="font-mono font-bold text-teal-700">{result.phq9Equivalent}/27 pts</span>
+            <div className="p-3 rounded-2xl pastel-teal space-y-1.5">
+              <div className="flex justify-between text-xs font-bold text-teal-950">
+                <span>DSM-5 / PHQ-9 Mood Velocity (20% Weight)</span>
+                <span className="font-mono font-extrabold text-teal-800">{result.phq9Equivalent}/27 pts</span>
               </div>
-              <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+              <div className="w-full bg-teal-200/50 h-2 rounded-full overflow-hidden">
                 <div
-                  className="bg-teal-500 h-full rounded-full transition-all duration-700"
+                  className="bg-gradient-to-r from-teal-500 to-emerald-500 h-full rounded-full transition-all duration-700"
                   style={{ width: `${(result.phq9Equivalent / 27) * 100}%` }}
                 />
               </div>
             </div>
 
             {/* 3. Voice Biomarkers (10%) */}
-            <div className="space-y-1">
-              <div className="flex justify-between text-xs font-semibold text-slate-700">
-                <span>Speech Jitter & Vocal Tremor (10% Weight)</span>
-                <span className="font-mono font-bold text-purple-700">{result.voiceStressScore.toFixed(1)}/10 pts</span>
+            <div className="p-3 rounded-2xl pastel-lavender space-y-1.5">
+              <div className="flex justify-between text-xs font-bold text-violet-950">
+                <span>Voice Biomarkers & Acoustic Jitter (10% Weight)</span>
+                <span className="font-mono font-extrabold text-violet-800">{result.voiceStressScore.toFixed(1)}/10 pts</span>
               </div>
-              <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+              <div className="w-full bg-violet-200/50 h-2 rounded-full overflow-hidden">
                 <div
-                  className="bg-purple-500 h-full rounded-full transition-all duration-700"
+                  className="bg-gradient-to-r from-violet-500 to-purple-600 h-full rounded-full transition-all duration-700"
                   style={{ width: `${(result.voiceStressScore / 10) * 100}%` }}
                 />
               </div>
             </div>
 
             {/* 4. NLP & Case Context Bonus (30%) */}
-            <div className="space-y-1">
-              <div className="flex justify-between text-xs font-semibold text-slate-700">
-                <span>Atrocity Threat & Social Context (30% Combined)</span>
-                <span className="font-mono font-bold text-amber-700">
+            <div className="p-3 rounded-2xl pastel-amber space-y-1.5">
+              <div className="flex justify-between text-xs font-bold text-amber-950">
+                <span>Atrocity Severity & Legal History (30% Weight)</span>
+                <span className="font-mono font-extrabold text-amber-800">
                   {(result.nlpSentimentScore + result.contextualBonus).toFixed(1)}/30 pts
                 </span>
               </div>
-              <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+              <div className="w-full bg-amber-200/50 h-2 rounded-full overflow-hidden">
                 <div
-                  className="bg-amber-500 h-full rounded-full transition-all duration-700"
+                  className="bg-gradient-to-r from-amber-500 to-orange-500 h-full rounded-full transition-all duration-700"
                   style={{ width: `${((result.nlpSentimentScore + result.contextualBonus) / 30) * 100}%` }}
                 />
               </div>

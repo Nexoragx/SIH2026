@@ -131,6 +131,43 @@ export const MADRS_QUESTIONS: QuestionItem[] = [
       { id: 'd', icon: '🆘', labelKey: 'opt_10d', defaultLabel: 'I have thoughts of ending life', madrsScore: 6 },
     ],
   },
+  {
+    id: 11,
+    madrsItemNumber: 11,
+    domain: 'Recent Threat & Intimidation',
+    questionKey: 'q11',
+    defaultQuestion: 'Have you felt threatened or unsafe recently?',
+    options: [
+      { id: 'a', icon: '🛡️', labelKey: 'opt_11a', defaultLabel: 'No, I feel safe', madrsScore: 0 },
+      { id: 'b', icon: '💭', labelKey: 'opt_11b', defaultLabel: 'Yes, in my thoughts', madrsScore: 2 },
+      { id: 'c', icon: '⚠️', labelKey: 'opt_11c', defaultLabel: 'Yes, felt uneasy outside', madrsScore: 4 },
+      { id: 'd', icon: '🚨', labelKey: 'opt_11d', defaultLabel: 'Yes, threatened by someone', madrsScore: 6 },
+    ],
+  },
+  {
+    id: 12,
+    madrsItemNumber: 12,
+    domain: 'Living Situation Safety',
+    questionKey: 'q12',
+    defaultQuestion: 'Do you feel safe where you are currently living?',
+    options: [
+      { id: 'a', icon: '🏡', labelKey: 'opt_12a', defaultLabel: 'Yes, completely safe', madrsScore: 0 },
+      { id: 'b', icon: '🚪', labelKey: 'opt_12b', defaultLabel: 'Mostly safe at home', madrsScore: 2 },
+      { id: 'c', icon: '👀', labelKey: 'opt_12c', defaultLabel: 'Sometimes feel watched', madrsScore: 4 },
+      { id: 'd', icon: '🚫', labelKey: 'opt_12d', defaultLabel: 'No, living in fear', madrsScore: 6 },
+    ],
+  },
+];
+
+export const EMERGENCY_RESOURCES = [
+  { name: 'National Helpline for SC/ST (NHAA)', number: '14566', specialty: 'Atrocity victims statutory relief', tollFree: true },
+  { name: 'Tele-MANAS Mental Health Helpline', number: '14416 / 1800-891-4416', specialty: '24x7 Government psychological care', tollFree: true },
+  { name: 'Emergency Medical & Ambulance', number: '108', specialty: 'Immediate crisis response', tollFree: true },
+  { name: 'NALSA Legal Aid for Victims', number: '15100', specialty: 'Free legal counsel & court aid', tollFree: true },
+  { name: 'Women Helpline (National)', number: '181', specialty: 'Gender-based violence & protection', tollFree: true },
+  { name: 'Police Emergency Response', number: '100 / 112', specialty: 'Immediate physical security', tollFree: true },
+  { name: 'iCall Psychosocial Helpline', number: '9152987821', specialty: 'Trauma & grief support', tollFree: false },
+  { name: 'Vandrevala Foundation Helpline', number: '9999 666 555', specialty: '24/7 crisis counselling', tollFree: true },
 ];
 
 export const STATES_AND_DISTRICTS: { [state: string]: string[] } = {

@@ -95,14 +95,68 @@ export const PersonalizedActivities: React.FC<PersonalizedActivitiesProps> = ({
     { title: '6. Legs & Feet', instruction: 'Point your toes forward, stretch your calves, then let your entire lower body sink into rest.' },
   ];
 
-  // 5. Ambient Soothing Soundscape State
+  // 5. Ambient Soothing Soundscape State & Web Audio Synthesizer
   const [playingSound, setPlayingSound] = useState<string | null>(null);
+  const audioNodesRef = React.useRef<{ ctx: AudioContext; osc?: OscillatorNode; gain: GainNode } | null>(null);
+
   const soundscapes = [
-    { id: 'temple', title: 'Himalayan Singing Bowls', desc: '432Hz deep meditative resonance', icon: '🔔' },
-    { id: 'rain', title: 'Gentle Monsoon on Leaves', desc: 'Soothing natural white noise', icon: '🌧️' },
-    { id: 'ocean', title: 'Calm Ocean Shore Waves', desc: 'Rhythmic tidal relaxation', icon: '🌊' },
-    { id: 'forest', title: 'Dawn Birdsong & Flute', desc: 'Uplifting morning peace', icon: '🕊️' },
+    { id: 'temple', title: 'Himalayan Singing Bowls', desc: '432Hz deep meditative resonance', icon: '🔔', freq: 432 },
+    { id: 'rain', title: 'Gentle Monsoon on Leaves', desc: 'Soothing natural pink noise', icon: '🌧️', freq: 220 },
+    { id: 'ocean', title: 'Calm Ocean Shore Waves', desc: 'Rhythmic tidal relaxation', icon: '🌊', freq: 174 },
+    { id: 'forest', title: 'Dawn Birdsong & Flute', desc: 'Uplifting morning peace', icon: '🕊️', freq: 528 },
   ];
+
+  const stopSoundscape = () => {
+    if (audioNodesRef.current) {
+      try {
+        if (audioNodesRef.current.osc) {
+          audioNodesRef.current.osc.stop();
+        }
+        audioNodesRef.current.ctx.close();
+      } catch (e) {}
+      audioNodesRef.current = null;
+    }
+  };
+
+  const toggleSoundscape = (soundId: string) => {
+    if (playingSound === soundId) {
+      stopSoundscape();
+      setPlayingSound(null);
+      return;
+    }
+
+    stopSoundscape();
+
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const gainNode = ctx.createGain();
+      gainNode.gain.setValueAtTime(0.12, ctx.currentTime);
+      gainNode.connect(ctx.destination);
+
+      const target = soundscapes.find((s) => s.id === soundId);
+      const freq = target ? target.freq : 432;
+
+      const osc = ctx.createOscillator();
+      osc.type = soundId === 'temple' ? 'sine' : soundId === 'ocean' ? 'triangle' : 'sine';
+      osc.frequency.setValueAtTime(freq, ctx.currentTime);
+      osc.connect(gainNode);
+      osc.start();
+
+      audioNodesRef.current = { ctx, osc, gain: gainNode };
+      setPlayingSound(soundId);
+    } catch (e) {
+      console.warn('Sound synthesis error:', e);
+      setPlayingSound(soundId);
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      stopSoundscape();
+    };
+  }, []);
 
   // Personalized Advice Box based on Score
   const getPersonalizedRecommendations = () => {
@@ -435,7 +489,7 @@ export const PersonalizedActivities: React.FC<PersonalizedActivitiesProps> = ({
 
                   <button
                     type="button"
-                    onClick={() => setPlayingSound(isPlaying ? null : snd.id)}
+                    onClick={() => toggleSoundscape(snd.id)}
                     className={`p-2.5 rounded-xl transition shadow-xs ${
                       isPlaying
                         ? 'bg-indigo-600 text-white shadow-indigo-600/30'

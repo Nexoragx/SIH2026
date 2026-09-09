@@ -28,69 +28,137 @@
 @layer base {
   body {
     min-height: 100vh;
-    color: #000000 !important;
     font-family: 'Plus Jakarta Sans', 'Noto Sans', system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
-    background-color: #F8FAFC !important;
-    background-image: none !important;
+    color: #1E293B;
+    background-color: #F8FAFC;
+    background-image: 
+      radial-gradient(at 10% 10%, rgba(224, 231, 255, 0.55) 0px, transparent 50%),
+      radial-gradient(at 90% 15%, rgba(209, 250, 229, 0.45) 0px, transparent 50%),
+      radial-gradient(at 30% 60%, rgba(254, 243, 199, 0.40) 0px, transparent 50%),
+      radial-gradient(at 85% 85%, rgba(255, 228, 230, 0.45) 0px, transparent 50%),
+      radial-gradient(at 50% 95%, rgba(224, 242, 254, 0.50) 0px, transparent 50%);
+    background-attachment: fixed;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    color: #000000 !important;
     letter-spacing: -0.02em;
-  }
-
-  p, span, label, input, textarea {
-    color: #000000;
+    color: #0F172A;
   }
 }
 
 /* ============================================================
-   EMPATHETIC, TRUSTWORTHY, GOVERNMENT-APPROPRIATE CARD SYSTEM
+   FROSTED GLASS (GLASSMORPHISM) & SOFT PASTEL DESIGN SYSTEM
    ============================================================ */
 
-/* Calm, clean card container with pure black text */
-.anvaya-card {
-  background-color: #FFFFFF;
-  border: 1px solid #E2E8F0;
+/* Primary Frosted Glass Card */
+.anvaya-card, .glass-card {
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  border-radius: 1.5rem;
+  box-shadow: 
+    0 4px 20px -2px rgba(99, 102, 241, 0.05),
+    0 1px 3px 0 rgba(0, 0, 0, 0.03),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.anvaya-card:hover, .glass-card:hover {
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 
+    0 12px 32px -4px rgba(99, 102, 241, 0.08),
+    0 4px 12px -2px rgba(0, 0, 0, 0.04);
+}
+
+/* Frosted Glass Panel for Navbars & Top Headers */
+.liquid-glass-panel {
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 
+    0 8px 30px -4px rgba(99, 102, 241, 0.06),
+    0 2px 6px 0 rgba(0, 0, 0, 0.02);
+}
+
+/* Selectable Touch Tile with Pastel Glow */
+.anvaya-tile, .liquid-tile {
+  background: rgba(255, 255, 255, 0.80);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1.5px solid rgba(226, 232, 240, 0.85);
   border-radius: 1.25rem;
-  box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.04), 0 1px 3px 0 rgba(15, 23, 42, 0.03);
-  color: #000000;
-  transition: all 0.2s ease-in-out;
+  color: #1E293B;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
 }
 
-.anvaya-card:hover {
-  box-shadow: 0 8px 24px -4px rgba(15, 23, 42, 0.08);
-}
-
-/* Selectable Touch Tile for Questionnaires & Options */
-.anvaya-tile {
-  background-color: #FFFFFF;
-  border: 1.5px solid #E2E8F0;
-  border-radius: 1rem;
-  color: #000000;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
-}
-
-.anvaya-tile:hover {
-  border-color: #94A3B8;
-  background-color: #F8FAFC;
+.anvaya-tile:hover, .liquid-tile:hover {
+  border-color: #818CF8;
+  background: rgba(255, 255, 255, 0.95);
   transform: translateY(-2px);
-  box-shadow: 0 6px 14px -2px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 8px 20px -2px rgba(99, 102, 241, 0.12);
 }
 
-.anvaya-tile-selected {
-  background-color: #F8FAFC;
-  border-color: #000000;
+.anvaya-tile-selected, .liquid-tile-selected {
+  background: rgba(238, 242, 255, 0.90) !important;
+  border-color: #4F46E5 !important;
   border-width: 2px;
-  box-shadow: 0 6px 16px -2px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 8px 24px -2px rgba(79, 70, 229, 0.20);
   transform: translateY(-2px);
 }
 
-/* Emergency Red CTA Button (Strictly reserved for genuine emergency / crisis) */
+/* ============================================================
+   SOFT PASTEL COLOR SYSTEM TOKENS
+   ============================================================ */
+
+.pastel-indigo {
+  background: linear-gradient(135deg, rgba(238, 242, 255, 0.85) 0%, rgba(224, 231, 255, 0.65) 100%);
+  border: 1px solid rgba(199, 210, 254, 0.7);
+  color: #3730A3;
+}
+
+.pastel-lavender {
+  background: linear-gradient(135deg, rgba(245, 243, 255, 0.85) 0%, rgba(237, 233, 254, 0.65) 100%);
+  border: 1px solid rgba(221, 214, 254, 0.7);
+  color: #5B21B6;
+}
+
+.pastel-emerald {
+  background: linear-gradient(135deg, rgba(236, 253, 245, 0.85) 0%, rgba(209, 250, 229, 0.65) 100%);
+  border: 1px solid rgba(167, 243, 208, 0.7);
+  color: #065F46;
+}
+
+.pastel-teal {
+  background: linear-gradient(135deg, rgba(240, 253, 250, 0.85) 0%, rgba(204, 251, 241, 0.65) 100%);
+  border: 1px solid rgba(153, 246, 228, 0.7);
+  color: #115E59;
+}
+
+.pastel-sky {
+  background: linear-gradient(135deg, rgba(240, 249, 255, 0.85) 0%, rgba(224, 242, 254, 0.65) 100%);
+  border: 1px solid rgba(186, 230, 253, 0.7);
+  color: #075985;
+}
+
+.pastel-rose {
+  background: linear-gradient(135deg, rgba(255, 241, 242, 0.85) 0%, rgba(255, 228, 230, 0.65) 100%);
+  border: 1px solid rgba(254, 205, 211, 0.7);
+  color: #9F1239;
+}
+
+.pastel-amber {
+  background: linear-gradient(135deg, rgba(255, 251, 235, 0.85) 0%, rgba(254, 243, 199, 0.65) 100%);
+  border: 1px solid rgba(253, 230, 138, 0.7);
+  color: #92400E;
+}
+
+/* Buttons */
 .btn-emergency {
-  background-color: #DC2626 !important;
+  background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%) !important;
   color: #FFFFFF !important;
   font-weight: 800;
   border-radius: 0.875rem;
@@ -99,7 +167,7 @@
 }
 
 .btn-emergency:hover {
-  background-color: #B91C1C !important;
+  background: linear-gradient(135deg, #DC2626 0%, #B91C1C 100%) !important;
   transform: translateY(-1px);
   box-shadow: 0 8px 24px -4px rgba(220, 38, 38, 0.45);
 }
@@ -108,55 +176,35 @@
   transform: scale(0.97);
 }
 
-/* Primary Dark Action Button */
 .btn-primary {
-  background-color: #000000;
+  background: linear-gradient(135deg, #4F46E5 0%, #4338CA 100%);
   color: #FFFFFF !important;
   font-weight: 700;
   border-radius: 0.875rem;
+  box-shadow: 0 4px 14px -2px rgba(79, 70, 229, 0.30);
   transition: all 0.2s ease;
 }
 
 .btn-primary:hover {
-  background-color: #1E293B;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  background: linear-gradient(135deg, #4338CA 0%, #3730A3 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px -2px rgba(79, 70, 229, 0.40);
 }
 
-/* Secondary Button with Black Text */
 .btn-secondary {
-  background-color: #FFFFFF;
-  color: #000000 !important;
-  border: 1.5px solid #E2E8F0;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(8px);
+  color: #1E293B !important;
+  border: 1.5px solid rgba(226, 232, 240, 0.9);
   font-weight: 700;
   border-radius: 0.875rem;
   transition: all 0.2s ease;
 }
 
 .btn-secondary:hover {
-  background-color: #F8FAFC;
-  border-color: #CBD5E1;
-}
-
-/* Legacy utility compatibility */
-.liquid-glass-panel {
   background: #FFFFFF;
-  border: 1px solid #E2E8F0;
-  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
-}
-
-.liquid-tile {
-  background: #FFFFFF;
-  border: 1.5px solid #E2E8F0;
-}
-
-.liquid-tile:hover {
-  background: #F8FAFC;
-  border-color: #94A3B8;
-}
-
-.liquid-tile-selected {
-  background: #F8FAFC;
-  border-color: #000000;
+  border-color: #818CF8;
+  color: #4F46E5 !important;
 }
 
 /* Custom subtle scrollbar */
@@ -165,12 +213,12 @@
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #F1F5F9;
+  background: rgba(241, 245, 249, 0.6);
 }
 ::-webkit-scrollbar-thumb {
-  background: #CBD5E1;
-  border-radius: 3px;
+  background: rgba(199, 210, 254, 0.8);
+  border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #94A3B8;
+  background: rgba(165, 180, 252, 1);
 }

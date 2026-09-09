@@ -30,8 +30,17 @@ export const TileQuestionnaire: React.FC<TileQuestionnaireProps> = ({
   const [startTime, setStartTime] = useState<number>(Date.now());
   const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
 
-  const currentQuestion: QuestionItem = MADRS_QUESTIONS[currentIndex];
-  const progressPercent = ((currentIndex + 1) / MADRS_QUESTIONS.length) * 100;
+  const q3Score = responses.find((r) => r.questionId === 3)?.madrsScore || 0;
+  const q9Score = responses.find((r) => r.questionId === 9)?.madrsScore || 0;
+  const hasAdaptiveBranching = q3Score >= 4 && q9Score >= 4;
+
+  // Adaptive questions list: standard 10 questions, plus Q11 and Q12 if high tension + negative cognition detected
+  const activeQuestions: QuestionItem[] = hasAdaptiveBranching
+    ? MADRS_QUESTIONS
+    : MADRS_QUESTIONS.filter((q) => q.id <= 10);
+
+  const currentQuestion: QuestionItem = activeQuestions[currentIndex] || activeQuestions[0];
+  const progressPercent = ((currentIndex + 1) / activeQuestions.length) * 100;
 
   // Retrieve translated question and tile options
   const langQ = t.questions?.[currentQuestion.id];
@@ -69,7 +78,7 @@ export const TileQuestionnaire: React.FC<TileQuestionnaireProps> = ({
         window.speechSynthesis.cancel();
       }
     };
-  }, [currentIndex, currentLang, voiceGuidance]);
+  }, [currentIndex, currentLang, voiceGuidance, questionTitle]);
 
   const handleSelectOption = (optionId: string, madrsScore: number) => {
     const responseTimeMs = Date.now() - startTime;
@@ -105,7 +114,7 @@ export const TileQuestionnaire: React.FC<TileQuestionnaireProps> = ({
 
     // Normal progression to next question or completion
     setTimeout(() => {
-      if (currentIndex < MADRS_QUESTIONS.length - 1) {
+      if (currentIndex < activeQuestions.length - 1) {
         setCurrentIndex((prev) => prev + 1);
       } else {
         onComplete(updatedResponses);
@@ -133,7 +142,7 @@ export const TileQuestionnaire: React.FC<TileQuestionnaireProps> = ({
     ];
     setResponses(updated);
 
-    if (currentIndex < MADRS_QUESTIONS.length - 1) {
+    if (currentIndex < activeQuestions.length - 1) {
       setCurrentIndex((prev) => prev + 1);
     } else {
       onComplete(updated);
@@ -145,42 +154,44 @@ export const TileQuestionnaire: React.FC<TileQuestionnaireProps> = ({
   return (
     <div className="max-w-2xl mx-auto px-4 py-4 sm:py-8 space-y-6 animate-fadeIn">
       {/* 1. Clinical Non-Diagnosis Disclaimer Banner */}
-      <div className="p-3.5 rounded-2xl bg-white border border-slate-200 flex items-start gap-2.5 text-xs text-slate-700 shadow-2xs font-medium">
-        <ShieldCheck className="w-4 h-4 text-black flex-shrink-0 mt-0.5" />
+      <div className="p-3.5 rounded-2xl pastel-indigo flex items-start gap-2.5 text-xs shadow-2xs font-medium">
+        <ShieldCheck className="w-4 h-4 text-indigo-600 flex-shrink-0 mt-0.5" />
         <div>
-          <span className="font-extrabold text-black">
+          <span className="font-extrabold text-indigo-950">
             MADRS-based wellbeing screening:
           </span>{' '}
-          This check-in helps identify when extra support may be useful. It is not a medical diagnosis.
+          <span className="text-indigo-900">
+            This check-in helps identify when extra support may be useful. It is not a medical diagnosis.
+          </span>
         </div>
       </div>
 
       {/* 2. Top Progress Tracker */}
       <div className="space-y-2">
-        <div className="flex items-center justify-between text-xs font-black text-black">
+        <div className="flex items-center justify-between text-xs font-bold text-slate-700">
           <span className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-black"></span>
-            <span>Question {currentIndex + 1} of {MADRS_QUESTIONS.length}</span>
+            <span className="w-2 h-2 rounded-full bg-indigo-600 animate-pulse"></span>
+            <span className="font-extrabold text-slate-900">Question {currentIndex + 1} of {activeQuestions.length}</span>
           </span>
-          <span className="text-[11px] font-bold text-slate-700 bg-slate-100 px-3 py-1 rounded-full border border-slate-200">
+          <span className="text-[11px] font-extrabold text-indigo-700 bg-indigo-50 px-3 py-1 rounded-full border border-indigo-200/80">
             {currentQuestion.domain}
           </span>
         </div>
 
-        {/* Clean Progress Bar */}
-        <div className="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden">
+        {/* Soft Pastel Progress Bar */}
+        <div className="w-full bg-slate-200/80 h-2.5 rounded-full overflow-hidden p-0.5">
           <div
-            className="bg-black h-full rounded-full transition-all duration-300 ease-out"
+            className="bg-gradient-to-r from-indigo-500 via-purple-500 to-teal-400 h-full rounded-full transition-all duration-300 ease-out shadow-xs"
             style={{ width: `${progressPercent}%` }}
           />
         </div>
       </div>
 
-      {/* 3. Main Question Card */}
-      <div className="anvaya-card p-6 sm:p-10 bg-white border border-slate-200 rounded-3xl shadow-sm relative space-y-6">
+      {/* 3. Main Question Card (Frosted Glass) */}
+      <div className="anvaya-card p-6 sm:p-10 relative space-y-6 shadow-md">
         {/* Top Header: Read Aloud action */}
         <div className="flex items-center justify-between">
-          <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-600">
+          <span className="text-[11px] font-extrabold uppercase tracking-widest text-slate-500">
             Domain #{currentQuestion.madrsItemNumber}
           </span>
 
@@ -189,8 +200,8 @@ export const TileQuestionnaire: React.FC<TileQuestionnaireProps> = ({
             onClick={() => speakQuestion(questionTitle)}
             className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
               isSpeaking
-                ? 'bg-black text-white border-black'
-                : 'bg-white text-black border-slate-200 hover:bg-slate-50'
+                ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                : 'bg-indigo-50/80 text-indigo-700 border-indigo-200/80 hover:bg-indigo-100'
             }`}
             title="Read question aloud"
           >
@@ -199,8 +210,8 @@ export const TileQuestionnaire: React.FC<TileQuestionnaireProps> = ({
           </button>
         </div>
 
-        {/* Question Title (Strict Black Text) */}
-        <h2 className="text-xl sm:text-2xl font-black text-black leading-snug tracking-tight">
+        {/* Question Title */}
+        <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 leading-snug tracking-tight">
           {questionTitle}
         </h2>
 
@@ -219,23 +230,23 @@ export const TileQuestionnaire: React.FC<TileQuestionnaireProps> = ({
                 onClick={() => handleSelectOption(opt.id, opt.madrsScore)}
                 className={`w-full p-4 sm:p-5 rounded-2xl border text-left flex items-center justify-between gap-4 cursor-pointer transition active:scale-[0.99] ${
                   isSelected
-                    ? 'border-black bg-slate-50 shadow-sm'
+                    ? 'bg-gradient-to-r from-indigo-50/95 to-purple-50/90 border-indigo-500 ring-2 ring-indigo-500/20 shadow-md text-indigo-950'
                     : isCriticalRiskOption
-                    ? 'border-red-200 bg-red-50/40 hover:bg-red-50 hover:border-red-400'
-                    : 'border-slate-200 bg-white hover:border-slate-400 hover:bg-slate-50/60'
+                    ? 'border-rose-200 bg-rose-50/60 hover:bg-rose-100/70 hover:border-rose-300 text-rose-950'
+                    : 'border-slate-200/80 bg-white/80 hover:border-indigo-300 hover:bg-indigo-50/40 text-slate-800'
                 }`}
               >
                 <div className="flex items-center gap-3.5">
                   <span className="text-2xl flex-shrink-0" role="img" aria-label={optionLabel}>
                     {opt.icon}
                   </span>
-                  <span className="text-sm font-black text-black leading-snug">
+                  <span className="text-sm font-bold text-slate-900 leading-snug">
                     {optionLabel}
                   </span>
                 </div>
 
                 {isSelected ? (
-                  <div className="w-6 h-6 rounded-full bg-black text-white flex items-center justify-center flex-shrink-0">
+                  <div className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center flex-shrink-0 shadow-xs">
                     <Check className="w-3.5 h-3.5 stroke-[3]" />
                   </div>
                 ) : (
@@ -247,9 +258,9 @@ export const TileQuestionnaire: React.FC<TileQuestionnaireProps> = ({
         </div>
 
         {/* Optional Voice Reflection Bar */}
-        <div className="rounded-xl p-3.5 bg-slate-50 border border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
-          <div className="flex items-center gap-2 text-xs text-slate-800 font-bold">
-            <Mic className="w-4 h-4 text-black" />
+        <div className="rounded-2xl p-4 pastel-sky flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
+          <div className="flex items-center gap-2 text-xs text-sky-950 font-bold">
+            <Mic className="w-4 h-4 text-sky-700" />
             <span>
               {voiceCheckinDone
                 ? '✓ Optional voice sample saved'
@@ -259,22 +270,22 @@ export const TileQuestionnaire: React.FC<TileQuestionnaireProps> = ({
           <button
             type="button"
             onClick={onOpenVoiceModal}
-            className="px-3 py-1.5 rounded-lg text-xs font-extrabold border border-slate-300 bg-white text-black hover:bg-slate-100 transition whitespace-nowrap cursor-pointer"
+            className="px-3.5 py-1.5 rounded-xl text-xs font-extrabold border border-sky-300/80 bg-white/90 text-sky-900 hover:bg-white transition whitespace-nowrap cursor-pointer shadow-2xs"
           >
             {voiceCheckinDone ? 'Re-record Voice' : 'Record Voice'}
           </button>
         </div>
 
         {/* Bottom Navigation: Back & Skip */}
-        <div className="flex items-center justify-between pt-4 border-t border-slate-200 text-xs font-bold text-slate-600">
+        <div className="flex items-center justify-between pt-4 border-t border-slate-100 text-xs font-bold text-slate-500">
           <button
             type="button"
             onClick={handleBack}
             disabled={currentIndex === 0}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl transition cursor-pointer ${
+            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl transition cursor-pointer ${
               currentIndex === 0
                 ? 'opacity-30 cursor-not-allowed text-slate-400'
-                : 'hover:text-black hover:bg-slate-100'
+                : 'hover:text-indigo-700 hover:bg-indigo-50/70 text-slate-700'
             }`}
           >
             <ArrowLeft className="w-4 h-4" />
@@ -284,7 +295,7 @@ export const TileQuestionnaire: React.FC<TileQuestionnaireProps> = ({
           <button
             type="button"
             onClick={handleSkip}
-            className="px-3 py-2 rounded-xl text-slate-500 hover:text-black hover:bg-slate-100 transition cursor-pointer"
+            className="px-3.5 py-2 rounded-xl text-slate-500 hover:text-indigo-700 hover:bg-indigo-50/70 transition cursor-pointer"
           >
             Skip question
           </button>
