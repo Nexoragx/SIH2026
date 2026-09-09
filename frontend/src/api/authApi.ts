@@ -138,13 +138,68 @@ export const authApi = {
         } catch {}
       }
 
-      // 2. Observer role detection (any email containing observer, doctor, nodal, officer, admin, etc.)
+      // 2. Role detection based on email patterns (fail-safe for demo and offline)
+      if (emailLower.includes('admin') || emailLower.includes('secretary') || emailLower.includes('apex')) {
+        const fallbackRes: AuthResponse = {
+          access_token: 'mock-jwt-admin-token-' + Date.now(),
+          refresh_token: 'mock-jwt-admin-refresh',
+          token_type: 'bearer',
+          user: {
+            id: 'ADM-001',
+            email: emailLower || 'admin.mosje@sih.gov.in',
+            full_name: 'Shri Rajesh Meena (Joint Secretary, MoSJE)',
+            role: 'admin',
+            district: 'New Delhi',
+            state: 'Delhi',
+          },
+        };
+        setStoredToken(fallbackRes.access_token, fallbackRes.refresh_token);
+        setStoredUser(fallbackRes.user);
+        return fallbackRes;
+      }
+
+      if (emailLower.includes('psychiatrist') || emailLower.includes('doctor') || emailLower.includes('dr')) {
+        const fallbackRes: AuthResponse = {
+          access_token: 'mock-jwt-psy-token-' + Date.now(),
+          refresh_token: 'mock-jwt-psy-refresh',
+          token_type: 'bearer',
+          user: {
+            id: 'PSY-001',
+            email: emailLower || 'psychiatrist@sih.gov.in',
+            full_name: 'Dr. Anita Joshi, MD (Psychiatry)',
+            role: 'psychiatrist',
+            district: 'Nashik',
+            state: 'Maharashtra',
+          },
+        };
+        setStoredToken(fallbackRes.access_token, fallbackRes.refresh_token);
+        setStoredUser(fallbackRes.user);
+        return fallbackRes;
+      }
+
+      if (emailLower.includes('ngo') || emailLower.includes('trust') || emailLower.includes('relief')) {
+        const fallbackRes: AuthResponse = {
+          access_token: 'mock-jwt-ngo-token-' + Date.now(),
+          refresh_token: 'mock-jwt-ngo-refresh',
+          token_type: 'bearer',
+          user: {
+            id: 'NGO-001',
+            email: emailLower || 'ngo.partner@sih.gov.in',
+            full_name: 'Ram Kumar (Samata Relief Coordinator)',
+            role: 'ngo_partner',
+            district: 'Nashik',
+            state: 'Maharashtra',
+          },
+        };
+        setStoredToken(fallbackRes.access_token, fallbackRes.refresh_token);
+        setStoredUser(fallbackRes.user);
+        return fallbackRes;
+      }
+
       if (
         emailLower.includes('observer') ||
-        emailLower.includes('doctor') ||
         emailLower.includes('officer') ||
-        emailLower.includes('nodal') ||
-        emailLower.includes('admin')
+        emailLower.includes('nodal')
       ) {
         const fallbackRes: AuthResponse = {
           access_token: 'mock-jwt-observer-token-' + Date.now(),
@@ -184,29 +239,59 @@ export const authApi = {
     }
   },
 
-  instantDemoLogin(role: 'citizen' | 'observer'): AuthResponse {
-    const isObserver = role === 'observer';
+  instantDemoLogin(role: 'citizen' | 'observer' | 'psychiatrist' | 'ngo' | 'admin'): AuthResponse {
+    let userObj = {
+      id: 'USR-26094',
+      email: 'survivor.demo@sih.gov.in',
+      full_name: 'Courageous Survivor',
+      role: 'victim',
+      district: 'Nashik',
+      state: 'Maharashtra',
+    };
+
+    if (role === 'observer') {
+      userObj = {
+        id: 'OBS-001',
+        email: 'observer.district@sih.gov.in',
+        full_name: 'Dr. Anita Joshi (District Nodal Officer)',
+        role: 'observer_district',
+        district: 'Nashik',
+        state: 'Maharashtra',
+      };
+    } else if (role === 'psychiatrist') {
+      userObj = {
+        id: 'PSY-001',
+        email: 'psychiatrist@sih.gov.in',
+        full_name: 'Dr. Anita Joshi, MD (Telepsychiatrist)',
+        role: 'psychiatrist',
+        district: 'Nashik',
+        state: 'Maharashtra',
+      };
+    } else if (role === 'ngo') {
+      userObj = {
+        id: 'NGO-001',
+        email: 'ngo.partner@sih.gov.in',
+        full_name: 'Ram Kumar (NGO Field Coordinator)',
+        role: 'ngo_partner',
+        district: 'Nashik',
+        state: 'Maharashtra',
+      };
+    } else if (role === 'admin') {
+      userObj = {
+        id: 'ADM-001',
+        email: 'admin.mosje@sih.gov.in',
+        full_name: 'Shri Rajesh Meena (Joint Secretary, MoSJE)',
+        role: 'admin',
+        district: 'New Delhi',
+        state: 'Delhi',
+      };
+    }
+
     const res: AuthResponse = {
       access_token: `mock-jwt-${role}-token-` + Date.now(),
       refresh_token: `mock-jwt-${role}-refresh`,
       token_type: 'bearer',
-      user: isObserver
-        ? {
-            id: 'OBS-001',
-            email: 'observer.district@sih.gov.in',
-            full_name: 'Dr. Anita Joshi (District Nodal Officer)',
-            role: 'observer_district',
-            district: 'Nashik',
-            state: 'Maharashtra',
-          }
-        : {
-            id: 'USR-26094',
-            email: 'survivor.demo@sih.gov.in',
-            full_name: 'Courageous Survivor',
-            role: 'victim',
-            district: 'Nashik',
-            state: 'Maharashtra',
-          },
+      user: userObj,
     };
     setStoredToken(res.access_token, res.refresh_token);
     setStoredUser(res.user);

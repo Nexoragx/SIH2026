@@ -90,7 +90,7 @@ export const ObserverDashboard: React.FC<ObserverDashboardProps> = () => {
       date: '05 Sep 2026',
       action: 'NGO Protection Linkage',
       officer: 'Ram Kumar (NGO Field Coordinator)',
-      outcome: 'Accompanied victim family for district statutory relief verification.',
+      outcome: 'Accompanied survivor family for district statutory relief verification.',
       nextFollowup: '15 Sep 2026',
     },
   ]);

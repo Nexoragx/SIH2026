@@ -144,7 +144,7 @@ export const CourtReportModal: React.FC<CourtReportModalProps> = ({
 
             <div className="text-xs text-slate-700 leading-relaxed font-medium pt-2">
               <p>
-                <strong>Clinical Observation:</strong> The survivor displays significant psychomotor tension, severe disruption to natural sleep architectures, and hyper-vigilance resulting directly from recent victimisation. Vocal acoustic analysis confirms elevated jitter and tremor latency.
+                <strong>Clinical Observation:</strong> The survivor displays significant psychomotor tension, severe disruption to natural sleep architectures, and hyper-vigilance resulting directly from recent trauma and targeted intimidation. Vocal acoustic analysis confirms elevated jitter and tremor latency.
               </p>
             </div>
           </div>
@@ -170,7 +170,7 @@ export const CourtReportModal: React.FC<CourtReportModalProps> = ({
               4. Recommended Statutory Relief & Protective Measures
             </h3>
             <ul className="text-xs text-slate-800 space-y-1 list-disc pl-4 font-medium">
-              <li>Immediate expedited disbursement of Central Victim Compensation Fund (CVCF) interim relief.</li>
+              <li>Immediate expedited disbursement of Central Relief & Survivor Compensation Fund (CVCF) interim assistance.</li>
               <li>Provision of free legal counsel through NALSA District Legal Services Authority (DLSA).</li>
               <li>Regular weekly psychological check-in via Tele-MANAS & District Mental Health Unit.</li>
               <li>Local Police protection and monitoring for witness intimidation safeguards.</li>

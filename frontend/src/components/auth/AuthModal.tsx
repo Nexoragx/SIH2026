@@ -93,7 +93,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
   };
 
-  const handleInstantLogin = (demoType: 'citizen' | 'observer') => {
+  const handleInstantLogin = (demoType: 'citizen' | 'observer' | 'psychiatrist' | 'ngo' | 'admin') => {
     setErrorMsg(null);
     setLoading(true);
     const res = authApi.instantDemoLogin(demoType);
@@ -104,7 +104,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }, 400);
   };
 
-  const fillDemoAccount = (demoType: 'citizen' | 'observer') => {
+  const fillDemoAccount = (demoType: 'citizen' | 'observer' | 'psychiatrist' | 'ngo' | 'admin') => {
     setErrorMsg(null);
     if (demoType === 'citizen') {
       setEmail('survivor.demo@sih.gov.in');
@@ -113,13 +113,34 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setRole('victim');
       setDistrict('Nashik');
       setState('Maharashtra');
-    } else {
+    } else if (demoType === 'observer') {
       setEmail('observer.district@sih.gov.in');
       setPassword('ObserverPassword123!');
       setFullName('Dr. Anita Joshi (District Nodal Officer)');
       setRole('observer_district');
       setDistrict('Nashik');
       setState('Maharashtra');
+    } else if (demoType === 'psychiatrist') {
+      setEmail('psychiatrist@sih.gov.in');
+      setPassword('PsyPassword123!');
+      setFullName('Dr. Anita Joshi, MD (Telepsychiatrist)');
+      setRole('psychiatrist');
+      setDistrict('Nashik');
+      setState('Maharashtra');
+    } else if (demoType === 'ngo') {
+      setEmail('ngo.partner@sih.gov.in');
+      setPassword('NgoPassword123!');
+      setFullName('Ram Kumar (NGO Field Coordinator)');
+      setRole('ngo_partner');
+      setDistrict('Nashik');
+      setState('Maharashtra');
+    } else if (demoType === 'admin') {
+      setEmail('admin.mosje@sih.gov.in');
+      setPassword('AdminPassword123!');
+      setFullName('Shri Rajesh Meena (Joint Secretary, MoSJE)');
+      setRole('admin');
+      setDistrict('New Delhi');
+      setState('Delhi');
     }
   };
 
@@ -303,6 +324,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     <option value="observer_state">State Health Observer</option>
                     <option value="psychiatrist">Telepsychiatrist</option>
                     <option value="ngo_partner">NGO Field Coordinator</option>
+                    <option value="admin">MoSJE National Executive Admin</option>
                   </select>
                 </div>
               </div>
@@ -380,22 +402,43 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         {/* Quick Demo Credentials Autofill */}
         <div className="mt-5 pt-4 border-t border-slate-200/80">
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2 text-center">
-            Quick Fill Demo Accounts
+            Quick Fill Demo Accounts (Click to Fill & Test)
           </span>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-1.5">
             <button
               type="button"
               onClick={() => fillDemoAccount('citizen')}
-              className="flex-1 py-1.5 px-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-[11px] font-bold text-slate-700 transition text-center"
+              className="flex-1 min-w-[120px] py-1.5 px-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-[10px] font-bold text-slate-800 transition text-center"
             >
-              👤 Demo Citizen
+              👤 Citizen
             </button>
             <button
               type="button"
               onClick={() => fillDemoAccount('observer')}
-              className="flex-1 py-1.5 px-2 rounded-xl border border-indigo-200 hover:bg-indigo-50 text-[11px] font-bold text-indigo-700 transition text-center"
+              className="flex-1 min-w-[120px] py-1.5 px-2 rounded-xl border border-indigo-200 hover:bg-indigo-50 text-[10px] font-bold text-indigo-700 transition text-center"
             >
-              🛡️ Demo Observer
+              🛡️ Observer
+            </button>
+            <button
+              type="button"
+              onClick={() => fillDemoAccount('psychiatrist')}
+              className="flex-1 min-w-[120px] py-1.5 px-2 rounded-xl border border-purple-200 hover:bg-purple-50 text-[10px] font-bold text-purple-700 transition text-center"
+            >
+              🩺 Psychiatrist
+            </button>
+            <button
+              type="button"
+              onClick={() => fillDemoAccount('ngo')}
+              className="flex-1 min-w-[120px] py-1.5 px-2 rounded-xl border border-teal-200 hover:bg-teal-50 text-[10px] font-bold text-teal-700 transition text-center"
+            >
+              🤝 NGO Partner
+            </button>
+            <button
+              type="button"
+              onClick={() => fillDemoAccount('admin')}
+              className="flex-1 min-w-[120px] py-1.5 px-2 rounded-xl border border-amber-200 hover:bg-amber-50 text-[10px] font-bold text-amber-700 transition text-center"
+            >
+              🏛️ MoSJE Admin
             </button>
           </div>
         </div>

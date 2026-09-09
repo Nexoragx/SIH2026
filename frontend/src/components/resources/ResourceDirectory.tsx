@@ -36,7 +36,7 @@ export const ResourceDirectory: React.FC = () => {
             alt_number: '1800-202-1989',
             availability: '24x7 • Toll-Free',
             languages: 'Hindi, English & Scheduled Languages',
-            description: 'Statutory support under SC/ST (PoA) Act for atrocity victims, legal protection, FIR filing, and compensation tracking.',
+            description: 'Statutory support under SC/ST (PoA) Act for atrocity survivors and complainants, legal protection, FIR filing, and compensation tracking.',
             region: 'National • MoSJE',
             verified: true,
           },
@@ -72,7 +72,7 @@ export const ResourceDirectory: React.FC = () => {
             alt_number: null,
             availability: 'Working Hours & Callback',
             languages: 'English, Hindi & State Benches',
-            description: 'Free legal aid, advocate appointment, and court representation for marginalized communities and atrocity victims.',
+            description: 'Free legal aid, advocate appointment, and court representation for marginalized communities and atrocity survivors.',
             region: 'National Legal Services Authority',
             verified: true,
           },
@@ -130,7 +130,7 @@ export const ResourceDirectory: React.FC = () => {
         {[
           { id: 'all', label: 'All Resources' },
           { id: 'mental_health', label: 'Mental Health Support' },
-          { id: 'victim_support', label: 'Victim & Legal Support' },
+          { id: 'victim_support', label: 'Survivor & Legal Support' },
           { id: 'emergency', label: 'Emergency Services' },
         ].map((tab) => (
           <button

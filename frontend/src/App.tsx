@@ -25,11 +25,12 @@ import { CourtReportModal } from './components/victim/CourtReportModal';
 import { PsychiatristPortal } from './components/portals/PsychiatristPortal';
 import { NgoPortal } from './components/portals/NgoPortal';
 import { PersonalizedActivities } from './components/victim/PersonalizedActivities';
+import { AdminPanel } from './components/admin/AdminPanel';
 
 export const App: React.FC = () => {
   // Global State
   const [currentLang, setCurrentLang] = useState<string>('en');
-  const [activeTab, setActiveTab] = useState<'victim' | 'observer' | 'psychiatrist' | 'ngo' | 'analytics' | 'resources'>('victim');
+  const [activeTab, setActiveTab] = useState<'victim' | 'observer' | 'psychiatrist' | 'ngo' | 'analytics' | 'resources' | 'admin'>('victim');
   const [voiceGuidance, setVoiceGuidance] = useState<boolean>(false);
   const [isCrisisOpen, setIsCrisisOpen] = useState<boolean>(false);
   const [isVoiceModalOpen, setIsVoiceModalOpen] = useState<boolean>(false);
@@ -50,7 +51,7 @@ export const App: React.FC = () => {
   const [isIvrModalOpen, setIsIvrModalOpen] = useState<boolean>(false);
   const [cachedResponses, setCachedResponses] = useState<AssessmentResponse[]>([]);
 
-  // Victim flow state: 'dashboard' | 'questionnaire' | 'history' | 'result'
+  // Citizen / Survivor flow state: 'dashboard' | 'questionnaire' | 'history' | 'result'
   const [victimStep, setVictimStep] = useState<'dashboard' | 'questionnaire' | 'history' | 'result'>('dashboard');
 
   // Check backend health and local session on mount
@@ -67,7 +68,8 @@ export const App: React.FC = () => {
     const localUser = authApi.getCurrentLocalUser();
     if (localUser) {
       setCurrentUser(localUser);
-      if (localUser.role === 'victim') {
+      const r = (localUser.role || 'victim').toLowerCase();
+      if (r === 'victim' || r === 'citizen' || r === 'survivor') {
         setUserProfile((prev) => ({
           ...prev,
           id: localUser.id || prev.id,
@@ -76,6 +78,15 @@ export const App: React.FC = () => {
           district: localUser.district || prev.district,
           state: localUser.state || prev.state,
         }));
+        setActiveTab('victim');
+      } else if (r.startsWith('observer')) {
+        setActiveTab('observer');
+      } else if (r === 'psychiatrist') {
+        setActiveTab('psychiatrist');
+      } else if (r.startsWith('ngo')) {
+        setActiveTab('ngo');
+      } else if (r.startsWith('admin') || r.includes('secretary')) {
+        setActiveTab('admin');
       }
     }
 
@@ -85,7 +96,8 @@ export const App: React.FC = () => {
   const handleAuthSuccess = (user: any) => {
     setCurrentUser(user);
     setIsGuestMode(false);
-    if (user.role === 'victim') {
+    const r = (user.role || 'victim').toLowerCase();
+    if (r === 'victim' || r === 'citizen' || r === 'survivor') {
       setUserProfile((prev) => ({
         ...prev,
         id: user.id || prev.id,
@@ -96,9 +108,22 @@ export const App: React.FC = () => {
       }));
       setVictimStep('dashboard');
       setActiveTab('victim');
-    } else if (user.role?.startsWith('observer')) {
+    } else if (r.startsWith('observer')) {
       setActiveTab('observer');
+    } else if (r === 'psychiatrist') {
+      setActiveTab('psychiatrist');
+    } else if (r.startsWith('ngo')) {
+      setActiveTab('ngo');
+    } else if (r.startsWith('admin') || r.includes('secretary')) {
+      setActiveTab('admin');
+    } else {
+      setActiveTab('victim');
     }
+  };
+
+  const handleSwitchPersona = (role: 'citizen' | 'observer' | 'psychiatrist' | 'ngo' | 'admin') => {
+    const res = authApi.instantDemoLogin(role);
+    handleAuthSuccess(res.user);
   };
 
   const handleLogout = async () => {
@@ -497,6 +522,7 @@ export const App: React.FC = () => {
           setIsAuthModalOpen(true);
         }}
         onLogout={handleLogout}
+        onSwitchPersona={handleSwitchPersona}
       />
 
       {/* Sensitive Wellbeing Saving Overlay */}
@@ -596,6 +622,8 @@ export const App: React.FC = () => {
             {activeTab === 'psychiatrist' && <PsychiatristPortal />}
 
             {activeTab === 'ngo' && <NgoPortal />}
+
+            {activeTab === 'admin' && <AdminPanel />}
 
             {activeTab === 'analytics' && <NationalAnalytics />}
 

@@ -20,7 +20,7 @@ import {
 
 interface LandingPageProps {
   onOpenAuth: (mode?: 'login' | 'register') => void;
-  onInstantLogin?: (role: 'citizen' | 'observer') => void;
+  onInstantLogin?: (role: 'citizen' | 'observer' | 'psychiatrist' | 'ngo' | 'admin') => void;
   onStartGuestScreening?: () => void;
   onTriggerCrisis: () => void;
   currentLang: string;
@@ -50,7 +50,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
         {/* Hero Subtitle */}
         <p className="text-slate-600 text-sm sm:text-base max-w-2xl mx-auto font-medium leading-relaxed">
-          A confidential, multi-modal psychological safeguarding platform for victims of atrocities under the SC/ST (PoA) Act. Fusing clinical MADRS questionnaires, NLP trauma detection, and real-time voice acoustic biomarkers.
+          A confidential, multi-modal psychological safeguarding platform for survivors of atrocities under the SC/ST (PoA) Act. Fusing clinical MADRS questionnaires, NLP trauma detection, and real-time voice acoustic biomarkers.
         </p>
 
         {/* CTA Button Group */}
@@ -86,25 +86,46 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
         {/* Evaluator 1-Click Instant Demo Access Strip */}
         {onInstantLogin && (
-          <div className="max-w-xl mx-auto p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 shadow-2xs space-y-2">
+          <div className="max-w-3xl mx-auto p-4 rounded-2xl bg-slate-50 border border-slate-200/80 shadow-xs space-y-2.5">
             <div className="text-[11px] font-black uppercase tracking-wider text-black flex items-center justify-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-              <span>SIH Evaluation 1-Click Instant Portals (No Typing Required)</span>
+              <span>SIH Evaluation 1-Click Role Portals (Instant Persona Switch)</span>
             </div>
-            <div className="flex flex-wrap items-center justify-center gap-2.5">
+            <div className="flex flex-wrap items-center justify-center gap-2">
               <button
                 type="button"
                 onClick={() => onInstantLogin('citizen')}
-                className="px-4 py-2 rounded-xl bg-white hover:bg-indigo-50 active:scale-95 border border-indigo-200 text-black font-extrabold text-xs shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+                className="px-3.5 py-2 rounded-xl bg-white hover:bg-indigo-50 active:scale-95 border border-indigo-200 text-slate-900 font-black text-xs shadow-2xs transition flex items-center gap-1.5 cursor-pointer"
               >
-                <span>👤 Instant Citizen Demo</span>
+                <span>👤 Citizen / Survivor</span>
               </button>
               <button
                 type="button"
                 onClick={() => onInstantLogin('observer')}
-                className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-black active:scale-95 text-white font-extrabold text-xs shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+                className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-black active:scale-95 text-white font-black text-xs shadow-2xs transition flex items-center gap-1.5 cursor-pointer"
               >
-                <span>🛡️ Instant Observer Portal</span>
+                <span>🛡️ District Observer</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onInstantLogin('psychiatrist')}
+                className="px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 active:scale-95 text-white font-black text-xs shadow-2xs transition flex items-center gap-1.5 cursor-pointer"
+              >
+                <span>🩺 Telepsychiatrist</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onInstantLogin('ngo')}
+                className="px-3.5 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 active:scale-95 text-white font-black text-xs shadow-2xs transition flex items-center gap-1.5 cursor-pointer"
+              >
+                <span>🤝 NGO Partner</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onInstantLogin('admin')}
+                className="px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-black text-xs shadow-2xs transition flex items-center gap-1.5 cursor-pointer"
+              >
+                <span>🏛️ MoSJE Executive Admin</span>
               </button>
             </div>
           </div>
@@ -213,7 +234,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                     1
                   </div>
                   <div>
-                    <h4 className="text-xs font-extrabold text-slate-900">Victim & Survivor Touchpoints</h4>
+                    <h4 className="text-xs font-extrabold text-slate-900">Citizen & Survivor Touchpoints</h4>
                     <p className="text-[11px] text-slate-500 font-medium">Gentle tile-based questionnaire, AI voice check-in, 1:1 encrypted counselor chat, and AI Saathi well-being companion.</p>
                   </div>
                 </div>
@@ -234,7 +255,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                   </div>
                   <div>
                     <h4 className="text-xs font-extrabold text-slate-900">Statutory Relief & NALSA Legal Aid</h4>
-                    <p className="text-[11px] text-slate-500 font-medium">Automated linkage with Central Victim Compensation Fund, Tele-MANAS, and district legal defense units.</p>
+                    <p className="text-[11px] text-slate-500 font-medium">Automated linkage with Central Relief & Statutory Compensation Fund, Tele-MANAS, and district legal defense units.</p>
                   </div>
                 </div>
               </div>
