@@ -117,7 +117,7 @@ export const App: React.FC = () => {
     }
 
     // Listen to Firebase Auth State (Auto-recognize returning citizens)
-    const unsubscribeAuth = onAuthStateChanged(auth, (fbUser) => {
+    const unsubscribeAuth = onAuthStateChanged(auth, (fbUser: any) => {
       if (fbUser && !authApi.getCurrentLocalUser()) {
         try {
           const profiles = JSON.parse(localStorage.getItem('anvaya_citizen_profiles') || '{}');
