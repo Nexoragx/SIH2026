@@ -3,7 +3,7 @@ import { Navbar } from './components/Navbar';
 import { Onboarding } from './components/victim/Onboarding';
 import { VictimDashboard } from './components/victim/VictimDashboard';
 import { TileQuestionnaire } from './components/victim/TileQuestionnaire';
-import { OptionalHistoryCard } from './components/victim/OptionalHistoryCard';
+import { OptionalHistoryCard, DataCollectionPayload } from './components/victim/OptionalHistoryCard';
 import { CheckinScheduleModal } from './components/victim/CheckinScheduleModal';
 import { AssessmentResult } from './components/victim/AssessmentResult';
 import { VoiceRecorder } from './components/victim/VoiceRecorder';
@@ -183,7 +183,12 @@ export const App: React.FC = () => {
   const computeClinicalScore = async (
     responses: AssessmentResponse[],
     voiceSample?: { transcript: string; stressScore: number; audioUrl?: string; audioBlob?: Blob },
-    personalHistory?: string
+    personalHistory?: string,
+    sleepHours?: number,
+    sleepQuality?: string,
+    moodInput?: string,
+    threatReport?: { safety_status?: string; threat_active?: boolean; details?: string },
+    touchpointType?: 'web_portal' | 'mobile_app' | 'ivrs_call'
   ) => {
     setIsSubmittingAssessment(true);
 
@@ -202,13 +207,18 @@ export const App: React.FC = () => {
     // Prepare payload for FastAPI multi-modal pipeline
     const madrsAnswers = responses.map((r) => r.madrsScore);
     const payload = {
-      touchpoint_type: 'web_portal' as const,
+      touchpoint_type: (touchpointType || 'web_portal') as any,
       language: currentLang,
       madrs: { answers: madrsAnswers },
       phq9: { answers: [Math.min(3, Math.round(rawMadrs / 20))] },
       text_content: personalHistory || voiceSample?.transcript || `${userProfile.caseCategory} survivor check-in from ${userProfile.district}, ${userProfile.state}`,
       personal_history: personalHistory,
       is_crisis_halt: hasCrisisFlag,
+      sleep_hours: sleepHours,
+      sleep_quality: sleepQuality,
+      mood_input: moodInput,
+      safety_threat_active: threatReport?.threat_active || threatReport?.safety_status === 'threat_perceived',
+      threat_report: threatReport,
       context_score: userProfile.caseCategory === 'caste_violence' || userProfile.caseCategory === 'sexual_violence' ? 80.0 : 40.0,
       district: userProfile.district,
       state: userProfile.state,
@@ -377,8 +387,21 @@ export const App: React.FC = () => {
     setVictimStep('history');
   };
 
-  const handleHistorySubmit = (historyText: string) => {
-    computeClinicalScore(cachedResponses, voiceData || undefined, historyText);
+  const handleHistorySubmit = (data: DataCollectionPayload | string) => {
+    if (typeof data === 'string') {
+      computeClinicalScore(cachedResponses, voiceData || undefined, data);
+    } else {
+      computeClinicalScore(
+        cachedResponses,
+        voiceData || undefined,
+        data.text,
+        data.sleepHours,
+        data.sleepQuality,
+        data.mood,
+        data.threatReport,
+        data.touchpointType
+      );
+    }
   };
 
   const handleHistorySkip = () => {

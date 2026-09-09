@@ -9,6 +9,15 @@ export interface AssessmentSubmissionPayload {
   text_content?: string;
   personal_history?: string;
   is_crisis_halt?: boolean;
+  sleep_hours?: number;
+  sleep_quality?: string;
+  mood_input?: string;
+  safety_threat_active?: boolean;
+  threat_report?: {
+    safety_status?: string;
+    threat_active?: boolean;
+    details?: string;
+  };
   context_score?: number;
   district?: string;
   state?: string;
@@ -21,6 +30,18 @@ export interface AssessmentBackendResponse {
   severity_level: 'LOW' | 'MODERATE' | 'HIGH' | 'CRITICAL';
   alert_triggered: boolean;
   ambulance_108_dispatched: boolean;
+  alert_details?: {
+    alert_triggered?: boolean;
+    high_risk_alert?: boolean;
+    critical_alert?: boolean;
+    threat_alert?: boolean;
+    ambulance_108_dispatched?: boolean;
+  };
+  fused_features?: {
+    weights: Record<string, number>;
+    modalities_contributions: Record<string, number>;
+    fused_raw_score: number;
+  };
   shap_explainability: {
     features: { feature: string; impact: string; shap_value: number }[];
     primary_driver: string;
@@ -34,6 +55,9 @@ export interface AssessmentBackendResponse {
     lstm_state: string;
   };
   recommendations: {
+    counsellor_call?: { recommended: boolean; urgency: string; service: string; contact: string; details: string };
+    follow_up?: { recommended: boolean; interval_days: number; action: string; due_in_hours: number };
+    safety_review?: { required: boolean; protection_level: string; legal_aid: string; protocol: string };
     counselling?: { recommended: boolean; service: string; contact: string; details: string };
     ngo_partners?: { name: string; service: string; district: string; helpline: string }[];
     legal_aid?: { recommended: boolean; scheme: string; assistance: string; helpline: string };

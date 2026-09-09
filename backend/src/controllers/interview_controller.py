@@ -41,6 +41,15 @@ class AssessmentSubmissionSchema(BaseModel):
     text_content: Optional[str] = None
     personal_history: Optional[str] = Field(None, max_length=1000)
     is_crisis_halt: Optional[bool] = False
+
+    # Sleep / Mood / Behaviour Inputs
+    sleep_hours: Optional[float] = None
+    sleep_quality: Optional[str] = None
+    mood_input: Optional[str] = None
+
+    # Threat / Safety Reports
+    safety_threat_active: Optional[bool] = False
+    threat_report: Optional[Dict[str, Any]] = None
     
     # Demographic / Contextual Atrocity Severity (0 - 100)
     context_score: Optional[float] = 20.0
@@ -84,6 +93,27 @@ class InterviewController:
             gad7_data=data.gad7
         )
 
+        # Compute sleep distress metric from Sleep / Behaviour inputs
+        sleep_distress = None
+        if data.sleep_hours is not None or data.sleep_quality:
+            s_val = 30.0
+            if data.sleep_hours is not None:
+                if data.sleep_hours < 4:
+                    s_val = 90.0
+                elif data.sleep_hours < 6:
+                    s_val = 65.0
+                elif data.sleep_hours <= 8:
+                    s_val = 20.0
+                else:
+                    s_val = 35.0
+            if data.sleep_quality == "very_poor":
+                s_val = max(s_val, 85.0)
+            elif data.sleep_quality == "poor":
+                s_val = max(s_val, 65.0)
+            elif data.sleep_quality == "good":
+                s_val = min(s_val, 25.0)
+            sleep_distress = s_val
+
         # 2. NLP Engine Analysis (combines direct text & optional personal history)
         combined_text = " ".join(filter(None, [data.text_content, data.personal_history]))
         nlp_analysis = analyze_nlp(
@@ -102,13 +132,24 @@ class InterviewController:
             except (ValueError, TypeError):
                 pass
         
-        is_crisis = data.is_crisis_halt or q10_score >= 4 or nlp_analysis.get("threat_detected", False)
+        # Threat / Safety indicators evaluation
+        threat_reported = (
+            data.safety_threat_active
+            or (data.threat_report and data.threat_report.get("threat_active", False))
+            or (data.threat_report and data.threat_report.get("safety_status") in ["threat_perceived", "active_intimidation"])
+            or nlp_analysis.get("threat_detected", False)
+        )
+        threat_distress = 85.0 if threat_reported else (10.0 if (data.threat_report and data.threat_report.get("safety_status") == "safe") else None)
 
-        # 4. Feature Fusion Layer (Weighted Ensemble)
+        is_crisis = data.is_crisis_halt or q10_score >= 4 or threat_reported
+
+        # 4. Feature Fusion Layer (Multimodal Combination: Emotion, Form, Voice, Sleep, Threat)
         fused_features = fuse_features(
             form_distress=forms_analysis["composite_form_score"],
             nlp_distress=nlp_analysis["nlp_distress_score"],
             voice_distress=voice_analysis["voice_distress_score"],
+            sleep_distress=sleep_distress,
+            threat_distress=threat_distress,
             context_score=data.context_score or 20.0,
             baseline_score=30.0
         )
@@ -122,7 +163,7 @@ class InterviewController:
             distress_result["severity"] = DistressSeverity.CRITICAL
             distress_result["score"] = max(distress_result["score"], 82.0)
 
-        # 6. Temporal Trend Model (LSTM Progression)
+        # 6. Temporal Trend Model (LSTM Progression, e.g. 32 -> 41 -> 53 -> 71)
         historical_scores = []
         if victim_id:
             past_reports_cursor = db.interview_reports.find(
@@ -135,19 +176,21 @@ class InterviewController:
             current_score=distress_result["score"]
         )
 
-        # 7. Alert Engine (Push, SMS, IVR, 108 Emergency Ambulance)
+        # 7. Alert Engine (High risk alert, Critical alert, Threat alert, 108 Emergency Ambulance)
         alert_result = await trigger_alert_engine(
             user_id=victim_id,
             phone=phone,
             distress_score=distress_result["score"],
             severity=distress_result["severity"],
+            threat_flag=is_crisis,
             district=district
         )
 
-        # 8. Recommendation Engine (Counselling, NGO, Legal, Medical, Financial aid)
+        # 8. Recommendation Engine (Counsellor call, Follow-up interval, Safety review)
         recommendations = generate_recommendations(
             distress_score=distress_result["score"],
             severity=distress_result["severity"],
+            threat_flag=is_crisis,
             district=district
         )
 
@@ -190,6 +233,8 @@ class InterviewController:
             "distress_score": report_doc["distress_score"],
             "severity_level": report_doc["severity_level"],
             "alert_triggered": report_doc["alert_triggered"],
+            "alert_details": alert_result,
+            "fused_features": report_doc["fused_features"],
             "ambulance_108_dispatched": alert_result.get("ambulance_108_dispatched", False),
             "shap_explainability": report_doc["shap_explanations"],
             "temporal_trend": report_doc["temporal_trend"],

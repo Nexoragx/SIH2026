@@ -550,6 +550,142 @@ export const ObserverDashboard: React.FC<ObserverDashboardProps> = () => {
               </div>
             </div>
 
+            {/* Temporal Trend Comparison Callout (e.g. 32 -> 41 -> 53 -> 71) */}
+            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+              <div className="flex items-center gap-2">
+                <span className="font-black text-black">Sequence Progression:</span>
+                <span className="font-extrabold text-black font-mono tracking-tight bg-white px-2.5 py-1 rounded-lg border border-slate-200 shadow-2xs">
+                  {selectedCase.scoreHistory.map((h) => h.score).join(' → ')}
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Predict Worsening Risk:</span>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                  selectedCase.currentDistressScore >= 70
+                    ? 'bg-rose-100 text-rose-800 border border-rose-200'
+                    : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                }`}>
+                  {selectedCase.currentDistressScore >= 70 ? '● Rapidly Escalating Trajectory' : '● Stable / Gradual'}
+                </span>
+              </div>
+            </div>
+
+            {/* Multimodal Feature Fusion Layer (5 Combined Streams) */}
+            <div className="space-y-2.5 p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-black" />
+                  <span className="text-xs font-black text-black uppercase tracking-wider">
+                    Feature Fusion Breakdown (Multi-Modal Engine)
+                  </span>
+                </div>
+                <span className="text-[11px] font-bold text-slate-500">
+                  Total Distress: {selectedCase.currentDistressScore}/100
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-1">
+                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-center">
+                  <div className="text-[10px] font-bold text-slate-500">Questionnaire</div>
+                  <div className="text-xs font-black text-black mt-0.5">35% Weight</div>
+                  <div className="text-[11px] font-extrabold text-black mt-0.5">MADRS: 28/60</div>
+                </div>
+
+                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-center">
+                  <div className="text-[10px] font-bold text-slate-500">Emotion AI (NLP)</div>
+                  <div className="text-xs font-black text-black mt-0.5">20% Weight</div>
+                  <div className="text-[11px] font-extrabold text-black mt-0.5">Despair / Fear</div>
+                </div>
+
+                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-center">
+                  <div className="text-[10px] font-bold text-slate-500">Voice Acoustic</div>
+                  <div className="text-xs font-black text-black mt-0.5">15% Weight</div>
+                  <div className="text-[11px] font-extrabold text-black mt-0.5">Stress: 68/100</div>
+                </div>
+
+                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-center">
+                  <div className="text-[10px] font-bold text-slate-500">Sleep / Behaviour</div>
+                  <div className="text-xs font-black text-black mt-0.5">15% Weight</div>
+                  <div className="text-[11px] font-extrabold text-black mt-0.5">&lt; 3h Insomnia</div>
+                </div>
+
+                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-center">
+                  <div className="text-[10px] font-bold text-slate-500">Threat Indicators</div>
+                  <div className="text-xs font-black text-black mt-0.5">15% Weight</div>
+                  <div className="text-[11px] font-extrabold text-rose-700 mt-0.5">Active Threat</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Alert Engine & Recommendation Engine Dual Panels */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Alert Engine Box */}
+              <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-2.5">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-black" />
+                  <span className="text-xs font-black text-black uppercase tracking-wider">
+                    Alert Engine Status
+                  </span>
+                </div>
+                <div className="space-y-1.5 text-xs font-bold">
+                  <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-200">
+                    <span className="text-black">High Risk Alert:</span>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                      selectedCase.currentDistressScore >= 51 ? 'bg-orange-100 text-orange-800' : 'bg-slate-100 text-slate-600'
+                    }`}>
+                      {selectedCase.currentDistressScore >= 51 ? 'TRIGGERED' : 'NORMAL'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-200">
+                    <span className="text-black">Critical Alert (108):</span>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                      selectedCase.riskLevel === 'critical' || selectedCase.crisisFlag ? 'bg-red-100 text-red-800' : 'bg-slate-100 text-slate-600'
+                    }`}>
+                      {selectedCase.riskLevel === 'critical' || selectedCase.crisisFlag ? 'DISPATCHED' : 'STANDBY'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-200">
+                    <span className="text-black">Threat Alert:</span>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                      selectedCase.threatFlag ? 'bg-rose-100 text-rose-800' : 'bg-slate-100 text-slate-600'
+                    }`}>
+                      {selectedCase.threatFlag ? 'THREAT DETECTED' : 'NONE'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Recommendation Engine Box */}
+              <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-2.5">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-black" />
+                  <span className="text-xs font-black text-black uppercase tracking-wider">
+                    Recommendation Engine
+                  </span>
+                </div>
+                <div className="space-y-1.5 text-xs font-bold">
+                  <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-200">
+                    <span className="text-black">Counsellor Call:</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-indigo-100 text-indigo-800">
+                      Tele-MANAS (14416)
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-200">
+                    <span className="text-black">Follow-up Interval:</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-800">
+                      {selectedCase.riskLevel === 'critical' ? 'Every 24 Hours' : 'Every 3 Days'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-200">
+                    <span className="text-black">Safety Review:</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800">
+                      NALSA 15100 Legal Net
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* Quick Actions Strip */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2">
               <button
