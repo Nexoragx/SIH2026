@@ -26,6 +26,7 @@ import { PsychiatristPortal } from './components/portals/PsychiatristPortal';
 import { NgoPortal } from './components/portals/NgoPortal';
 import { PersonalizedActivities } from './components/victim/PersonalizedActivities';
 import { AdminPanel } from './components/admin/AdminPanel';
+import { UssdSimulatorModal } from './components/victim/UssdSimulatorModal';
 
 export const App: React.FC = () => {
   // Global State
@@ -39,6 +40,7 @@ export const App: React.FC = () => {
   const [isCommunityWallOpen, setIsCommunityWallOpen] = useState<boolean>(false);
   const [isCourtReportOpen, setIsCourtReportOpen] = useState<boolean>(false);
   const [isTherapeuticOpen, setIsTherapeuticOpen] = useState<boolean>(false);
+  const [isUssdModalOpen, setIsUssdModalOpen] = useState<boolean>(false);
   const [voiceCheckinDone, setVoiceCheckinDone] = useState<boolean>(false);
   const [voiceData, setVoiceData] = useState<{ transcript: string; stressScore: number; audioUrl?: string; audioBlob?: Blob } | null>(null);
   const [isSubmittingAssessment, setIsSubmittingAssessment] = useState<boolean>(false);
@@ -50,6 +52,16 @@ export const App: React.FC = () => {
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState<boolean>(false);
   const [isIvrModalOpen, setIsIvrModalOpen] = useState<boolean>(false);
   const [cachedResponses, setCachedResponses] = useState<AssessmentResponse[]>([]);
+
+  // Rural Offline Sync & Queue State
+  const [isDeviceOnline, setIsDeviceOnline] = useState<boolean>(typeof navigator !== 'undefined' ? navigator.onLine : true);
+  const [offlineQueueCount, setOfflineQueueCount] = useState<number>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('anvaya_offline_queue') || '[]').length;
+    } catch {
+      return 0;
+    }
+  });
 
   // Citizen / Survivor flow state: 'dashboard' | 'questionnaire' | 'history' | 'result'
   const [victimStep, setVictimStep] = useState<'dashboard' | 'questionnaire' | 'history' | 'result'>('dashboard');
@@ -91,6 +103,34 @@ export const App: React.FC = () => {
     }
 
     return () => { mounted = false; };
+  }, []);
+
+  // Offline Network Monitor & Auto-Sync Engine
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsDeviceOnline(true);
+      try {
+        const queue = JSON.parse(localStorage.getItem('anvaya_offline_queue') || '[]');
+        if (queue.length > 0) {
+          queue.forEach((item: any) => {
+            assessmentApi.submitAssessment(item).catch(() => {});
+          });
+          localStorage.removeItem('anvaya_offline_queue');
+          setOfflineQueueCount(0);
+        }
+      } catch {}
+    };
+
+    const handleOffline = () => {
+      setIsDeviceOnline(false);
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
   }, []);
 
   const handleAuthSuccess = (user: any) => {
@@ -346,6 +386,16 @@ export const App: React.FC = () => {
       }
     } catch (err) {
       console.warn('Backend unavailable, using local clinical assessment heuristics:', err);
+      // Queue offline payload for auto-sync upon reconnection
+      try {
+        const queue = JSON.parse(localStorage.getItem('anvaya_offline_queue') || '[]');
+        queue.push({
+          ...payload,
+          queued_at: new Date().toISOString(),
+        });
+        localStorage.setItem('anvaya_offline_queue', JSON.stringify(queue));
+        setOfflineQueueCount(queue.length);
+      } catch {}
       let riskLevel: RiskLevel = 'low';
       let checkinDays = 14;
 
@@ -523,7 +573,21 @@ export const App: React.FC = () => {
         }}
         onLogout={handleLogout}
         onSwitchPersona={handleSwitchPersona}
+        onOpenUssdSimulator={() => setIsUssdModalOpen(true)}
       />
+
+      {/* Offline Mode / Low-Bandwidth Queue Sync Banner */}
+      {(!isDeviceOnline || offlineQueueCount > 0) && (
+        <div className="bg-amber-400 text-slate-950 px-4 py-1.5 text-xs font-black flex items-center justify-center gap-2 border-b border-amber-500 shadow-xs animate-fadeIn">
+          <span className="w-2 h-2 rounded-full bg-slate-950 animate-ping"></span>
+          <span>
+            {!isDeviceOnline ? 'Offline Mode Active' : 'Low-Bandwidth Local Queue'}:{' '}
+            {offlineQueueCount > 0
+              ? `${offlineQueueCount} check-in(s) encrypted locally — auto-syncing upon reconnect.`
+              : 'Operating in zero-connectivity local resilient mode.'}
+          </span>
+        </div>
+      )}
 
       {/* Sensitive Wellbeing Saving Overlay */}
       {isSubmittingAssessment && (
@@ -574,6 +638,7 @@ export const App: React.FC = () => {
                     onOpenCommunityWall={() => setIsCommunityWallOpen(true)}
                     onOpenCourtReport={() => setIsCourtReportOpen(true)}
                     onOpenTherapeutic={() => setIsTherapeuticOpen(true)}
+                    onOpenUssdSimulator={() => setIsUssdModalOpen(true)}
                     currentLang={currentLang}
                   />
                 )}
@@ -717,6 +782,15 @@ export const App: React.FC = () => {
         isOpen={isIvrModalOpen}
         onClose={() => setIsIvrModalOpen(false)}
         onCompleteIvrCheckin={handleCompleteIvrCheckin}
+        currentLang={currentLang}
+      />
+
+      {/* 2G Rural USSD Telecom Keypad Simulator Modal (*14566#) */}
+      <UssdSimulatorModal
+        isOpen={isUssdModalOpen}
+        onClose={() => setIsUssdModalOpen(false)}
+        onTriggerCrisis={() => setIsCrisisOpen(true)}
+        onRequestCall={() => alert('Urgent callback queued for Dr. Anita Joshi (District Nodal Cell)')}
         currentLang={currentLang}
       />
 

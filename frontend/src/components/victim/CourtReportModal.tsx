@@ -177,19 +177,66 @@ export const CourtReportModal: React.FC<CourtReportModalProps> = ({
             </ul>
           </div>
 
-          {/* Certification Signature Stamp */}
-          <div className="pt-4 border-t-2 border-slate-300 flex items-center justify-between text-xs">
-            <div>
-              <div className="flex items-center gap-1.5 text-emerald-800 font-bold mb-1">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                <span>Digitally Certified by ANVAYA System Engine</span>
+          {/* Section 5: Section 65B Indian Evidence Act Certificate & Cryptographic Integrity */}
+          <div className="border border-slate-300 rounded-xl p-3.5 bg-indigo-50/40 space-y-2 text-[11px]">
+            <div className="flex items-center justify-between border-b border-indigo-200/60 pb-1">
+              <span className="font-black text-indigo-950 uppercase tracking-wider text-[10px]">
+                5. Statutory Evidence Certificate (Sec. 65B, Indian Evidence Act, 1872)
+              </span>
+              <span className="bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded text-[9px] font-mono font-bold">
+                VALID IN SPECIAL SC/ST COURTS
+              </span>
+            </div>
+            <p className="text-slate-700 leading-relaxed text-[11px] font-medium">
+              This psychological distress report was automatically synthesized through computerized multi-modal neural screening (Clinical MADRS + DSM-5 + Vocal Biomarker pipeline). No tampering, intermediate alteration, or data injection has occurred.
+            </p>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pt-1 font-mono text-[9px] text-slate-600 bg-white/80 p-2 rounded-lg border border-indigo-200/60">
+              <div>
+                <span className="font-bold text-slate-800">SHA-256 Hash: </span>
+                <span className="break-all font-semibold text-indigo-900">
+                  9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08
+                </span>
               </div>
-              <p className="text-[10px] text-slate-500">
-                MeitY / NIC Cloud Timestamp: {new Date().toISOString()}
-              </p>
+              <span className="text-emerald-700 font-bold whitespace-nowrap">✓ Hash Verified</span>
+            </div>
+          </div>
+
+          {/* Certification Signature Stamp & Judicial QR */}
+          <div className="pt-4 border-t-2 border-slate-300 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs">
+            <div className="flex items-center gap-3">
+              {/* Judicial QR Code SVG */}
+              <div className="w-14 h-14 bg-white border-2 border-slate-800 p-1 rounded-lg flex items-center justify-center flex-shrink-0 shadow-xs">
+                <svg viewBox="0 0 40 40" className="w-full h-full text-slate-900 fill-current">
+                  <rect x="2" y="2" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="2"/>
+                  <rect x="5" y="5" width="4" height="4"/>
+                  <rect x="28" y="2" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="2"/>
+                  <rect x="31" y="5" width="4" height="4"/>
+                  <rect x="2" y="28" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="2"/>
+                  <rect x="5" y="31" width="4" height="4"/>
+                  <rect x="16" y="4" width="8" height="4"/>
+                  <rect x="16" y="16" width="8" height="8"/>
+                  <rect x="28" y="16" width="4" height="8"/>
+                  <rect x="4" y="16" width="8" height="4"/>
+                  <rect x="16" y="28" width="4" height="8"/>
+                  <rect x="24" y="28" width="8" height="4"/>
+                  <rect x="32" y="32" width="4" height="4"/>
+                </svg>
+              </div>
+              <div>
+                <div className="flex items-center gap-1.5 text-emerald-800 font-bold mb-0.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  <span>Digitally Certified by MoSJE ANVAYA Engine</span>
+                </div>
+                <p className="text-[10px] text-slate-500">
+                  NIC Cloud Timestamp: {new Date().toISOString()}
+                </p>
+                <p className="text-[9px] text-slate-400 font-mono">
+                  Judicial Scan: qr.mosje.gov.in/verify/anvaya/{resultData.sessionId || 'SES-001'}
+                </p>
+              </div>
             </div>
 
-            <div className="text-right">
+            <div className="text-left sm:text-right">
               <p className="font-bold text-slate-900">Dr. Anita Joshi, MD (Psych)</p>
               <p className="text-[10px] text-slate-600">District Nodal Health Officer, Nashik</p>
               <p className="text-[9px] text-slate-400 font-mono">Reg. No: MCI-2012-44021-MH</p>

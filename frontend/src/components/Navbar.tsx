@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Heart, Activity, Globe, PhoneCall, AlertTriangle, Users, BarChart3, Sparkles, User, LogOut, ChevronDown } from 'lucide-react';
+import { Shield, Heart, Activity, Globe, PhoneCall, AlertTriangle, Users, BarChart3, Sparkles, User, LogOut, ChevronDown, Sliders, Radio, Eye } from 'lucide-react';
 import { translations } from '../utils/translations';
 import { systemApi } from '../api';
 
@@ -16,6 +16,7 @@ interface NavbarProps {
   onOpenAuthModal?: (mode?: 'login' | 'register') => void;
   onLogout?: () => void;
   onSwitchPersona?: (role: 'citizen' | 'observer' | 'psychiatrist' | 'ngo' | 'admin') => void;
+  onOpenUssdSimulator?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -29,6 +30,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenAuthModal,
   onLogout,
   onSwitchPersona,
+  onOpenUssdSimulator,
 }) => {
   const t = translations[currentLang] || translations.en;
   const [isOnline, setIsOnline] = useState<boolean>(backendOnline ?? false);
@@ -63,6 +65,31 @@ export const Navbar: React.FC<NavbarProps> = ({
     { code: 'te', label: 'తెలుగు' },
     { code: 'mr', label: 'मराठी' },
   ];
+
+  // Accessibility Controls
+  const [isAccessibilityOpen, setIsAccessibilityOpen] = useState<boolean>(false);
+  const [fontScale, setFontScale] = useState<'normal' | 'large' | 'xlarge'>('normal');
+  const [highContrast, setHighContrast] = useState<boolean>(false);
+
+  const toggleHighContrast = () => {
+    const next = !highContrast;
+    setHighContrast(next);
+    if (typeof document !== 'undefined') {
+      if (next) {
+        document.documentElement.classList.add('accessibility-high-contrast');
+      } else {
+        document.documentElement.classList.remove('accessibility-high-contrast');
+      }
+    }
+  };
+
+  const changeFontScale = (scale: 'normal' | 'large' | 'xlarge') => {
+    setFontScale(scale);
+    if (typeof document !== 'undefined') {
+      document.documentElement.classList.remove('text-scale-normal', 'text-scale-large', 'text-scale-xlarge');
+      document.documentElement.classList.add(`text-scale-${scale}`);
+    }
+  };
 
   // Role detection
   const userRole = (currentUser?.role || 'victim').toLowerCase();
@@ -185,6 +212,19 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span>{isOnline ? 'FastAPI' : 'Local'}</span>
             </div>
 
+            {/* 2G USSD Feature-Phone Launcher */}
+            {onOpenUssdSimulator && (
+              <button
+                type="button"
+                onClick={onOpenUssdSimulator}
+                className="flex items-center gap-1 text-slate-300 hover:text-white transition font-bold text-[10px] sm:text-[11px] bg-slate-900 px-2 sm:px-2.5 py-0.5 rounded-full border border-slate-700 shadow-xs cursor-pointer"
+                title="Dial *14566# for rural feature phone access without internet"
+              >
+                <Radio className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-emerald-400" />
+                <span>*14566# USSD</span>
+              </button>
+            )}
+
             {/* 24x7 Helpline */}
             <a
               href="tel:14566"
@@ -289,6 +329,98 @@ export const Navbar: React.FC<NavbarProps> = ({
                     <span className="hidden sm:inline">Logout</span>
                   </button>
                 )}
+
+                {/* Accessibility Options Popover */}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setIsAccessibilityOpen(!isAccessibilityOpen)}
+                    className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl border text-xs font-black transition cursor-pointer min-h-[40px] shadow-2xs ${
+                      isAccessibilityOpen || highContrast || fontScale !== 'normal'
+                        ? 'bg-indigo-50 border-indigo-300 text-indigo-700'
+                        : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                    }`}
+                    title="Accessibility Options (Font Scale, High Contrast)"
+                    aria-label="Accessibility Settings"
+                  >
+                    <Sliders className="w-3.5 h-3.5 text-indigo-600" />
+                    <span className="hidden sm:inline text-[11px]">Aa</span>
+                  </button>
+
+                  {/* Accessibility Drawer / Popover */}
+                  {isAccessibilityOpen && (
+                    <div className="absolute right-0 mt-2 w-64 p-4 rounded-2xl bg-white/95 backdrop-blur-xl border border-slate-200 shadow-2xl z-50 animate-fadeIn space-y-3">
+                      <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                        <span className="text-xs font-black text-slate-900 flex items-center gap-1.5">
+                          <Eye className="w-3.5 h-3.5 text-indigo-600" />
+                          <span>Accessibility Suite</span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setIsAccessibilityOpen(false)}
+                          className="text-slate-400 hover:text-slate-600 text-xs font-bold cursor-pointer"
+                        >
+                          ✕
+                        </button>
+                      </div>
+
+                      {/* Font Size Scaling */}
+                      <div>
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
+                          Text Scaling
+                        </span>
+                        <div className="grid grid-cols-3 gap-1 bg-slate-100 p-1 rounded-xl">
+                          <button
+                            type="button"
+                            onClick={() => changeFontScale('normal')}
+                            className={`py-1 text-[11px] font-bold rounded-lg transition cursor-pointer ${
+                              fontScale === 'normal' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-600'
+                            }`}
+                          >
+                            100%
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => changeFontScale('large')}
+                            className={`py-1 text-[11px] font-bold rounded-lg transition cursor-pointer ${
+                              fontScale === 'large' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-600'
+                            }`}
+                          >
+                            125%
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => changeFontScale('xlarge')}
+                            className={`py-1 text-[11px] font-bold rounded-lg transition cursor-pointer ${
+                              fontScale === 'xlarge' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-600'
+                            }`}
+                          >
+                            150%
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* High Contrast Mode Toggle */}
+                      <div>
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
+                          Visual Clarity
+                        </span>
+                        <button
+                          type="button"
+                          onClick={toggleHighContrast}
+                          className={`w-full py-2 px-3 rounded-xl border text-xs font-bold transition flex items-center justify-between cursor-pointer ${
+                            highContrast
+                              ? 'bg-black text-white border-black shadow-xs'
+                              : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                          }`}
+                        >
+                          <span>High Contrast Mode</span>
+                          <span className="font-mono font-bold">{highContrast ? 'ON' : 'OFF'}</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
 
                 {/* Language Selector */}
                 <div className="flex items-center bg-white rounded-xl px-2 sm:px-2.5 py-1.5 border border-slate-200 shadow-2xs hover:border-indigo-300 transition min-h-[40px]">

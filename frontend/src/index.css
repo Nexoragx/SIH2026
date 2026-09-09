@@ -231,3 +231,48 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* Bilateral EMDR Oscillating Keyframes */
+@keyframes emdr-motion {
+  0% { transform: translateX(0%); }
+  50% { transform: translateX(calc(100% - 32px)); }
+  100% { transform: translateX(0%); }
+}
+
+.animate-emdr-slow {
+  animation: emdr-motion 2.6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+.animate-emdr-medium {
+  animation: emdr-motion 1.8s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+/* Accessibility High Contrast Mode & Text Scaling */
+.accessibility-high-contrast {
+  filter: contrast(120%);
+}
+
+.accessibility-high-contrast body {
+  background-color: #FFFFFF !important;
+  color: #000000 !important;
+}
+
+.accessibility-high-contrast .anvaya-card,
+.accessibility-high-contrast .liquid-glass-panel {
+  background: #FFFFFF !important;
+  border-color: #000000 !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+}
+
+.text-scale-normal {
+  font-size: 16px;
+}
+
+.text-scale-large {
+  font-size: 18px;
+}
+
+.text-scale-xlarge {
+  font-size: 20px;
+}
+

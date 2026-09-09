@@ -31,13 +31,34 @@ export const PersonalizedActivities: React.FC<PersonalizedActivitiesProps> = ({
   resultData,
   onOpenCounsellorChat,
 }) => {
-  const [activeActivity, setActiveActivity] = useState<'breathing' | 'grounding' | 'journal' | 'muscle' | 'sounds'>('breathing');
+  const [activeActivity, setActiveActivity] = useState<'breathing' | 'grounding' | 'journal' | 'muscle' | 'sounds' | 'emdr'>('breathing');
 
   // 1. 4-7-8 Breathing State
   const [isBreathingActive, setIsBreathingActive] = useState<boolean>(false);
   const [breathPhase, setBreathPhase] = useState<'Inhale' | 'Hold' | 'Exhale'>('Inhale');
   const [breathTimer, setBreathTimer] = useState<number>(4);
   const [breathCycles, setBreathCycles] = useState<number>(0);
+
+  const playPhaseChime = (phase: 'Inhale' | 'Hold' | 'Exhale') => {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const f = phase === 'Inhale' ? 528 : phase === 'Hold' ? 639 : 396;
+      osc.frequency.setValueAtTime(f, ctx.currentTime);
+      gain.gain.setValueAtTime(0.06, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.5);
+    } catch (e) {}
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      try { navigator.vibrate(35); } catch (e) {}
+    }
+  };
 
   useEffect(() => {
     let interval: any;
@@ -47,12 +68,15 @@ export const PersonalizedActivities: React.FC<PersonalizedActivitiesProps> = ({
           if (prev > 1) return prev - 1;
           if (breathPhase === 'Inhale') {
             setBreathPhase('Hold');
+            playPhaseChime('Hold');
             return 7;
           } else if (breathPhase === 'Hold') {
             setBreathPhase('Exhale');
+            playPhaseChime('Exhale');
             return 8;
           } else {
             setBreathPhase('Inhale');
+            playPhaseChime('Inhale');
             setBreathCycles((c) => c + 1);
             return 4;
           }
@@ -61,6 +85,10 @@ export const PersonalizedActivities: React.FC<PersonalizedActivitiesProps> = ({
     }
     return () => clearInterval(interval);
   }, [isBreathingActive, breathPhase]);
+
+  // Bilateral EMDR Eye Movement Calmer State
+  const [emdrActive, setEmdrActive] = useState<boolean>(false);
+  const [emdrSpeed, setEmdrSpeed] = useState<'slow' | 'medium'>('slow');
 
   // 2. 5-4-3-2-1 Grounding State
   const [groundingChecks, setGroundingChecks] = useState<{ [key: string]: boolean }>({});
@@ -222,6 +250,7 @@ export const PersonalizedActivities: React.FC<PersonalizedActivitiesProps> = ({
         {[
           { id: 'breathing', label: '4-7-8 Breathing', icon: <Wind className="w-3.5 h-3.5" /> },
           { id: 'grounding', label: '5-4-3-2-1 Grounding', icon: <Sparkles className="w-3.5 h-3.5" /> },
+          { id: 'emdr', label: 'Bilateral EMDR', icon: <Activity className="w-3.5 h-3.5" /> },
           { id: 'journal', label: 'Thought Release', icon: <Feather className="w-3.5 h-3.5" /> },
           { id: 'muscle', label: 'Body Scan', icon: <Smile className="w-3.5 h-3.5" /> },
           { id: 'sounds', label: 'Ambient Sounds', icon: <Music className="w-3.5 h-3.5" /> },
@@ -501,6 +530,77 @@ export const PersonalizedActivities: React.FC<PersonalizedActivitiesProps> = ({
                 </div>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* ACTIVITY 6: Bilateral EMDR Eye Movement Calmer */}
+      {activeActivity === 'emdr' && (
+        <div className="liquid-glass-panel rounded-3xl p-6 sm:p-8 shadow-xl bg-white/95 text-center space-y-5">
+          <div>
+            <span className="text-[10px] font-black uppercase tracking-wider text-purple-700 bg-purple-50 px-2.5 py-1 rounded-full border border-purple-200">
+              Clinical Trauma Desensitization Protocol
+            </span>
+            <h3 className="text-lg font-black text-slate-900 mt-2">
+              Bilateral Visual Calmer (EMDR Protocol)
+            </h3>
+            <p className="text-xs text-slate-600 font-medium max-w-lg mx-auto mt-1">
+              Follow the soothing light horizontally with your eyes while keeping your head still. Bilateral brain activation gently down-regulates amygdala fear alarms.
+            </p>
+          </div>
+
+          {/* EMDR Moving Track */}
+          <div className="relative h-24 sm:h-28 bg-slate-950 rounded-2xl overflow-hidden border border-slate-800 flex items-center px-4 shadow-inner">
+            <div className="w-full relative">
+              <div
+                className={`w-8 h-8 rounded-full bg-gradient-to-r from-teal-400 via-indigo-400 to-purple-400 shadow-lg shadow-teal-400/50 flex items-center justify-center transition-all ${
+                  emdrActive
+                    ? emdrSpeed === 'slow'
+                      ? 'animate-emdr-slow'
+                      : 'animate-emdr-medium'
+                    : 'mx-auto'
+                }`}
+              >
+                <div className="w-2.5 h-2.5 bg-white rounded-full animate-ping"></div>
+              </div>
+            </div>
+          </div>
+
+          {/* Controls */}
+          <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+            <button
+              type="button"
+              onClick={() => setEmdrActive(!emdrActive)}
+              className={`px-5 py-2.5 rounded-xl font-black text-xs transition flex items-center gap-2 cursor-pointer shadow-md ${
+                emdrActive
+                  ? 'bg-rose-600 hover:bg-rose-700 text-white'
+                  : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+              }`}
+            >
+              {emdrActive ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+              <span>{emdrActive ? 'Pause EMDR' : 'Start Bilateral Pacer'}</span>
+            </button>
+
+            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-bold">
+              <button
+                type="button"
+                onClick={() => setEmdrSpeed('slow')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                  emdrSpeed === 'slow' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-600'
+                }`}
+              >
+                Gentle (0.5 Hz)
+              </button>
+              <button
+                type="button"
+                onClick={() => setEmdrSpeed('medium')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                  emdrSpeed === 'medium' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-600'
+                }`}
+              >
+                Medium (0.8 Hz)
+              </button>
+            </div>
           </div>
         </div>
       )}
