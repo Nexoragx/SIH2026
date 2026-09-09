@@ -16,12 +16,17 @@ import {
   Database
 } from 'lucide-react';
 import { authApi, RegisterPayload, LoginPayload } from '../../api';
+import { auth, googleProvider, signInWithPopup } from '../../firebase';
+import { CitizenOnboardingModal } from './CitizenOnboardingModal';
+import { UserProfile } from '../../types';
 
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAuthSuccess: (user: any) => void;
   initialMode?: 'login' | 'register';
+  currentLang?: string;
+  onLanguageChange?: (lang: string) => void;
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({
@@ -29,6 +34,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onClose,
   onAuthSuccess,
   initialMode = 'login',
+  currentLang = 'en',
+  onLanguageChange = () => {},
 }) => {
   const [mode, setMode] = useState<'login' | 'register'>(initialMode);
   const [showPassword, setShowPassword] = useState<boolean>(false);
@@ -45,7 +52,110 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [district, setDistrict] = useState<string>('Nashik');
   const [state, setState] = useState<string>('Maharashtra');
 
+  // Firebase Google Onboarding Wizard State
+  const [onboardingGoogleUser, setOnboardingGoogleUser] = useState<{
+    uid: string;
+    displayName: string;
+    email: string;
+    photoURL?: string;
+  } | null>(null);
+  const [showOnboardingWizard, setShowOnboardingWizard] = useState<boolean>(false);
+
   if (!isOpen) return null;
+
+  // Firebase Google Sign-In Handler
+  const handleGoogleSignIn = async () => {
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    setLoading(true);
+
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const gUser = result.user;
+
+      // Check if this citizen has an existing completed profile in local storage
+      let existingProfile: any = null;
+      try {
+        const saved = JSON.parse(localStorage.getItem('anvaya_citizen_profiles') || '{}');
+        existingProfile = saved[gUser.uid];
+      } catch {}
+
+      if (existingProfile) {
+        // Return existing profile
+        const activeLang = existingProfile.language || localStorage.getItem('anvaya_language') || currentLang || 'en';
+        onLanguageChange(activeLang);
+        try {
+          localStorage.setItem('anvaya_language', activeLang);
+        } catch {}
+
+        const userObj = {
+          id: existingProfile.id || gUser.uid,
+          full_name: existingProfile.name || gUser.displayName || 'Citizen Survivor',
+          email: gUser.email,
+          role: 'victim',
+          phone: existingProfile.phone,
+          district: existingProfile.district || 'Nashik',
+          state: existingProfile.state || 'Maharashtra',
+          photoURL: gUser.photoURL,
+          language: activeLang,
+        };
+
+        setSuccessMsg(`Welcome back, ${userObj.full_name}! Synchronized via Google Auth.`);
+        setTimeout(() => {
+          onAuthSuccess(userObj);
+          onClose();
+        }, 800);
+      } else {
+        // First-time Google login: Launch the Step-by-Step Citizen Onboarding Wizard!
+        setOnboardingGoogleUser({
+          uid: gUser.uid,
+          displayName: gUser.displayName || '',
+          email: gUser.email || '',
+          photoURL: gUser.photoURL || undefined,
+        });
+        setShowOnboardingWizard(true);
+      }
+    } catch (err: any) {
+      console.error('Google Sign-in error:', err);
+      if (err.code === 'auth/unauthorized-domain') {
+        setErrorMsg(
+          `Domain (${window.location.hostname}) is not yet authorized in Firebase Console. Please add it under Authentication > Settings > Authorized Domains.`
+        );
+      } else if (err.code === 'auth/popup-closed-by-user') {
+        setErrorMsg('Google Sign-in popup was closed before completing.');
+      } else {
+        setErrorMsg(err.message || 'Failed to sign in with Google. Please try again.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Complete onboarding from Google Wizard
+  const handleOnboardingComplete = (profile: UserProfile & { email: string; photoURL?: string }) => {
+    setShowOnboardingWizard(false);
+    setOnboardingGoogleUser(null);
+
+    const userObj = {
+      id: profile.id,
+      full_name: profile.name,
+      email: profile.email,
+      role: 'victim',
+      phone: profile.phone,
+      district: profile.district,
+      state: profile.state,
+      photoURL: profile.photoURL,
+      language: profile.language,
+      caseCategory: profile.caseCategory,
+      caseNumber: profile.caseNumber,
+    };
+
+    setSuccessMsg(`Onboarding complete! Welcome to ANVAYA, ${profile.name}.`);
+    setTimeout(() => {
+      onAuthSuccess(userObj);
+      onClose();
+    }, 600);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,7 +180,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         setTimeout(() => {
           onAuthSuccess(res.user);
           onClose();
-        }, 1200);
+        }, 1000);
       } else {
         const payload: LoginPayload = {
           email: email.trim().toLowerCase(),
@@ -82,7 +192,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         setTimeout(() => {
           onAuthSuccess(res.user);
           onClose();
-        }, 800);
+        }, 700);
       }
     } catch (err: any) {
       console.error('Auth error:', err);
@@ -145,304 +255,343 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-fadeIn">
-      <div className="liquid-glass-panel rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl relative overflow-hidden bg-white/95 border border-slate-200">
-        {/* Close Button */}
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute top-5 right-5 p-2 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
-          aria-label="Close"
-        >
-          <X className="w-5 h-5" />
-        </button>
-
-        {/* Top Header Badge */}
-        <div className="flex items-center gap-2 text-indigo-600 font-extrabold text-xs uppercase tracking-wider mb-2">
-          <Database className="w-4 h-4 text-emerald-600" />
-          <span>MongoDB Connected Authentication</span>
-        </div>
-
-        <h3 className="text-xl sm:text-2xl font-extrabold text-slate-900 mb-1 tracking-tight">
-          {mode === 'login' ? 'Welcome Back' : 'Create Your Account'}
-        </h3>
-        <p className="text-xs text-slate-600 mb-4 font-medium leading-relaxed">
-          {mode === 'login'
-            ? 'Sign in to access your confidential care records and dashboard.'
-            : "Register securely. All credentials are encrypted and stored in MongoDB 'user' collection."}
-        </p>
-
-        {/* 1-Click Instant Demo Login Buttons */}
-        <div className="mb-4 p-3 rounded-2xl bg-gradient-to-br from-indigo-50/80 to-purple-50/80 border border-indigo-100 space-y-2">
-          <div className="text-[10px] font-black uppercase tracking-wider text-indigo-950 flex items-center gap-1.5">
-            <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-            <span>SIH Evaluator 1-Click Instant Access</span>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => handleInstantLogin('citizen')}
-              className="py-2 px-2.5 rounded-xl bg-white hover:bg-indigo-50 border border-indigo-200 text-black font-extrabold text-xs shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer text-center"
-            >
-              <span>👤 Instant Citizen</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => handleInstantLogin('observer')}
-              className="py-2 px-2.5 rounded-xl bg-slate-900 hover:bg-black text-white font-extrabold text-xs shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer text-center"
-            >
-              <span>🛡️ Instant Observer</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Tab Switcher */}
-        <div className="flex bg-slate-100 p-1 rounded-2xl mb-4 border border-slate-200">
+    <>
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-md animate-fadeIn">
+        <div className="liquid-glass-panel rounded-3xl max-w-md w-full p-5 sm:p-8 shadow-2xl relative overflow-hidden bg-white/95 border border-slate-200 max-h-[92vh] overflow-y-auto">
+          {/* Close Button */}
           <button
             type="button"
-            onClick={() => {
-              setMode('login');
-              setErrorMsg(null);
-            }}
-            className={`flex-1 py-2 rounded-xl text-xs font-extrabold transition-all ${
-              mode === 'login'
-                ? 'bg-white text-indigo-600 shadow-sm'
-                : 'text-slate-500 hover:text-slate-900'
-            }`}
+            onClick={onClose}
+            className="absolute top-5 right-5 p-2 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+            aria-label="Close"
           >
-            Sign In
+            <X className="w-5 h-5" />
           </button>
-          <button
-            type="button"
-            onClick={() => {
-              setMode('register');
-              setErrorMsg(null);
-            }}
-            className={`flex-1 py-2 rounded-xl text-xs font-extrabold transition-all ${
-              mode === 'register'
-                ? 'bg-white text-indigo-600 shadow-sm'
-                : 'text-slate-500 hover:text-slate-900'
-            }`}
-          >
-            Register (MongoDB)
-          </button>
-        </div>
 
-        {/* Alert Notifications */}
-        {errorMsg && (
-          <div className="mb-4 p-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2 animate-shake">
-            <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-600 mt-0.5" />
-            <span className="font-semibold leading-snug">{errorMsg}</span>
+          {/* Top Header Badge */}
+          <div className="flex items-center gap-2 text-indigo-700 font-extrabold text-xs uppercase tracking-wider mb-2">
+            <Shield className="w-4 h-4 text-emerald-600" />
+            <span>Firebase & MongoDB Security Shield</span>
           </div>
-        )}
 
-        {successMsg && (
-          <div className="mb-4 p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2 animate-fadeIn">
-            <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-            <span className="font-bold">{successMsg}</span>
-          </div>
-        )}
+          <h3 className="text-xl sm:text-2xl font-extrabold text-slate-900 mb-1 tracking-tight">
+            {mode === 'login' ? 'Welcome Back' : 'Create Your Account'}
+          </h3>
+          <p className="text-xs text-slate-600 mb-4 font-medium leading-relaxed">
+            {mode === 'login'
+              ? 'Sign in with Google or your credentials to access your confidential care records.'
+              : 'Sign up with Google or register securely. Your data is encrypted under SC/ST PoA rules.'}
+          </p>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-3.5">
-          {mode === 'register' && (
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Full Name
-              </label>
-              <div className="relative">
-                <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
-                <input
-                  type="text"
-                  required
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  placeholder="e.g. Ramesh Kumar"
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-white"
-                />
-              </div>
-            </div>
-          )}
+          {/* 1. Primary Action: Firebase Google Sign-In */}
+          <div className="space-y-2 mb-4">
+            <button
+              type="button"
+              onClick={handleGoogleSignIn}
+              disabled={loading}
+              className="w-full py-3 px-4 rounded-2xl bg-white hover:bg-slate-50 active:scale-[0.98] border-2 border-slate-200 text-slate-800 font-black text-xs sm:text-sm shadow-xs transition flex items-center justify-center gap-3 cursor-pointer disabled:opacity-60"
+            >
+              <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+              </svg>
+              <span>{mode === 'login' ? 'Sign In with Google' : 'Sign Up with Google'}</span>
+            </button>
 
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">
-              Email Address
-            </label>
-            <div className="relative">
-              <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="name@example.com"
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-white"
-              />
+            <div className="relative flex items-center justify-center my-3">
+              <div className="border-t border-slate-200 w-full"></div>
+              <span className="bg-white px-3 text-[10px] uppercase font-black text-slate-400 absolute">
+                or with email
+              </span>
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">
-              Password
-            </label>
-            <div className="relative">
-              <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
-              <input
-                type={showPassword ? 'text' : 'password'}
-                required
-                minLength={6}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="At least 6 characters"
-                className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-slate-200 text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-white"
-              />
+          {/* 1-Click Instant Demo Login Buttons for Evaluators */}
+          <div className="mb-4 p-3 rounded-2xl bg-gradient-to-br from-indigo-50/80 to-purple-50/80 border border-indigo-100 space-y-2">
+            <div className="text-[10px] font-black uppercase tracking-wider text-indigo-950 flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+              <span>SIH Evaluator 1-Click Instant Access</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3.5 top-3 text-slate-400 hover:text-slate-600"
+                onClick={() => handleInstantLogin('citizen')}
+                className="py-2 px-2.5 rounded-xl bg-white hover:bg-indigo-50 border border-indigo-200 text-slate-900 font-black text-xs shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer text-center"
               >
-                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                <span>👤 Instant Citizen</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleInstantLogin('observer')}
+                className="py-2 px-2.5 rounded-xl bg-slate-900 hover:bg-black text-white font-black text-xs shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer text-center"
+              >
+                <span>🛡️ Instant Observer</span>
               </button>
             </div>
           </div>
 
-          {mode === 'register' && (
-            <>
+          {/* Tab Switcher */}
+          <div className="flex bg-slate-100 p-1 rounded-2xl mb-4 border border-slate-200">
+            <button
+              type="button"
+              onClick={() => {
+                setMode('login');
+                setErrorMsg(null);
+              }}
+              className={`flex-1 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                mode === 'login'
+                  ? 'bg-white text-indigo-600 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-900'
+              }`}
+            >
+              Sign In
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMode('register');
+                setErrorMsg(null);
+              }}
+              className={`flex-1 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                mode === 'register'
+                  ? 'bg-white text-indigo-600 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-900'
+              }`}
+            >
+              Register (Custom)
+            </button>
+          </div>
+
+          {/* Alert Notifications */}
+          {errorMsg && (
+            <div className="mb-4 p-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2 animate-shake">
+              <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-600 mt-0.5" />
+              <span className="font-semibold leading-snug">{errorMsg}</span>
+            </div>
+          )}
+
+          {successMsg && (
+            <div className="mb-4 p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2 animate-fadeIn">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+              <span className="font-bold">{successMsg}</span>
+            </div>
+          )}
+
+          {/* Standard Form */}
+          <form onSubmit={handleSubmit} className="space-y-3.5">
+            {mode === 'register' && (
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Role / Designation
+                  Full Name
                 </label>
                 <div className="relative">
-                  <Shield className="w-4 h-4 text-slate-400 absolute left-3.5 top-3 pointer-events-none" />
-                  <select
-                    value={role}
-                    onChange={(e) => setRole(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-white appearance-none cursor-pointer"
-                  >
-                    <option value="victim">Citizen / Survivor</option>
-                    <option value="observer_district">District Health Observer</option>
-                    <option value="observer_state">State Health Observer</option>
-                    <option value="psychiatrist">Telepsychiatrist</option>
-                    <option value="ngo_partner">NGO Field Coordinator</option>
-                    <option value="admin">MoSJE National Executive Admin</option>
-                  </select>
+                  <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                  <input
+                    type="text"
+                    required
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    placeholder="e.g. Ramesh Kumar"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-xs font-medium text-slate-900 focus:outline-none focus:border-indigo-500 bg-white"
+                  />
                 </div>
               </div>
+            )}
 
-              <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Email Address
+              </label>
+              <div className="relative">
+                <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="name@example.com"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-xs font-medium text-slate-900 focus:outline-none focus:border-indigo-500 bg-white"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Password
+              </label>
+              <div className="relative">
+                <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  minLength={6}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="At least 6 characters"
+                  className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-slate-200 text-xs font-medium text-slate-900 focus:outline-none focus:border-indigo-500 bg-white"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3.5 top-3 text-slate-400 hover:text-slate-600 cursor-pointer"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
+            {mode === 'register' && (
+              <>
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">
-                    District
+                    Role / Designation
                   </label>
                   <div className="relative">
-                    <MapPin className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                    <Shield className="w-4 h-4 text-slate-400 absolute left-3.5 top-3 pointer-events-none" />
+                    <select
+                      value={role}
+                      onChange={(e) => setRole(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-900 focus:outline-none focus:border-indigo-500 bg-white appearance-none cursor-pointer"
+                    >
+                      <option value="victim">Citizen / Survivor</option>
+                      <option value="observer_district">District Health Observer</option>
+                      <option value="observer_state">State Health Observer</option>
+                      <option value="psychiatrist">Telepsychiatrist</option>
+                      <option value="ngo_partner">NGO Field Coordinator</option>
+                      <option value="admin">MoSJE National Executive Admin</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      District
+                    </label>
+                    <div className="relative">
+                      <MapPin className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                      <input
+                        type="text"
+                        value={district}
+                        onChange={(e) => setDistrict(e.target.value)}
+                        placeholder="e.g. Nashik"
+                        className="w-full pl-10 pr-3 py-2 rounded-xl border border-slate-200 text-xs font-medium text-slate-900 focus:outline-none focus:border-indigo-500 bg-white"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      State
+                    </label>
                     <input
                       type="text"
-                      value={district}
-                      onChange={(e) => setDistrict(e.target.value)}
-                      placeholder="e.g. Nashik"
-                      className="w-full pl-10 pr-3 py-2 rounded-xl border border-slate-200 text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 bg-white"
+                      value={state}
+                      onChange={(e) => setState(e.target.value)}
+                      placeholder="e.g. Maharashtra"
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium text-slate-900 focus:outline-none focus:border-indigo-500 bg-white"
                     />
                   </div>
                 </div>
 
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">
-                    State
+                    Phone (Optional)
                   </label>
-                  <input
-                    type="text"
-                    value={state}
-                    onChange={(e) => setState(e.target.value)}
-                    placeholder="e.g. Maharashtra"
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 bg-white"
-                  />
+                  <div className="relative">
+                    <Phone className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                    <input
+                      type="tel"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="+91 98765 43210"
+                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-xs font-medium text-slate-900 focus:outline-none focus:border-indigo-500 bg-white"
+                    />
+                  </div>
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Phone (Optional)
-                </label>
-                <div className="relative">
-                  <Phone className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
-                  <input
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="+91 98765 43210"
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 bg-white"
-                  />
-                </div>
-              </div>
-            </>
-          )}
-
-          {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white font-extrabold text-xs shadow-lg shadow-indigo-600/30 transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 mt-2"
-          >
-            {loading ? (
-              <span className="inline-block animate-spin">⏳</span>
-            ) : (
-              <ArrowRight className="w-4 h-4" />
+              </>
             )}
-            <span>
-              {loading
-                ? 'Processing MongoDB Transaction...'
-                : mode === 'login'
-                ? 'Sign In to Account'
-                : 'Create Account in MongoDB'}
-            </span>
-          </button>
-        </form>
 
-        {/* Quick Demo Credentials Autofill */}
-        <div className="mt-5 pt-4 border-t border-slate-200/80">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2 text-center">
-            Quick Fill Demo Accounts (Click to Fill & Test)
-          </span>
-          <div className="flex flex-wrap gap-1.5">
+            {/* Submit Button */}
             <button
-              type="button"
-              onClick={() => fillDemoAccount('citizen')}
-              className="flex-1 min-w-[120px] py-1.5 px-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-[10px] font-bold text-slate-800 transition text-center"
+              type="submit"
+              disabled={loading}
+              className="w-full py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white font-extrabold text-xs shadow-lg shadow-indigo-600/30 transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 mt-2 min-h-[44px]"
             >
-              👤 Citizen
+              {loading ? (
+                <span className="inline-block animate-spin">⏳</span>
+              ) : (
+                <ArrowRight className="w-4 h-4" />
+              )}
+              <span>
+                {loading
+                  ? 'Processing Authentication...'
+                  : mode === 'login'
+                  ? 'Sign In with Email'
+                  : 'Create Account with Email'}
+              </span>
             </button>
-            <button
-              type="button"
-              onClick={() => fillDemoAccount('observer')}
-              className="flex-1 min-w-[120px] py-1.5 px-2 rounded-xl border border-indigo-200 hover:bg-indigo-50 text-[10px] font-bold text-indigo-700 transition text-center"
-            >
-              🛡️ Observer
-            </button>
-            <button
-              type="button"
-              onClick={() => fillDemoAccount('psychiatrist')}
-              className="flex-1 min-w-[120px] py-1.5 px-2 rounded-xl border border-purple-200 hover:bg-purple-50 text-[10px] font-bold text-purple-700 transition text-center"
-            >
-              🩺 Psychiatrist
-            </button>
-            <button
-              type="button"
-              onClick={() => fillDemoAccount('ngo')}
-              className="flex-1 min-w-[120px] py-1.5 px-2 rounded-xl border border-teal-200 hover:bg-teal-50 text-[10px] font-bold text-teal-700 transition text-center"
-            >
-              🤝 NGO Partner
-            </button>
-            <button
-              type="button"
-              onClick={() => fillDemoAccount('admin')}
-              className="flex-1 min-w-[120px] py-1.5 px-2 rounded-xl border border-amber-200 hover:bg-amber-50 text-[10px] font-bold text-amber-700 transition text-center"
-            >
-              🏛️ MoSJE Admin
-            </button>
+          </form>
+
+          {/* Quick Demo Credentials Autofill */}
+          <div className="mt-5 pt-4 border-t border-slate-200/80">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2 text-center">
+              Quick Fill Demo Accounts (Click to Fill & Test)
+            </span>
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                type="button"
+                onClick={() => fillDemoAccount('citizen')}
+                className="flex-1 min-w-[120px] py-1.5 px-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-[10px] font-bold text-slate-800 transition text-center cursor-pointer"
+              >
+                👤 Citizen
+              </button>
+              <button
+                type="button"
+                onClick={() => fillDemoAccount('observer')}
+                className="flex-1 min-w-[120px] py-1.5 px-2 rounded-xl border border-indigo-200 hover:bg-indigo-50 text-[10px] font-bold text-indigo-700 transition text-center cursor-pointer"
+              >
+                🛡️ Observer
+              </button>
+              <button
+                type="button"
+                onClick={() => fillDemoAccount('psychiatrist')}
+                className="flex-1 min-w-[120px] py-1.5 px-2 rounded-xl border border-purple-200 hover:bg-purple-50 text-[10px] font-bold text-purple-700 transition text-center cursor-pointer"
+              >
+                🩺 Psychiatrist
+              </button>
+              <button
+                type="button"
+                onClick={() => fillDemoAccount('ngo')}
+                className="flex-1 min-w-[120px] py-1.5 px-2 rounded-xl border border-teal-200 hover:bg-teal-50 text-[10px] font-bold text-teal-700 transition text-center cursor-pointer"
+              >
+                🤝 NGO Partner
+              </button>
+              <button
+                type="button"
+                onClick={() => fillDemoAccount('admin')}
+                className="flex-1 min-w-[120px] py-1.5 px-2 rounded-xl border border-amber-200 hover:bg-amber-50 text-[10px] font-bold text-amber-700 transition text-center cursor-pointer"
+              >
+                🏛️ MoSJE Admin
+              </button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+
+      {/* Citizen Step-by-Step Onboarding Modal triggered after Google Sign-In */}
+      {showOnboardingWizard && onboardingGoogleUser && (
+        <CitizenOnboardingModal
+          isOpen={showOnboardingWizard}
+          onClose={() => setShowOnboardingWizard(false)}
+          googleUser={onboardingGoogleUser}
+          currentLang={currentLang}
+          onLanguageChange={onLanguageChange}
+          onComplete={handleOnboardingComplete}
+        />
+      )}
+    </>
   );
 };

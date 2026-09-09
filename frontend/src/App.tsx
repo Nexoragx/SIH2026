@@ -27,10 +27,24 @@ import { NgoPortal } from './components/portals/NgoPortal';
 import { PersonalizedActivities } from './components/victim/PersonalizedActivities';
 import { AdminPanel } from './components/admin/AdminPanel';
 import { UssdSimulatorModal } from './components/victim/UssdSimulatorModal';
+import { auth, onAuthStateChanged, firebaseSignOut } from './firebase';
 
 export const App: React.FC = () => {
-  // Global State
-  const [currentLang, setCurrentLang] = useState<string>('en');
+  // Global State (Persistent Language throughout website)
+  const [currentLang, setCurrentLang] = useState<string>(() => {
+    try {
+      return localStorage.getItem('anvaya_language') || 'en';
+    } catch {
+      return 'en';
+    }
+  });
+
+  const handleLanguageChange = (lang: string) => {
+    setCurrentLang(lang);
+    try {
+      localStorage.setItem('anvaya_language', lang);
+    } catch {}
+  };
   const [activeTab, setActiveTab] = useState<'victim' | 'observer' | 'psychiatrist' | 'ngo' | 'analytics' | 'resources' | 'admin'>('victim');
   const [voiceGuidance, setVoiceGuidance] = useState<boolean>(false);
   const [isCrisisOpen, setIsCrisisOpen] = useState<boolean>(false);
@@ -102,7 +116,37 @@ export const App: React.FC = () => {
       }
     }
 
-    return () => { mounted = false; };
+    // Listen to Firebase Auth State (Auto-recognize returning citizens)
+    const unsubscribeAuth = onAuthStateChanged(auth, (fbUser) => {
+      if (fbUser && !authApi.getCurrentLocalUser()) {
+        try {
+          const profiles = JSON.parse(localStorage.getItem('anvaya_citizen_profiles') || '{}');
+          const saved = profiles[fbUser.uid];
+          if (saved) {
+            const citizenUser = {
+              id: saved.id || fbUser.uid,
+              full_name: saved.name || fbUser.displayName || 'Citizen Survivor',
+              email: fbUser.email,
+              role: 'victim',
+              phone: saved.phone,
+              district: saved.district || 'Nashik',
+              state: saved.state || 'Maharashtra',
+              photoURL: fbUser.photoURL,
+              language: saved.language || 'en',
+            };
+            handleAuthSuccess(citizenUser);
+            if (saved.language) {
+              handleLanguageChange(saved.language);
+            }
+          }
+        } catch {}
+      }
+    });
+
+    return () => {
+      mounted = false;
+      unsubscribeAuth();
+    };
   }, []);
 
   // Offline Network Monitor & Auto-Sync Engine
@@ -167,6 +211,9 @@ export const App: React.FC = () => {
   };
 
   const handleLogout = async () => {
+    try {
+      await firebaseSignOut(auth);
+    } catch {}
     await authApi.logout();
     setCurrentUser(null);
     setIsGuestMode(false);
@@ -561,7 +608,7 @@ export const App: React.FC = () => {
       {/* Top Navbar */}
       <Navbar
         currentLang={currentLang}
-        onLanguageChange={setCurrentLang}
+        onLanguageChange={handleLanguageChange}
         activeTab={activeTab}
         onTabChange={setActiveTab}
         onTriggerCrisis={() => setIsCrisisOpen(true)}
@@ -759,12 +806,14 @@ export const App: React.FC = () => {
         userProfile={userProfile}
       />
 
-      {/* MongoDB Authentication Modal (Login & Register) */}
+      {/* Firebase & MongoDB Authentication Modal (Login & Register) */}
       <AuthModal
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
         onAuthSuccess={handleAuthSuccess}
         initialMode={authModalMode}
+        currentLang={currentLang}
+        onLanguageChange={handleLanguageChange}
       />
 
       {/* Check-in Schedule Modal */}
