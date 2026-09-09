@@ -6,7 +6,14 @@
 const HOSTED_BACKEND_URL = 'https://sih2026-frki.onrender.com/api/v1';
 
 const getBaseUrl = (): string => {
-  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
+  let url = import.meta.env.VITE_API_URL || HOSTED_BACKEND_URL;
+  if (url && typeof url === 'string') {
+    url = url.trim().replace(/\/+$/, '');
+    if (!url.endsWith('/api/v1')) {
+      url = `${url}/api/v1`;
+    }
+    return url;
+  }
   return HOSTED_BACKEND_URL;
 };
 

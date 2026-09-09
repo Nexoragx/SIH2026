@@ -56,11 +56,11 @@ def create_app() -> FastAPI:
         openapi_url=f"{settings.API_V1_PREFIX}/openapi.json"
     )
 
-    # 1. CORS Middleware (Permit localhost, Vercel, and Render origins)
+    # 1. CORS Middleware (Permit localhost, development and production frontend deployments)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.CORS_ORIGINS,
-        allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?|https://.*\.vercel\.app",
+        allow_origin_regex=r"^https?://.*",
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -101,20 +101,52 @@ def create_app() -> FastAPI:
             }
         )
 
-    # 3. Mount Routers
+    # 4. Mount Routers
     app.include_router(auth_router, prefix=settings.API_V1_PREFIX)
     app.include_router(interview_router, prefix=settings.API_V1_PREFIX)
     app.include_router(support_router, prefix=settings.API_V1_PREFIX)
 
-    # 4. System Health & Architecture Endpoints
+    # 5. Root & System Endpoints
+    @app.get("/", tags=["System"])
+    def root():
+        return {
+            "status": "online",
+            "project": settings.PROJECT_NAME,
+            "version": "1.0.0",
+            "environment": settings.ENVIRONMENT,
+            "docs": f"{settings.API_V1_PREFIX}/docs",
+            "swagger_ui": "/docs",
+            "redoc": f"{settings.API_V1_PREFIX}/redoc",
+            "health": f"{settings.API_V1_PREFIX}/health",
+            "api_prefix": settings.API_V1_PREFIX,
+            "endpoints": {
+                "health": f"{settings.API_V1_PREFIX}/health",
+                "architecture": f"{settings.API_V1_PREFIX}/architecture",
+                "auth": f"{settings.API_V1_PREFIX}/auth",
+                "interview": f"{settings.API_V1_PREFIX}/interview",
+                "support": f"{settings.API_V1_PREFIX}/support"
+            }
+        }
+
+    @app.get("/health", tags=["System"])
     @app.get(f"{settings.API_V1_PREFIX}/health", tags=["System"])
     def health_check():
         return {
             "status": "healthy",
-            "project": "SIH26094 - AI-Powered Dynamic Mental Health Monitoring",
+            "project": settings.PROJECT_NAME,
             "environment": settings.ENVIRONMENT,
             "version": "1.0.0"
         }
+
+    @app.get("/docs", include_in_schema=False)
+    def redirect_to_api_docs():
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url=f"{settings.API_V1_PREFIX}/docs")
+
+    @app.get("/redoc", include_in_schema=False)
+    def redirect_to_api_redoc():
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url=f"{settings.API_V1_PREFIX}/redoc")
 
     @app.get(f"{settings.API_V1_PREFIX}/architecture", tags=["System"])
     def system_architecture():
