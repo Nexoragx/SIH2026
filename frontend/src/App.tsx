@@ -18,6 +18,7 @@ import { Bot, MessageSquare, Sparkles } from 'lucide-react';
 import { assessmentApi, authApi, systemApi } from './api';
 import { AuthModal } from './components/auth/AuthModal';
 import { LandingPage } from './components/landing/LandingPage';
+import { IvrSimulatorModal } from './components/victim/IvrSimulatorModal';
 
 export const App: React.FC = () => {
   // Global State
@@ -37,6 +38,7 @@ export const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<any | null>(null);
   const [isGuestMode, setIsGuestMode] = useState<boolean>(false);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState<boolean>(false);
+  const [isIvrModalOpen, setIsIvrModalOpen] = useState<boolean>(false);
   const [cachedResponses, setCachedResponses] = useState<AssessmentResponse[]>([]);
 
   // Victim flow state: 'dashboard' | 'questionnaire' | 'history' | 'result'
@@ -408,6 +410,35 @@ export const App: React.FC = () => {
     computeClinicalScore(cachedResponses, voiceData || undefined, undefined);
   };
 
+  const handleCompleteIvrCheckin = (payload: {
+    madrsAnswers: number[];
+    sleepHours: number;
+    safetyThreatActive: boolean;
+    touchpointType: 'ivrs_call';
+  }) => {
+    const formattedResponses: AssessmentResponse[] = payload.madrsAnswers.map((score, idx) => ({
+      questionId: idx + 1,
+      selectedOptionId: `ivr-opt-${score}`,
+      madrsScore: score,
+      responseTimeMs: 2500,
+    }));
+
+    computeClinicalScore(
+      formattedResponses,
+      undefined,
+      'Automated check-in recorded via 14566 Toll-Free IVRS Helpline.',
+      payload.sleepHours,
+      payload.sleepHours < 4 ? 'insomnia' : 'restless',
+      'IVR phone check-in',
+      {
+        safety_status: payload.safetyThreatActive ? 'threat_perceived' : 'safe',
+        threat_active: payload.safetyThreatActive,
+        details: payload.safetyThreatActive ? 'Intimidation reported via IVR keypad selection' : undefined,
+      },
+      'ivrs_call'
+    );
+  };
+
   const handleSaveVoiceSample = (data: { transcript: string; stressScore: number; audioUrl?: string; audioBlob?: Blob }) => {
     setVoiceData(data);
     setVoiceCheckinDone(true);
@@ -482,6 +513,10 @@ export const App: React.FC = () => {
               setAuthModalMode(mode || 'login');
               setIsAuthModalOpen(true);
             }}
+            onInstantLogin={(role) => {
+              const res = authApi.instantDemoLogin(role);
+              handleAuthSuccess(res.user);
+            }}
             onStartGuestScreening={() => {
               setIsGuestMode(true);
               setVictimStep('questionnaire');
@@ -522,6 +557,7 @@ export const App: React.FC = () => {
                     onContinue={handleHistorySubmit}
                     onSkip={handleHistorySkip}
                     onBack={() => setVictimStep('questionnaire')}
+                    onOpenIvrModal={() => setIsIvrModalOpen(true)}
                   />
                 )}
 
@@ -630,6 +666,14 @@ export const App: React.FC = () => {
           setIsScheduleModalOpen(false);
           setVictimStep('questionnaire');
         }}
+      />
+
+      {/* 14566 IVRS Phone Touchpoint Simulator Modal */}
+      <IvrSimulatorModal
+        isOpen={isIvrModalOpen}
+        onClose={() => setIsIvrModalOpen(false)}
+        onCompleteIvrCheckin={handleCompleteIvrCheckin}
+        currentLang={currentLang}
       />
 
       {/* Footer */}

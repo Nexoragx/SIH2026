@@ -20,6 +20,7 @@ import {
 
 interface LandingPageProps {
   onOpenAuth: (mode?: 'login' | 'register') => void;
+  onInstantLogin?: (role: 'citizen' | 'observer') => void;
   onStartGuestScreening?: () => void;
   onTriggerCrisis: () => void;
   currentLang: string;
@@ -27,6 +28,7 @@ interface LandingPageProps {
 
 export const LandingPage: React.FC<LandingPageProps> = ({
   onOpenAuth,
+  onInstantLogin,
   onStartGuestScreening,
   onTriggerCrisis,
   currentLang,
@@ -81,6 +83,32 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             </button>
           )}
         </div>
+
+        {/* Evaluator 1-Click Instant Demo Access Strip */}
+        {onInstantLogin && (
+          <div className="max-w-xl mx-auto p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 shadow-2xs space-y-2">
+            <div className="text-[11px] font-black uppercase tracking-wider text-black flex items-center justify-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+              <span>SIH Evaluation 1-Click Instant Portals (No Typing Required)</span>
+            </div>
+            <div className="flex flex-wrap items-center justify-center gap-2.5">
+              <button
+                type="button"
+                onClick={() => onInstantLogin('citizen')}
+                className="px-4 py-2 rounded-xl bg-white hover:bg-indigo-50 active:scale-95 border border-indigo-200 text-black font-extrabold text-xs shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+              >
+                <span>👤 Instant Citizen Demo</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onInstantLogin('observer')}
+                className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-black active:scale-95 text-white font-extrabold text-xs shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+              >
+                <span>🛡️ Instant Observer Portal</span>
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Key Trust Signals */}
         <div className="flex flex-wrap items-center justify-center gap-6 pt-6 text-xs text-slate-500 font-bold">

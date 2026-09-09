@@ -30,12 +30,14 @@ interface OptionalHistoryCardProps {
   onContinue: (data: DataCollectionPayload) => void;
   onSkip: () => void;
   onBack?: () => void;
+  onOpenIvrModal?: () => void;
 }
 
 export const OptionalHistoryCard: React.FC<OptionalHistoryCardProps> = ({
   onContinue,
   onSkip,
   onBack,
+  onOpenIvrModal,
 }) => {
   const [text, setText] = useState<string>('');
   const [sleepHours, setSleepHours] = useState<number | undefined>(undefined);
@@ -93,7 +95,10 @@ export const OptionalHistoryCard: React.FC<OptionalHistoryCardProps> = ({
             </button>
             <button
               type="button"
-              onClick={() => setTouchpoint('ivrs_call')}
+              onClick={() => {
+                setTouchpoint('ivrs_call');
+                if (onOpenIvrModal) onOpenIvrModal();
+              }}
               className={`flex items-center gap-1 px-2.5 py-1 rounded-lg transition cursor-pointer ${
                 touchpoint === 'ivrs_call' ? 'bg-black text-white shadow-xs' : 'text-slate-700 hover:text-black'
               }`}
@@ -103,6 +108,30 @@ export const OptionalHistoryCard: React.FC<OptionalHistoryCardProps> = ({
             </button>
           </div>
         </div>
+
+        {/* IVRS Callout Banner */}
+        {touchpoint === 'ivrs_call' && (
+          <div className="p-3.5 rounded-2xl bg-indigo-50 border border-indigo-200 flex items-center justify-between gap-3 animate-fadeIn">
+            <div className="space-y-0.5">
+              <div className="text-xs font-black text-indigo-950 flex items-center gap-1.5">
+                <PhoneCall className="w-3.5 h-3.5 text-indigo-600" />
+                <span>IVRS Telephone Touchpoint Active</span>
+              </div>
+              <p className="text-[11px] text-indigo-800 font-medium">
+                You can simulate an automated phone check-in call with DTMF keypad prompts.
+              </p>
+            </div>
+            {onOpenIvrModal && (
+              <button
+                type="button"
+                onClick={onOpenIvrModal}
+                className="px-3 py-1.5 bg-black hover:bg-slate-900 text-white font-extrabold text-xs rounded-xl shadow-xs transition flex-shrink-0 cursor-pointer"
+              >
+                Launch 14566 Simulator
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Title */}
         <div className="space-y-1">

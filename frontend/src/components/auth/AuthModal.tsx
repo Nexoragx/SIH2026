@@ -93,6 +93,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
   };
 
+  const handleInstantLogin = (demoType: 'citizen' | 'observer') => {
+    setErrorMsg(null);
+    setLoading(true);
+    const res = authApi.instantDemoLogin(demoType);
+    setSuccessMsg(`Logged in instantly as ${res.user.full_name}!`);
+    setTimeout(() => {
+      onAuthSuccess(res.user);
+      onClose();
+    }, 400);
+  };
+
   const fillDemoAccount = (demoType: 'citizen' | 'observer') => {
     setErrorMsg(null);
     if (demoType === 'citizen') {
@@ -134,14 +145,38 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         <h3 className="text-xl sm:text-2xl font-extrabold text-slate-900 mb-1 tracking-tight">
           {mode === 'login' ? 'Welcome Back' : 'Create Your Account'}
         </h3>
-        <p className="text-xs text-slate-600 mb-5 font-medium leading-relaxed">
+        <p className="text-xs text-slate-600 mb-4 font-medium leading-relaxed">
           {mode === 'login'
             ? 'Sign in to access your confidential care records and dashboard.'
             : "Register securely. All credentials are encrypted and stored in MongoDB 'user' collection."}
         </p>
 
+        {/* 1-Click Instant Demo Login Buttons */}
+        <div className="mb-4 p-3 rounded-2xl bg-gradient-to-br from-indigo-50/80 to-purple-50/80 border border-indigo-100 space-y-2">
+          <div className="text-[10px] font-black uppercase tracking-wider text-indigo-950 flex items-center gap-1.5">
+            <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+            <span>SIH Evaluator 1-Click Instant Access</span>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => handleInstantLogin('citizen')}
+              className="py-2 px-2.5 rounded-xl bg-white hover:bg-indigo-50 border border-indigo-200 text-black font-extrabold text-xs shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer text-center"
+            >
+              <span>👤 Instant Citizen</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleInstantLogin('observer')}
+              className="py-2 px-2.5 rounded-xl bg-slate-900 hover:bg-black text-white font-extrabold text-xs shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer text-center"
+            >
+              <span>🛡️ Instant Observer</span>
+            </button>
+          </div>
+        </div>
+
         {/* Tab Switcher */}
-        <div className="flex bg-slate-100 p-1 rounded-2xl mb-5 border border-slate-200">
+        <div className="flex bg-slate-100 p-1 rounded-2xl mb-4 border border-slate-200">
           <button
             type="button"
             onClick={() => {
