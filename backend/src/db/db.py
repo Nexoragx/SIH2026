@@ -4,7 +4,9 @@ Uses PyMongo client with connection pooling, indexes setup, and .env configurati
 """
 
 import logging
+from datetime import datetime, timezone, timedelta
 from pymongo import MongoClient, ASCENDING, DESCENDING
+from pymongo.database import Database
 from pymongo.errors import ServerSelectionTimeoutError, ConnectionFailure
 import mongomock
 from src.config.config import settings
@@ -211,7 +213,368 @@ def init_db():
     except Exception as e:
         logger.warning(f"Demo accounts seeding skipped: {e}")
 
+    # Pre-seed baseline participant assessment reports if collection is empty
+    seed_interview_reports_if_empty(db)
+
     logger.info(f"MongoDB indexes initialized on database: {db.name}")
+
+
+def seed_interview_reports_if_empty(db: Database):
+    """
+    Ensures MongoDB interview_reports collection is populated with rich, realistic
+    multimodal model reports with SHAP feature attributions, LSTM temporal progression curves,
+    and 7-class emotion probabilities for the Executive Admin Panel.
+    """
+    try:
+        if db.interview_reports.count_documents({}) > 0:
+            return
+
+        now = datetime.now(timezone.utc)
+        demo_reports = [
+            {
+                "session_id": "SESSION-MH1024-CRIT",
+                "victim_id": "USR-26094",
+                "touchpoint_type": "web_portal",
+                "detected_language": "en",
+                "distress_score": 88.5,
+                "severity_level": "CRITICAL",
+                "status": "CRISIS_DISPATCHED",
+                "alert_triggered": True,
+                "ambulance_108_dispatched": True,
+                "alert_details": {
+                    "alert_triggered": True,
+                    "ambulance_108_dispatched": True,
+                    "dispatch_id": "DISP-108-MH1024",
+                    "priority": "P0_CRITICAL",
+                    "reason": "Acute Self-Harm / Crisis Ideation (MADRS Q10 >= 4)"
+                },
+                "fused_features": {
+                    "form_distress": 86.0,
+                    "nlp_distress": 82.0,
+                    "voice_distress": 68.0,
+                    "sleep_distress": 90.0,
+                    "threat_distress": 85.0,
+                    "context_score": 30.0,
+                    "modalities_contributions": {
+                        "questionnaire_score": 35.0,
+                        "emotion_score": 25.0,
+                        "voice_features": 15.0,
+                        "sleep_behaviour": 15.0,
+                        "threat_indicators": 10.0
+                    }
+                },
+                "clinical_assessment": {
+                    "madrs_total": 48,
+                    "severity": "CRITICAL",
+                    "suicidal_intent": True,
+                    "answers": [5, 5, 5, 5, 4, 5, 4, 5, 5, 5]
+                },
+                "nlp_analysis": {
+                    "nlp_distress_score": 82.0,
+                    "sentiment_polarity": "strongly_negative",
+                    "confidence": 0.94,
+                    "emotions": {
+                        "sadness": 0.72,
+                        "fear": 0.65,
+                        "anger": 0.28,
+                        "disgust": 0.12,
+                        "joy": 0.02,
+                        "surprise": 0.05,
+                        "neutral": 0.06
+                    },
+                    "threat_detected": True
+                },
+                "voice_analysis": {
+                    "voice_distress_score": 68.0,
+                    "pitch_instability_jitter": 0.048,
+                    "vocal_tremor_hz": 7.4,
+                    "harmonics_to_noise_ratio": 11.2,
+                    "stress_level": "elevated"
+                },
+                "shap_explanations": {
+                    "baseline_score": 20.0,
+                    "model_prediction": 88.5,
+                    "features": [
+                        {"feature": "Acute Self-Harm / Crisis Ideation (MADRS Q10)", "shap_value": 0.35, "points": 35.0, "relative_pct": 35, "impact": "Primary crisis driver (+35.0 pts)"},
+                        {"feature": "Emotion AI Despair & Sadness (DistilRoBERTa)", "shap_value": 0.22, "points": 22.0, "relative_pct": 25, "impact": "Elevated trauma affect (+22.0 pts)"},
+                        {"feature": "Circadian Sleep Fragmentation (<4 hrs)", "shap_value": 0.16, "points": 16.0, "relative_pct": 18, "impact": "Severe sleep deficit (+16.0 pts)"},
+                        {"feature": "Acoustic Vocal Tremor & Pitch Instability", "shap_value": 0.10, "points": 10.0, "relative_pct": 12, "impact": "Sympathetic arousal tremor (+10.0 pts)"},
+                        {"feature": "Socio-Environmental Threat & Intimidation", "shap_value": 0.08, "points": 8.0, "relative_pct": 10, "impact": "Active safety concern (+8.0 pts)"}
+                    ]
+                },
+                "temporal_trend": {
+                    "historical_series": [42.0, 58.0, 74.0],
+                    "current_score": 88.5,
+                    "projected_7d_score": 94.2,
+                    "trend_direction": "ESCALATING",
+                    "momentum_rate": "+16.2 pts / wk",
+                    "risk_acceleration": "high"
+                },
+                "recommendations": {
+                    "clinical_action": "Immediate 108 Emergency Ambulance Protocol dispatched. Telepsychiatrist consultation prioritized.",
+                    "checkin_interval_days": 1,
+                    "safety_measures": ["24/7 telephonic escort", "District Nodal Officer alert"]
+                },
+                "assigned_observer_id": "Dr. Anita Joshi (District Nodal Officer)",
+                "assigned_psychiatrist_id": "Dr. Anita Joshi, MD",
+                "observer_notes": "108 emergency intervention dispatched to registered location in Nashik.",
+                "created_at": now - timedelta(hours=2),
+                "updated_at": now - timedelta(hours=2)
+            },
+            {
+                "session_id": "SESSION-UP2088-HIGH",
+                "victim_id": "USR-88219",
+                "touchpoint_type": "mobile_app",
+                "detected_language": "hi",
+                "distress_score": 68.0,
+                "severity_level": "HIGH",
+                "status": "INTERVENTION_ASSIGNED",
+                "alert_triggered": True,
+                "ambulance_108_dispatched": False,
+                "alert_details": {
+                    "alert_triggered": True,
+                    "ambulance_108_dispatched": False,
+                    "priority": "P1_HIGH",
+                    "reason": "High psychological distress and sleep loss"
+                },
+                "fused_features": {
+                    "form_distress": 65.0,
+                    "nlp_distress": 62.0,
+                    "voice_distress": 52.0,
+                    "sleep_distress": 75.0,
+                    "threat_distress": 50.0,
+                    "context_score": 25.0,
+                    "modalities_contributions": {
+                        "questionnaire_score": 30.0,
+                        "emotion_score": 22.0,
+                        "voice_features": 12.0,
+                        "sleep_behaviour": 18.0,
+                        "threat_indicators": 18.0
+                    }
+                },
+                "clinical_assessment": {
+                    "madrs_total": 34,
+                    "severity": "HIGH",
+                    "suicidal_intent": False,
+                    "answers": [4, 4, 3, 4, 3, 4, 3, 3, 3, 3]
+                },
+                "nlp_analysis": {
+                    "nlp_distress_score": 62.0,
+                    "sentiment_polarity": "negative",
+                    "confidence": 0.88,
+                    "emotions": {
+                        "sadness": 0.58,
+                        "fear": 0.44,
+                        "anger": 0.35,
+                        "disgust": 0.10,
+                        "joy": 0.05,
+                        "surprise": 0.08,
+                        "neutral": 0.12
+                    },
+                    "threat_detected": False
+                },
+                "voice_analysis": {
+                    "voice_distress_score": 52.0,
+                    "pitch_instability_jitter": 0.032,
+                    "vocal_tremor_hz": 5.8,
+                    "harmonics_to_noise_ratio": 14.5,
+                    "stress_level": "moderate"
+                },
+                "shap_explanations": {
+                    "baseline_score": 20.0,
+                    "model_prediction": 68.0,
+                    "features": [
+                        {"feature": "Depressive Affect & Sadness (MADRS 1-2)", "shap_value": 0.28, "points": 28.0, "relative_pct": 32, "impact": "Dominant affective burden (+28.0 pts)"},
+                        {"feature": "Disturbed Sleep Architecture (<5 hrs)", "shap_value": 0.18, "points": 18.0, "relative_pct": 25, "impact": "Insomnia perturbation (+18.0 pts)"},
+                        {"feature": "Emotion AI Fear & Tension (DistilRoBERTa)", "shap_value": 0.14, "points": 14.0, "relative_pct": 20, "impact": "Anticipatory anxiety (+14.0 pts)"},
+                        {"feature": "Acoustic Vocal Perturbation Jitter", "shap_value": 0.08, "points": 8.0, "relative_pct": 13, "impact": "Subtle vocal instability (+8.0 pts)"}
+                    ]
+                },
+                "temporal_trend": {
+                    "historical_series": [48.0, 58.0, 68.0],
+                    "current_score": 68.0,
+                    "projected_7d_score": 73.5,
+                    "trend_direction": "ESCALATING",
+                    "momentum_rate": "+10.0 pts / wk",
+                    "risk_acceleration": "moderate"
+                },
+                "recommendations": {
+                    "clinical_action": "Telepsychiatry review assigned. Community social worker follow-up within 72 hours.",
+                    "checkin_interval_days": 3
+                },
+                "assigned_observer_id": "Suresh Verma",
+                "assigned_psychiatrist_id": "Dr. Anita Joshi, MD",
+                "observer_notes": "Scheduled teleconsultation for sleep hygiene and trauma coping.",
+                "created_at": now - timedelta(days=1, hours=4),
+                "updated_at": now - timedelta(days=1, hours=4)
+            },
+            {
+                "session_id": "SESSION-RJ3012-MOD",
+                "victim_id": "USR-44102",
+                "touchpoint_type": "ivr_14566",
+                "detected_language": "hi",
+                "distress_score": 42.5,
+                "severity_level": "MODERATE",
+                "status": "PENDING",
+                "alert_triggered": False,
+                "ambulance_108_dispatched": False,
+                "alert_details": {
+                    "alert_triggered": False,
+                    "ambulance_108_dispatched": False
+                },
+                "fused_features": {
+                    "form_distress": 40.0,
+                    "nlp_distress": 38.0,
+                    "voice_distress": 35.0,
+                    "sleep_distress": 40.0,
+                    "threat_distress": 20.0,
+                    "context_score": 20.0,
+                    "modalities_contributions": {
+                        "questionnaire_score": 25.0,
+                        "emotion_score": 15.0,
+                        "voice_features": 10.0,
+                        "sleep_behaviour": 12.0,
+                        "threat_indicators": 8.0
+                    }
+                },
+                "clinical_assessment": {
+                    "madrs_total": 21,
+                    "severity": "MODERATE",
+                    "suicidal_intent": False,
+                    "answers": [2, 2, 2, 3, 2, 2, 2, 2, 2, 2]
+                },
+                "nlp_analysis": {
+                    "nlp_distress_score": 38.0,
+                    "sentiment_polarity": "mildly_negative",
+                    "confidence": 0.81,
+                    "emotions": {
+                        "sadness": 0.35,
+                        "fear": 0.22,
+                        "anger": 0.15,
+                        "disgust": 0.05,
+                        "joy": 0.18,
+                        "surprise": 0.10,
+                        "neutral": 0.35
+                    },
+                    "threat_detected": False
+                },
+                "voice_analysis": {
+                    "voice_distress_score": 35.0,
+                    "pitch_instability_jitter": 0.018,
+                    "vocal_tremor_hz": 3.8,
+                    "harmonics_to_noise_ratio": 18.2,
+                    "stress_level": "mild"
+                },
+                "shap_explanations": {
+                    "baseline_score": 20.0,
+                    "model_prediction": 42.5,
+                    "features": [
+                        {"feature": "Reported Lassitude & Fatigue (MADRS 7)", "shap_value": 0.14, "points": 14.0, "relative_pct": 32, "impact": "Mild somatic exhaustion (+14.0 pts)"},
+                        {"feature": "Sleep Onset Delay", "shap_value": 0.10, "points": 10.0, "relative_pct": 24, "impact": "Slightly fragmented sleep (+10.0 pts)"},
+                        {"feature": "Situational Stress", "shap_value": 0.08, "points": 8.5, "relative_pct": 20, "impact": "Court date nervousness (+8.5 pts)"}
+                    ]
+                },
+                "temporal_trend": {
+                    "historical_series": [45.0, 43.0, 42.5],
+                    "current_score": 42.5,
+                    "projected_7d_score": 40.0,
+                    "trend_direction": "STABLE",
+                    "momentum_rate": "-2.5 pts / wk",
+                    "risk_acceleration": "low"
+                },
+                "recommendations": {
+                    "clinical_action": "Somatic breathing exercises and 7-day adaptive check-in schedule.",
+                    "checkin_interval_days": 7
+                },
+                "created_at": now - timedelta(days=2, hours=1),
+                "updated_at": now - timedelta(days=2, hours=1)
+            },
+            {
+                "session_id": "SESSION-TN5090-LOW",
+                "victim_id": "USR-19904",
+                "touchpoint_type": "ussd_keypad",
+                "detected_language": "ta",
+                "distress_score": 14.2,
+                "severity_level": "LOW",
+                "status": "RESOLVED",
+                "alert_triggered": False,
+                "ambulance_108_dispatched": False,
+                "alert_details": {
+                    "alert_triggered": False,
+                    "ambulance_108_dispatched": False
+                },
+                "fused_features": {
+                    "form_distress": 12.0,
+                    "nlp_distress": 10.0,
+                    "voice_distress": 8.0,
+                    "sleep_distress": 15.0,
+                    "threat_distress": 5.0,
+                    "context_score": 10.0,
+                    "modalities_contributions": {
+                        "questionnaire_score": 10.0,
+                        "emotion_score": 6.0,
+                        "voice_features": 4.0,
+                        "sleep_behaviour": 5.0,
+                        "threat_indicators": 2.0
+                    }
+                },
+                "clinical_assessment": {
+                    "madrs_total": 7,
+                    "severity": "LOW",
+                    "suicidal_intent": False,
+                    "answers": [1, 1, 1, 1, 0, 1, 0, 1, 1, 0]
+                },
+                "nlp_analysis": {
+                    "nlp_distress_score": 10.0,
+                    "sentiment_polarity": "positive",
+                    "confidence": 0.91,
+                    "emotions": {
+                        "sadness": 0.08,
+                        "fear": 0.05,
+                        "anger": 0.04,
+                        "disgust": 0.02,
+                        "joy": 0.62,
+                        "surprise": 0.12,
+                        "neutral": 0.55
+                    },
+                    "threat_detected": False
+                },
+                "voice_analysis": {
+                    "voice_distress_score": 8.0,
+                    "pitch_instability_jitter": 0.008,
+                    "vocal_tremor_hz": 1.2,
+                    "harmonics_to_noise_ratio": 24.5,
+                    "stress_level": "low"
+                },
+                "shap_explanations": {
+                    "baseline_score": 20.0,
+                    "model_prediction": 14.2,
+                    "features": [
+                        {"feature": "Restorative Sleep Architecture", "shap_value": -0.06, "points": -6.0, "relative_pct": 40, "impact": "Protective factor (-6.0 pts)"},
+                        {"feature": "Positive Social Support (Family/NGO)", "shap_value": -0.04, "points": -4.0, "relative_pct": 30, "impact": "Resilience factor (-4.0 pts)"}
+                    ]
+                },
+                "temporal_trend": {
+                    "historical_series": [28.0, 19.0, 14.2],
+                    "current_score": 14.2,
+                    "projected_7d_score": 11.0,
+                    "trend_direction": "IMPROVING",
+                    "momentum_rate": "-7.0 pts / wk",
+                    "risk_acceleration": "negative"
+                },
+                "recommendations": {
+                    "clinical_action": "Maintain routine wellness check-in cadence (14 days).",
+                    "checkin_interval_days": 14
+                },
+                "created_at": now - timedelta(days=3),
+                "updated_at": now - timedelta(days=3)
+            }
+        ]
+
+        db.interview_reports.insert_many(demo_reports)
+        logger.info(f"Pre-seeded {len(demo_reports)} multi-modal assessment diagnostic reports into interview_reports.")
+    except Exception as e:
+        logger.warning(f"Seeding interview reports skipped: {e}")
 
 
 def sync_user_to_all_dbs(user_doc: dict):

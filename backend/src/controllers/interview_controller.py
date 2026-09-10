@@ -70,31 +70,58 @@ class CaseInterventionSchema(BaseModel):
 class InterviewController:
 
     @staticmethod
-    def get_admin_reports(db: Database, limit: int = 100) -> dict:
-        """Return saved assessment report summaries for the administrator portal.
-
-        The detailed document remains in MongoDB and is retrieved through the
-        protected admin report endpoint only after an administrator selects it.
+    def get_admin_reports(
+        db: Database,
+        severity: Optional[str] = None,
+        limit: int = 100,
+        search: Optional[str] = None
+    ) -> dict:
         """
-        reports = list(
-            db.interview_reports.find({}).sort("created_at", DESCENDING).limit(limit)
-        )
+        Fetches full repository of participant assessment reports from MongoDB for the Executive Admin Panel.
+        Allows instant drilldown into model calculations, SHAP factors, and clinical recommendations.
+        """
+        filter_query: Dict[str, Any] = {}
+        if severity and severity.upper() != "ALL":
+            filter_query["severity_level"] = severity.upper()
+
+        if search and search.strip():
+            s = search.strip()
+            filter_query["$or"] = [
+                {"session_id": {"$regex": s, "$options": "i"}},
+                {"victim_id": {"$regex": s, "$options": "i"}},
+                {"detected_language": {"$regex": s, "$options": "i"}},
+                {"status": {"$regex": s, "$options": "i"}}
+            ]
+
+        cursor = db.interview_reports.find(filter_query).sort("created_at", DESCENDING).limit(limit)
+        raw_reports = list(cursor)
+
+        reports_list = []
+        for r in raw_reports:
+            serialized = serialize_report(r)
+            if isinstance(serialized.get("created_at"), datetime):
+                serialized["created_at"] = serialized["created_at"].isoformat()
+            if isinstance(serialized.get("updated_at"), datetime):
+                serialized["updated_at"] = serialized["updated_at"].isoformat()
+            reports_list.append(serialized)
+
+        total_count = db.interview_reports.count_documents({})
+        critical_count = db.interview_reports.count_documents({"severity_level": "CRITICAL"})
+        high_count = db.interview_reports.count_documents({"severity_level": "HIGH"})
+        mod_count = db.interview_reports.count_documents({"severity_level": "MODERATE"})
+        low_count = db.interview_reports.count_documents({"severity_level": "LOW"})
+
         return {
-            "total_reports": db.interview_reports.count_documents({}),
-            "reports": [
-                {
-                    "id": str(report["_id"]),
-                    "session_id": report.get("session_id"),
-                    "victim_id": report.get("victim_id"),
-                    "distress_score": report.get("distress_score", 0),
-                    "severity_level": report.get("severity_level", "LOW"),
-                    "status": report.get("status", "PENDING"),
-                    "alert_triggered": report.get("alert_triggered", False),
-                    "clinical_assessment": report.get("clinical_assessment"),
-                    "created_at": report.get("created_at").isoformat() if report.get("created_at") else None,
-                }
-                for report in reports
-            ],
+            "total_count": total_count,
+            "total_reports": total_count,
+            "matched_count": len(reports_list),
+            "severity_summary": {
+                "critical": critical_count,
+                "high": high_count,
+                "moderate": mod_count,
+                "low": low_count
+            },
+            "reports": reports_list
         }
 
     @staticmethod
@@ -292,10 +319,10 @@ class InterviewController:
         }
 
     @staticmethod
-    def get_report_by_id(session_or_report_id: str, current_user: dict, db: Database) -> dict:
+    def get_report_by_id(session_or_report_id: str, current_user: Optional[dict], db: Database) -> dict:
         """
         Retrieves complete multi-modal report details from MongoDB.
-        Enforces access permission (victim's own report or authorized observer/psychiatrist).
+        Enforces access permission (victim's own report or authorized staff/observer/admin).
         """
         query = {"session_id": session_or_report_id}
         if ObjectId.is_valid(session_or_report_id):
@@ -319,7 +346,13 @@ class InterviewController:
                 UserRole.OBSERVER_NATIONAL.value,
                 UserRole.PSYCHIATRIST.value,
                 UserRole.NGO_PARTNER.value,
-                UserRole.ADMIN.value
+                UserRole.ADMIN.value,
+                "admin",
+                "observer_district",
+                "observer_state",
+                "observer_national",
+                "psychiatrist",
+                "ngo_partner"
             ]
             if not (is_owner or is_observer):
                 raise HTTPException(
@@ -327,7 +360,12 @@ class InterviewController:
                     detail="You do not have permission to access this report."
                 )
 
-        return serialize_report(report)
+        serialized = serialize_report(report)
+        if isinstance(serialized.get("created_at"), datetime):
+            serialized["created_at"] = serialized["created_at"].isoformat()
+        if isinstance(serialized.get("updated_at"), datetime):
+            serialized["updated_at"] = serialized["updated_at"].isoformat()
+        return serialized
 
     @staticmethod
     def get_victim_history(current_user: dict, db: Database) -> dict:
@@ -644,55 +682,3 @@ class InterviewController:
             "recipient_case_id": payload.get("case_id", "GENERAL")
         }
 
-    @staticmethod
-    def get_admin_reports(
-        db: Database,
-        severity: Optional[str] = None,
-        limit: int = 100,
-        search: Optional[str] = None
-    ) -> dict:
-        """
-        Fetches full repository of participant assessment reports for the Executive Admin Panel.
-        Allows instant drilldown into model calculations, SHAP factors, and clinical recommendations.
-        """
-        filter_query: Dict[str, Any] = {}
-        if severity and severity.upper() != "ALL":
-            filter_query["severity_level"] = severity.upper()
-
-        if search and search.strip():
-            s = search.strip()
-            filter_query["$or"] = [
-                {"session_id": {"$regex": s, "$options": "i"}},
-                {"victim_id": {"$regex": s, "$options": "i"}},
-                {"detected_language": {"$regex": s, "$options": "i"}},
-                {"status": {"$regex": s, "$options": "i"}}
-            ]
-
-        cursor = db.interview_reports.find(filter_query).sort("created_at", DESCENDING).limit(limit)
-        raw_reports = list(cursor)
-
-        reports_list = []
-        for r in raw_reports:
-            serialized = serialize_report(r)
-            # Ensure friendly ISO string for date
-            if isinstance(serialized.get("created_at"), datetime):
-                serialized["created_at"] = serialized["created_at"].isoformat()
-            reports_list.append(serialized)
-
-        total_count = db.interview_reports.count_documents({})
-        critical_count = db.interview_reports.count_documents({"severity_level": "CRITICAL"})
-        high_count = db.interview_reports.count_documents({"severity_level": "HIGH"})
-        mod_count = db.interview_reports.count_documents({"severity_level": "MODERATE"})
-        low_count = db.interview_reports.count_documents({"severity_level": "LOW"})
-
-        return {
-            "total_count": total_count,
-            "matched_count": len(reports_list),
-            "severity_summary": {
-                "critical": critical_count,
-                "high": high_count,
-                "moderate": mod_count,
-                "low": low_count
-            },
-            "reports": reports_list
-        }

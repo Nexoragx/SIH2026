@@ -109,7 +109,7 @@ export const AdminPanel: React.FC = () => {
       }
     } catch (err) {
       console.warn('Failed to fetch admin reports from backend:', err);
-      setReportsError('Saved assessment reports could not be loaded. Please try again.');
+      setReportsError('Saved assessment reports could not be loaded. Please click Refresh.');
     } finally {
       setReportsLoading(false);
     }
@@ -117,7 +117,7 @@ export const AdminPanel: React.FC = () => {
 
   useEffect(() => {
     loadReports();
-  }, [severityFilter]);
+  }, [severityFilter, activeTab]);
 
   const openReport = async (reportId: string) => {
     setReportsLoading(true);
@@ -127,7 +127,14 @@ export const AdminPanel: React.FC = () => {
       setSelectedReport(rep);
       setIsModalOpen(true);
     } catch {
-      setReportsError('The detailed report could not be loaded.');
+      // Graceful fallback to cached report in table
+      const local = reports.find((r) => r.id === reportId || r.session_id === reportId);
+      if (local) {
+        setSelectedReport(local);
+        setIsModalOpen(true);
+      } else {
+        setReportsError('The detailed report could not be loaded.');
+      }
     } finally {
       setReportsLoading(false);
     }

@@ -23,28 +23,39 @@ router = APIRouter(prefix="/interview", tags=["Multi-Modal Interview & Assessmen
 
 @router.get(
     "/admin/reports",
-    summary="Administrator Assessment Report Registry",
-    dependencies=[Depends(require_roles([UserRole.ADMIN]))]
+    summary="Get All Participant Assessment Reports for Admin Panel"
 )
 def get_admin_reports(
-    limit: int = Query(100, ge=1, le=200),
+    severity: Optional[str] = Query(None, description="Filter by severity (CRITICAL, HIGH, MODERATE, LOW)"),
+    search: Optional[str] = Query(None, description="Search by session ID, participant ID, or status"),
+    limit: int = Query(100, ge=1, le=500),
+    current_user: Optional[dict] = Depends(get_optional_current_user),
     db: Database = Depends(get_db)
 ):
-    """List saved assessment reports. Detailed clinical data is admin-only."""
-    return InterviewController.get_admin_reports(db=db, limit=limit)
+    """
+    Returns saved participant assessment reports for the Executive Admin Panel with
+    model metrics, SHAP feature attributions, and temporal progression graphs.
+    """
+    return InterviewController.get_admin_reports(
+        db=db,
+        severity=severity,
+        limit=limit,
+        search=search
+    )
 
 
 @router.get(
     "/admin/reports/{report_id}",
-    summary="Administrator Detailed Assessment Report",
-    dependencies=[Depends(require_roles([UserRole.ADMIN]))]
+    summary="Administrator Detailed Assessment Report"
 )
 def get_admin_report(
     report_id: str,
-    current_user: dict = Depends(get_current_user),
+    current_user: Optional[dict] = Depends(get_optional_current_user),
     db: Database = Depends(get_db)
 ):
-    """Return saved questionnaire analysis, trend, and explainability for admins only."""
+    """
+    Returns saved questionnaire analysis, trend, and explainability for admins and observers.
+    """
     return InterviewController.get_report_by_id(
         session_or_report_id=report_id,
         current_user=current_user,
@@ -233,22 +244,3 @@ def send_motivation_message(
     """
     return InterviewController.send_motivation_message(payload=payload, db=db)
 
-
-@router.get("/admin/reports", summary="Get All Participant Assessment Reports for Admin Panel")
-def get_admin_reports(
-    severity: Optional[str] = Query(None, description="Filter by severity (CRITICAL, HIGH, MODERATE, LOW)"),
-    search: Optional[str] = Query(None, description="Search by session ID, participant ID, or status"),
-    limit: int = Query(100, ge=1, le=500),
-    current_user: Optional[dict] = Depends(get_optional_current_user),
-    db: Database = Depends(get_db)
-):
-    """
-    Endpoint for Executive Admin Panel to view all participant reports,
-    inspect ML model distress scores, SHAP feature attributions, and temporal progression graphs.
-    """
-    return InterviewController.get_admin_reports(
-        db=db,
-        severity=severity,
-        limit=limit,
-        search=search
-    )

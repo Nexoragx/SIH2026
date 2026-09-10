@@ -19,8 +19,13 @@ export interface AdminReportRegistry {
 }
 
 export const adminReportsApi = {
-  getReports(limit = 100): Promise<AdminReportRegistry> {
-    return apiRequest<AdminReportRegistry>(`/interview/admin/reports?limit=${limit}`);
+  getReports(params?: { limit?: number; severity?: string; search?: string }): Promise<AdminReportRegistry & Record<string, any>> {
+    const q = new URLSearchParams();
+    if (params?.limit) q.append('limit', String(params.limit));
+    if (params?.severity && params.severity !== 'ALL') q.append('severity', params.severity);
+    if (params?.search) q.append('search', params.search);
+    const qs = q.toString();
+    return apiRequest(`/interview/admin/reports${qs ? `?${qs}` : ''}`);
   },
   getReport(reportId: string): Promise<AssessmentBackendResponse & Record<string, any>> {
     return apiRequest(`/interview/admin/reports/${reportId}`);
