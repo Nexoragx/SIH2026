@@ -67,9 +67,26 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   // Firebase Google Sign-In Handler
   const handleGoogleSignIn = async () => {
-    // Do not create a client-only session. Google sign-in will be enabled only
-    // after the backend verifies Firebase ID tokens and stores the user.
-    setErrorMsg('Please sign in with your registered email and password.');
+    try {
+      setErrorMsg(null);
+      setLoading(true);
+      const result = await signInWithPopup(auth, googleProvider);
+      const user = result.user;
+      if (user) {
+        setOnboardingGoogleUser({
+          uid: user.uid,
+          displayName: user.displayName || 'Citizen Survivor',
+          email: user.email || 'citizen@anvaya.gov.in',
+          photoURL: user.photoURL || undefined,
+        });
+        setShowOnboardingWizard(true);
+      }
+    } catch (err: any) {
+      console.error('Google Sign-In Error:', err);
+      setErrorMsg('Google Sign-In was cancelled or failed. You can also sign in with email/password.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Complete onboarding from Google Wizard
@@ -90,6 +107,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       caseCategory: profile.caseCategory,
       caseNumber: profile.caseNumber,
     };
+
+    authApi.saveLocalSession(userObj);
 
     setSuccessMsg(`Onboarding complete! Welcome to ANVAYA, ${profile.name}.`);
     setTimeout(() => {

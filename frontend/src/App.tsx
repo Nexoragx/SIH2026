@@ -15,7 +15,7 @@ import { NationalAnalytics } from './components/analytics/NationalAnalytics';
 import { ResourceDirectory } from './components/resources/ResourceDirectory';
 import { UserProfile, AssessmentResponse, AssessmentResultData, RiskLevel, ChatMessage } from './types';
 import { Bot, MessageSquare, Sparkles } from 'lucide-react';
-import { assessmentApi, authApi, systemApi } from './api';
+import { assessmentApi, authApi, systemApi, getStoredToken, getStoredRefreshToken, getStoredUser, setStoredUser, clearStoredAuth } from './api';
 import { AuthModal } from './components/auth/AuthModal';
 import { AdminLoginModal } from './components/auth/AdminLoginModal';
 import { LandingPage } from './components/landing/LandingPage';
@@ -46,7 +46,33 @@ export const App: React.FC = () => {
       localStorage.setItem('anvaya_language', lang);
     } catch {}
   };
-  const [activeTab, setActiveTab] = useState<'victim' | 'observer' | 'psychiatrist' | 'ngo' | 'analytics' | 'resources' | 'admin'>('victim');
+  // Tab State with LocalStorage Persistence across reloads
+  const [activeTab, setActiveTab] = useState<'victim' | 'observer' | 'psychiatrist' | 'ngo' | 'analytics' | 'resources' | 'admin'>(() => {
+    try {
+      const storedTab = localStorage.getItem('anvaya_active_tab') as any;
+      if (storedTab && ['victim', 'observer', 'psychiatrist', 'ngo', 'analytics', 'resources', 'admin'].includes(storedTab)) {
+        return storedTab;
+      }
+      const storedUser = getStoredUser();
+      if (storedUser) {
+        const r = (storedUser.role || '').toLowerCase();
+        if (r.startsWith('admin') || r.includes('secretary')) return 'admin';
+        if (r.startsWith('observer')) return 'observer';
+        if (r === 'psychiatrist') return 'psychiatrist';
+        if (r.startsWith('ngo')) return 'ngo';
+        return 'victim';
+      }
+    } catch {}
+    return 'victim';
+  });
+
+  const handleTabChange = (tab: 'victim' | 'observer' | 'psychiatrist' | 'ngo' | 'analytics' | 'resources' | 'admin') => {
+    setActiveTab(tab);
+    try {
+      localStorage.setItem('anvaya_active_tab', tab);
+    } catch {}
+  };
+
   const [voiceGuidance, setVoiceGuidance] = useState<boolean>(false);
   const [isCrisisOpen, setIsCrisisOpen] = useState<boolean>(false);
   const [isCalmingReportOpen, setIsCalmingReportOpen] = useState<boolean>(false);
@@ -64,7 +90,16 @@ export const App: React.FC = () => {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [isAdminLoginOpen, setIsAdminLoginOpen] = useState<boolean>(false);
   const [authModalMode, setAuthModalMode] = useState<'login' | 'register'>('login');
-  const [currentUser, setCurrentUser] = useState<any | null>(null);
+
+  // Synchronous Session Initialization: Read stored user immediately on load so user is never logged out on refresh
+  const [currentUser, setCurrentUser] = useState<any | null>(() => {
+    try {
+      return getStoredUser();
+    } catch {
+      return null;
+    }
+  });
+
   const [isGuestMode, setIsGuestMode] = useState<boolean>(false);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState<boolean>(false);
   const [isIvrModalOpen, setIsIvrModalOpen] = useState<boolean>(false);
@@ -83,7 +118,7 @@ export const App: React.FC = () => {
   // Citizen / Survivor flow state: 'dashboard' | 'questionnaire' | 'history' | 'result'
   const [victimStep, setVictimStep] = useState<'dashboard' | 'questionnaire' | 'history' | 'result'>('dashboard');
 
-  // Check backend health and local session on mount
+  // Check backend health and softly validate session on mount without logging out on network hiccup
   useEffect(() => {
     let mounted = true;
     systemApi.checkHealth()
@@ -94,12 +129,42 @@ export const App: React.FC = () => {
         if (mounted) setBackendOnline(false);
       });
 
-    // A browser cache alone is never considered authenticated. Restore a
-    // session only after the backend validates the JWT and loads the user.
-    if (authApi.getCurrentLocalUser()) {
-      authApi.getMe().then((user) => {
-        if (mounted) handleAuthSuccess(user);
-      }).catch(() => authApi.logout());
+    // Check if user session exists locally
+    const localUser = authApi.getCurrentLocalUser();
+    const token = getStoredToken();
+
+    // If server JWT token is present, quietly sync user details in the background
+    if (localUser && token && !token.startsWith('SESSION-')) {
+      authApi.getMe()
+        .then((serverUser) => {
+          if (mounted && serverUser) {
+            const merged = { ...localUser, ...serverUser };
+            setCurrentUser(merged);
+            authApi.saveLocalSession(merged, token);
+          }
+        })
+        .catch((err) => {
+          // If token was rejected with 401, attempt refresh token before logging out
+          if (err?.status === 401) {
+            const refreshToken = getStoredRefreshToken();
+            if (refreshToken) {
+              authApi.refreshToken(refreshToken)
+                .then((refreshed) => {
+                  if (mounted && refreshed?.user) {
+                    setCurrentUser(refreshed.user);
+                    authApi.saveLocalSession(refreshed.user, refreshed.access_token, refreshed.refresh_token);
+                  }
+                })
+                .catch(() => {
+                  console.warn('Authentication session expired, please log in again.');
+                  if (mounted) {
+                    handleLogout();
+                  }
+                });
+            }
+          }
+          // Note: If backend is spinning up or offline, DO NOT log out. Keep localUser logged in!
+        });
     }
 
     return () => {
@@ -138,28 +203,32 @@ export const App: React.FC = () => {
   const handleAuthSuccess = (user: any) => {
     setCurrentUser(user);
     setIsGuestMode(false);
+    authApi.saveLocalSession(user);
+
     const r = (user.role || 'victim').toLowerCase();
     if (r === 'victim' || r === 'citizen' || r === 'survivor') {
       setUserProfile((prev) => ({
         ...prev,
         id: user.id || prev.id,
-        name: user.full_name || prev.name,
+        name: user.full_name || user.name || prev.name,
         phone: user.phone || prev.phone,
         district: user.district || prev.district,
         state: user.state || prev.state,
+        caseCategory: user.caseCategory || prev.caseCategory,
+        language: user.language || prev.language,
       }));
       setVictimStep('dashboard');
-      setActiveTab('victim');
+      handleTabChange('victim');
     } else if (r.startsWith('observer')) {
-      setActiveTab('observer');
+      handleTabChange('observer');
     } else if (r === 'psychiatrist') {
-      setActiveTab('psychiatrist');
+      handleTabChange('psychiatrist');
     } else if (r.startsWith('ngo')) {
-      setActiveTab('ngo');
+      handleTabChange('ngo');
     } else if (r.startsWith('admin') || r.includes('secretary')) {
-      setActiveTab('admin');
+      handleTabChange('admin');
     } else {
-      setActiveTab('victim');
+      handleTabChange('victim');
     }
   };
 
@@ -169,23 +238,48 @@ export const App: React.FC = () => {
   };
 
   const handleLogout = async () => {
-    await authApi.logout();
+    try {
+      await authApi.logout();
+    } catch {}
+    clearStoredAuth();
+    try {
+      localStorage.removeItem('anvaya_active_tab');
+    } catch {}
     setCurrentUser(null);
     setIsGuestMode(false);
     setVictimStep('dashboard');
+    setActiveTab('victim');
   };
 
-  const [userProfile, setUserProfile] = useState<UserProfile>({
-    id: 'USR-26094',
-    name: 'Courageous Survivor',
-    phone: '+91 98231 14566',
-    district: 'Nashik',
-    state: 'Maharashtra',
-    language: 'en',
-    caseCategory: 'caste_violence',
-    livingSituation: 'family',
-    contactPreference: 'call',
-    isProxy: false,
+  const [userProfile, setUserProfile] = useState<UserProfile>(() => {
+    const defaultProfile: UserProfile = {
+      id: 'USR-26094',
+      name: 'Courageous Survivor',
+      phone: '+91 98231 14566',
+      district: 'Nashik',
+      state: 'Maharashtra',
+      language: localStorage.getItem('anvaya_language') || 'en',
+      caseCategory: 'caste_violence',
+      livingSituation: 'family',
+      contactPreference: 'call',
+      isProxy: false,
+    };
+    try {
+      const stored = getStoredUser();
+      if (stored) {
+        return {
+          ...defaultProfile,
+          id: stored.id || defaultProfile.id,
+          name: stored.full_name || stored.name || defaultProfile.name,
+          phone: stored.phone || defaultProfile.phone,
+          district: stored.district || defaultProfile.district,
+          state: stored.state || defaultProfile.state,
+          caseCategory: stored.caseCategory || defaultProfile.caseCategory,
+          language: stored.language || defaultProfile.language,
+        };
+      }
+    } catch {}
+    return defaultProfile;
   });
 
   // Synced 1:1 Messages between Victim and Observer
@@ -582,7 +676,7 @@ export const App: React.FC = () => {
         currentLang={currentLang}
         onLanguageChange={handleLanguageChange}
         activeTab={activeTab}
-        onTabChange={setActiveTab}
+        onTabChange={handleTabChange}
         onTriggerCrisis={() => setIsCrisisOpen(true)}
         backendOnline={backendOnline}
         currentUser={currentUser}
@@ -639,7 +733,7 @@ export const App: React.FC = () => {
             onStartGuestScreening={() => {
               setIsGuestMode(true);
               setVictimStep('questionnaire');
-              setActiveTab('victim');
+              handleTabChange('victim');
             }}
             onTriggerCrisis={() => setIsCrisisOpen(true)}
             currentLang={currentLang}
@@ -651,7 +745,7 @@ export const App: React.FC = () => {
                 {victimStep === 'dashboard' && (
                   <VictimDashboard
                     onStartCheckin={() => setVictimStep('questionnaire')}
-                    onOpenSupport={() => setActiveTab('resources')}
+                    onOpenSupport={() => handleTabChange('resources')}
                     onOpenChat={() => setIsChatbotOpen(true)}
                     onOpenEmergency={() => setIsCrisisOpen(true)}
                     onOpenSchedule={() => setIsScheduleModalOpen(true)}
@@ -690,10 +784,10 @@ export const App: React.FC = () => {
                     resultData={resultData}
                     userProfile={userProfile}
                     onRestart={handleRestart}
-                    onOpenObserverView={() => setActiveTab('observer')}
+                    onOpenObserverView={() => handleTabChange('observer')}
                     onOpenChatbot={() => setIsChatbotOpen(true)}
                     onOpenObserverChat={() => setIsObserverChatOpen(true)}
-                    onViewSupport={() => setActiveTab('resources')}
+                    onViewSupport={() => handleTabChange('resources')}
                     onDone={() => setVictimStep('dashboard')}
                     onOpenCalmingReport={() => setIsCalmingReportOpen(true)}
                   />
@@ -840,7 +934,7 @@ export const App: React.FC = () => {
         riskLevel={resultData.riskLevel}
         recommendedCheckinDays={resultData.recommendedCheckinDays}
         onOpenChatbot={() => setIsChatbotOpen(true)}
-        onOpenSupport={() => setActiveTab('resources')}
+        onOpenSupport={() => handleTabChange('resources')}
       />
 
       {/* Therapeutic & Grounding Activities Modal */}

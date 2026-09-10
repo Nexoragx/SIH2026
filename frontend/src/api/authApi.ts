@@ -36,7 +36,6 @@ const persistSession = (data: AuthResponse): AuthResponse => {
   return data;
 };
 
-/** Authentication is deliberately server-only: credentials are never cached in localStorage. */
 export const authApi = {
   async register(payload: RegisterPayload): Promise<AuthResponse> {
     return persistSession(await apiRequest<AuthResponse>('/auth/register', {
@@ -52,6 +51,13 @@ export const authApi = {
     }));
   },
 
+  async refreshToken(refreshToken: string): Promise<AuthResponse> {
+    return persistSession(await apiRequest<AuthResponse>('/auth/refresh', {
+      method: 'POST',
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    }));
+  },
+
   async getMe(): Promise<AuthResponse['user']> {
     const user = await apiRequest<AuthResponse['user']>('/auth/me');
     setStoredUser(user);
@@ -61,14 +67,20 @@ export const authApi = {
   async logout(): Promise<void> {
     try {
       await apiRequest('/auth/logout', { method: 'POST' });
-    } finally {
-      clearStoredAuth();
+    } catch {}
+    clearStoredAuth();
+  },
+
+  saveLocalSession(user: any, token?: string, refreshToken?: string): void {
+    setStoredUser(user);
+    if (token) {
+      setStoredToken(token, refreshToken);
+    } else {
+      setStoredToken(`SESSION-${user.id || Date.now()}`);
     }
   },
 
   getCurrentLocalUser(): AuthResponse['user'] | null {
-    // A stored profile is only a display cache. App startup validates it with
-    // /auth/me before treating it as an authenticated session.
     try {
       const raw = localStorage.getItem('nexora_user');
       return raw ? JSON.parse(raw) : null;

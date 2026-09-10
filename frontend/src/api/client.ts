@@ -27,6 +27,10 @@ export const getStoredToken = (): string | null => {
   return localStorage.getItem(TOKEN_KEY);
 };
 
+export const getStoredRefreshToken = (): string | null => {
+  return localStorage.getItem(REFRESH_TOKEN_KEY);
+};
+
 export const setStoredToken = (token: string, refreshToken?: string): void => {
   localStorage.setItem(TOKEN_KEY, token);
   if (refreshToken) {
