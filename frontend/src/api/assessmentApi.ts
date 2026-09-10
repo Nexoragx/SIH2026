@@ -148,9 +148,15 @@ export const assessmentApi = {
     reports: any[];
   }> {
     const q = new URLSearchParams();
-    if (params?.severity) q.append('severity', params.severity);
-    if (params?.search) q.append('search', params.search);
-    if (params?.limit) q.append('limit', String(params.limit));
+    if (params?.severity && params.severity.toUpperCase() !== 'ALL') {
+      q.append('severity', params.severity.toUpperCase());
+    }
+    if (params?.search && params.search.trim()) {
+      q.append('search', params.search.trim());
+    }
+    if (params?.limit) {
+      q.append('limit', String(params.limit));
+    }
     const url = `/interview/admin/reports${q.toString() ? `?${q.toString()}` : ''}`;
     return apiRequest(url);
   },

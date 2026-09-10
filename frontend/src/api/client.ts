@@ -6,15 +6,16 @@
 const HOSTED_BACKEND_URL = 'https://sih2026-frki.onrender.com/api/v1';
 
 const getBaseUrl = (): string => {
-  let url = import.meta.env.VITE_API_URL || HOSTED_BACKEND_URL;
-  if (url && typeof url === 'string') {
-    url = url.trim().replace(/\/+$/, '');
-    if (!url.endsWith('/api/v1')) {
-      url = `${url}/api/v1`;
-    }
-    return url;
+  let url = import.meta.env.VITE_API_URL;
+  // If env URL is localhost or not set, default directly to hosted Render backend
+  if (!url || typeof url !== 'string' || url.includes('localhost') || url.includes('127.0.0.1')) {
+    return HOSTED_BACKEND_URL;
   }
-  return HOSTED_BACKEND_URL;
+  url = url.trim().replace(/\/+$/, '');
+  if (!url.endsWith('/api/v1')) {
+    url = `${url}/api/v1`;
+  }
+  return url;
 };
 
 const API_BASE_URL = getBaseUrl();
@@ -131,11 +132,15 @@ export async function apiRequest<T = any>(
       throw err;
     }
 
-    // Try fallback URL if local or hosted failed due to network
-    const isLocal = url.includes('localhost') || url.includes('127.0.0.1');
-    const fallbackBase = isLocal ? HOSTED_BACKEND_URL : 'http://localhost:8000/api/v1';
-    if (!options.headers?.hasOwnProperty('x-fallback-tried')) {
+    // Try fallback URL if network error occurred
+    const hasTriedFallback = options.headers instanceof Headers
+      ? options.headers.has('x-fallback-tried')
+      : Boolean((options.headers as any)?.['x-fallback-tried']);
+
+    if (!hasTriedFallback) {
       try {
+        const isLocal = url.includes('localhost') || url.includes('127.0.0.1');
+        const fallbackBase = isLocal ? HOSTED_BACKEND_URL : 'http://localhost:8000/api/v1';
         const fallbackUrl = endpoint.startsWith('http')
           ? endpoint
           : `${fallbackBase}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
