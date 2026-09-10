@@ -156,6 +156,7 @@ export interface ClinicalCaseloadCase {
   district: string;
   state?: string;
   distressScore: number;
+  distress_score?: number;
   riskLevel: 'low' | 'moderate' | 'high' | 'critical';
   severity_level: 'LOW' | 'MODERATE' | 'HIGH' | 'CRITICAL';
   madrsScore: number;
@@ -163,9 +164,78 @@ export interface ClinicalCaseloadCase {
   referredBy: string;
   referredDate: string;
   slotScheduled?: string;
-  status: 'pending_review' | 'session_scheduled' | 'consultation_completed';
+  status: 'pending_review' | 'session_scheduled' | 'consultation_completed' | string;
   shapSummary: string;
   clinicalNotes?: string;
   detectedLanguage?: string;
   touchpoint?: string;
+  touchpoint_type?: string;
+  created_at?: string;
+  // Full ML explainability and diagnostic analysis fields
+  shap_explanations?: {
+    baseline_score?: number;
+    model_prediction?: number;
+    features?: Array<{
+      feature: string;
+      shap_value?: number;
+      importance?: number;
+      points?: number;
+      relative_pct?: number;
+      impact?: string;
+    }>;
+  };
+  fused_features?: {
+    form_distress?: number;
+    nlp_distress?: number;
+    voice_distress?: number;
+    sleep_distress?: number;
+    threat_distress?: number;
+    context_score?: number;
+    modalities_contributions?: {
+      questionnaire_score?: number;
+      emotion_score?: number;
+      voice_features?: number;
+      sleep_behaviour?: number;
+      threat_indicators?: number;
+    };
+  };
+  nlp_analysis?: {
+    nlp_distress_score?: number;
+    sentiment_polarity?: string;
+    confidence?: number;
+    emotions?: Record<string, number>;
+    threat_detected?: boolean;
+  };
+  voice_analysis?: {
+    voice_distress_score?: number;
+    pitch_instability_jitter?: number;
+    vocal_tremor_hz?: number;
+    harmonics_to_noise_ratio?: number;
+    stress_level?: string;
+  };
+  temporal_trend?: {
+    historical_series?: number[];
+    trend_direction?: string;
+    projected_7d_score?: number;
+  };
+  raw_answers?: any;
+  clinical_assessment?: {
+    madrs_total?: number;
+    severity?: string;
+    suicidal_intent?: boolean;
+    answers?: number[];
+    clinical_summary?: string;
+    primary_driver?: string;
+    dsm5_probable_depression?: boolean;
+  };
+  alert_triggered?: boolean;
+  ambulance_108_dispatched?: boolean;
+  alert_details?: {
+    alert_triggered?: boolean;
+    ambulance_108_dispatched?: boolean;
+    dispatch_id?: string;
+    priority?: string;
+    reason?: string;
+  };
 }
+

@@ -242,6 +242,7 @@ class PsychiatristController:
                 "district": r.get("district") or "Nashik",
                 "state": r.get("state") or "Maharashtra",
                 "distressScore": float(r.get("distress_score") or 0.0),
+                "distress_score": float(r.get("distress_score") or 0.0),
                 "riskLevel": (r.get("severity_level") or "LOW").lower(),
                 "severity_level": (r.get("severity_level") or "LOW").upper(),
                 "madrsScore": int(ca.get("madrs_total") or 0),
@@ -253,7 +254,19 @@ class PsychiatristController:
                 "shapSummary": shap_summary,
                 "clinicalNotes": r.get("clinical_notes") or ca.get("clinical_summary"),
                 "detectedLanguage": r.get("detected_language") or "en",
-                "touchpoint": r.get("touchpoint_type") or "web"
+                "touchpoint": r.get("touchpoint_type") or "web",
+                "touchpoint_type": r.get("touchpoint_type") or "web_portal",
+                "created_at": created_date.isoformat() if isinstance(created_date, datetime) else (created_date or datetime.now(timezone.utc).isoformat()),
+                "shap_explanations": r.get("shap_explanations") or ({"features": shap_list} if shap_list else None),
+                "fused_features": r.get("fused_features"),
+                "nlp_analysis": r.get("nlp_analysis"),
+                "voice_analysis": r.get("voice_analysis"),
+                "temporal_trend": r.get("temporal_trend"),
+                "raw_answers": r.get("raw_answers") or ca.get("answers"),
+                "clinical_assessment": ca,
+                "alert_triggered": bool(r.get("alert_triggered", False)),
+                "ambulance_108_dispatched": bool(r.get("ambulance_108_dispatched", False)),
+                "alert_details": r.get("alert_details")
             })
 
         return formatted_cases
