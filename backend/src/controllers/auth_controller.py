@@ -90,6 +90,16 @@ class AdminLoginSchema(BaseModel):
         return v.strip().lower()
 
 
+class DoctorLoginSchema(BaseModel):
+    doctor_id: str = Field(..., min_length=1, max_length=64, description="Tele-MANAS Doctor ID")
+    password: str = Field(..., min_length=1, max_length=72)
+
+    @field_validator("doctor_id")
+    @classmethod
+    def normalize_doctor_id(cls, v: str) -> str:
+        return v.strip()
+
+
 class RefreshTokenSchema(BaseModel):
     refresh_token: str
 
@@ -124,10 +134,13 @@ class AuthController:
         """
         Registers a new user (victim, health observer, psychiatrist, or NGO partner) in MongoDB 'user' collection.
         """
-        # Privileged roles must be provisioned by an administrator.  Trusting a
-        # role sent by an unauthenticated browser would allow anyone to become
-        # an admin, observer, psychiatrist, or NGO partner.
+        # Privileged roles must be provisioned by an administrator.
         if data.role != UserRole.VICTIM:
+            if data.role == UserRole.PSYCHIATRIST or str(data.role).lower() == "psychiatrist":
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Public doctor registration is disabled. Registered Tele-MANAS Psychiatrists must sign in with their assigned Doctor ID."
+                )
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Official accounts are provisioned by an administrator. Please sign in with your assigned account."
@@ -361,6 +374,62 @@ class AuthController:
                 "id": str(user["_id"]), "email": user["email"],
                 "full_name": user.get("full_name", "Administrator"), "role": UserRole.ADMIN.value,
                 "district": user.get("district"), "state": user.get("state")
+            }
+        }
+
+    @staticmethod
+    def doctor_login(data: DoctorLoginSchema, db: Database) -> dict:
+        """Authenticate a verified Tele-MANAS Psychiatrist / Doctor using Doctor ID and password."""
+        doc_id_raw = data.doctor_id.strip()
+        doc_id_upper = doc_id_raw.upper()
+        doc_id_lower = doc_id_raw.lower()
+
+        # Find user by doctor_id or email with role psychiatrist
+        user = db.user.find_one({
+            "$or": [
+                {"doctor_id": doc_id_upper},
+                {"doctor_id": doc_id_raw},
+                {"email": doc_id_lower}
+            ],
+            "role": UserRole.PSYCHIATRIST.value
+        }) or db.users.find_one({
+            "$or": [
+                {"doctor_id": doc_id_upper},
+                {"doctor_id": doc_id_raw},
+                {"email": doc_id_lower}
+            ],
+            "role": UserRole.PSYCHIATRIST.value
+        })
+
+        if not user or not user.get("hashed_password") or not verify_password(data.password, user["hashed_password"]):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid Doctor ID or password. Please verify your Tele-MANAS credentials."
+            )
+        if not user.get("is_active", True):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Psychiatrist account is inactive. Please contact your District Health Nodal Officer."
+            )
+
+        token_data = {
+            "sub": str(user["_id"]),
+            "email": user.get("email", ""),
+            "role": UserRole.PSYCHIATRIST.value,
+            "doctor_id": user.get("doctor_id", doc_id_upper)
+        }
+        return {
+            "access_token": create_access_token(token_data),
+            "refresh_token": create_refresh_token(token_data),
+            "token_type": "bearer",
+            "user": {
+                "id": str(user["_id"]),
+                "email": user.get("email", ""),
+                "doctor_id": user.get("doctor_id", doc_id_upper),
+                "full_name": user.get("full_name", "Telepsychiatrist"),
+                "role": UserRole.PSYCHIATRIST.value,
+                "district": user.get("district", "Nashik"),
+                "state": user.get("state", "Maharashtra")
             }
         }
 

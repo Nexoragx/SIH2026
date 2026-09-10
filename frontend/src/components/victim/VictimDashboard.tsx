@@ -16,6 +16,7 @@ import {
   Users,
   ShieldCheck,
   ChevronRight,
+  Stethoscope,
 } from 'lucide-react';
 import {
   LineChart,
@@ -25,10 +26,11 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
-import { assessmentApi, supportApi } from '../../api';
+import { assessmentApi, supportApi, authApi, getStoredUser } from '../../api';
 import { DistressMeter } from './DistressMeter';
 import { PersonalizedActivities } from './PersonalizedActivities';
 import { CommunityWall } from './CommunityWall';
+import { DoctorDirectoryModal } from './DoctorDirectoryModal';
 import { AssessmentResultData } from '../../types';
 
 interface VictimDashboardProps {
@@ -57,6 +59,7 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
   currentLang = 'en',
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<'overview' | 'exercises' | 'scale' | 'community'>('overview');
+  const [isDoctorDirectoryOpen, setIsDoctorDirectoryOpen] = useState<boolean>(false);
 
   const [scheduleData, setScheduleData] = useState<{
     days_remaining: number;
@@ -459,7 +462,15 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
               </div>
             </div>
 
-            <div className="flex items-center gap-2 w-full sm:w-auto">
+            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+              <button
+                type="button"
+                onClick={() => setIsDoctorDirectoryOpen(true)}
+                className="flex-1 sm:flex-initial px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition cursor-pointer shadow-xs flex items-center justify-center gap-1.5 border border-indigo-400/30"
+              >
+                <Stethoscope className="w-3.5 h-3.5 text-indigo-200" />
+                <span>1:1 Doctors & Observers</span>
+              </button>
               <button
                 type="button"
                 onClick={onOpenChat}
@@ -885,6 +896,14 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
           <CommunityWall currentLang={currentLang} />
         </div>
       )}
+
+      {/* 1:1 Doctor & Observer Directory Modal */}
+      <DoctorDirectoryModal
+        isOpen={isDoctorDirectoryOpen}
+        onClose={() => setIsDoctorDirectoryOpen(false)}
+        userProfile={getStoredUser()}
+        recentAssessmentScore={latestAssessment?.finalDistressScore}
+      />
     </div>
   );
 };

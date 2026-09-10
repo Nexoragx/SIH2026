@@ -164,7 +164,7 @@ def get_optional_current_user(
         if not user_id_str:
             return None
         query = {"_id": ObjectId(user_id_str)} if ObjectId.is_valid(user_id_str) else {"id": user_id_str}
-        user_doc = db.users.find_one(query)
+        user_doc = db.user.find_one(query) or db.users.find_one(query)
         if user_doc and user_doc.get("is_active", True):
             user_doc["id"] = str(user_doc["_id"])
             return user_doc

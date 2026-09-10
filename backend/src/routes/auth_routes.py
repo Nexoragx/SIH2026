@@ -8,6 +8,7 @@ from src.controllers.auth_controller import (
     UserRegisterSchema,
     UserLoginSchema,
     AdminLoginSchema,
+    DoctorLoginSchema,
     RefreshTokenSchema,
     RequestOtpSchema,
     VerifyOtpSchema
@@ -55,6 +56,15 @@ def login(data: UserLoginSchema, db: Database = Depends(get_db)):
 def admin_login(data: AdminLoginSchema, db: Database = Depends(get_db)):
     """Dedicated administrator login; returns a session only for role `admin`."""
     return AuthController.admin_login(data=data, db=db)
+
+
+@router.post("/doctor/login", summary="Sign in to Tele-MANAS Psychiatrist Workstation")
+def doctor_login(data: DoctorLoginSchema, db: Database = Depends(get_db)):
+    """
+    Dedicated Telepsychiatrist login using official Doctor ID (e.g. DOC-ANITA-101) and password.
+    Public registration for doctors is disallowed; credentials are pre-provisioned.
+    """
+    return AuthController.doctor_login(data=data, db=db)
 
 
 @router.post("/refresh", summary="Refresh access token")

@@ -216,7 +216,157 @@ def init_db():
     # Pre-seed baseline participant assessment reports if collection is empty
     seed_interview_reports_if_empty(db)
 
+    # Pre-seed verified Tele-MANAS Psychiatrists & connection requests
+    seed_psychiatrists_if_empty(db)
+
     logger.info(f"MongoDB indexes initialized on database: {db.name}")
+
+
+def seed_psychiatrists_if_empty(db: Database):
+    """
+    Ensures registered Tele-MANAS psychiatrists are pre-seeded in both `psychiatrists`
+    and `user` collections with official Doctor IDs for login and 1-to-1 directory.
+    """
+    try:
+        from src.middlewares.auth_middleware import hash_password
+        from src.models.user_model import UserRole
+        now = datetime.now(timezone.utc)
+        doctors_data = [
+            {
+                "doctor_id": "DOC-ANITA-101",
+                "name": "Dr. Anita Joshi",
+                "qualification": "MD (Psychiatry), DNB, Tele-MANAS Specialist",
+                "hospital": "Nashik District Civil Hospital & Tele-MANAS Centre",
+                "district": "Nashik",
+                "state": "Maharashtra",
+                "phone": "+91 94222 10801",
+                "email": "psychiatrist@sih.gov.in",
+                "mci_number": "MCI-MH-38910",
+                "specialization": "Trauma, Caste/Gender Atrocities & PTSD Crisis",
+                "available_slot": "Available Today (Instant 1:1)",
+                "status": "available",
+                "experience_years": 14,
+                "languages": ["English", "Hindi", "Marathi"],
+                "rating": 4.9,
+                "verified": True,
+                "created_at": now
+            },
+            {
+                "doctor_id": "DOC-DESHMUKH-202",
+                "name": "Dr. Vivek Deshmukh",
+                "qualification": "MD Psychiatry, NIMHANS Trauma Fellow",
+                "hospital": "Nashik District Civil Hospital & Telepsychiatry Unit",
+                "district": "Nashik",
+                "state": "Maharashtra",
+                "phone": "+91 98230 45671",
+                "email": "dr.deshmukh@sih.gov.in",
+                "mci_number": "MCI-MH-44912",
+                "specialization": "Depression, Acute Shock & Legal Witness Distress",
+                "available_slot": "Available Today 3:30 PM",
+                "status": "available",
+                "experience_years": 11,
+                "languages": ["English", "Hindi", "Marathi"],
+                "rating": 4.8,
+                "verified": True,
+                "created_at": now
+            },
+            {
+                "doctor_id": "DOC-MEENAKSHI-303",
+                "name": "Dr. Meenakshi Sundaram",
+                "qualification": "MD (Psychiatry), AIIMS Trauma Specialist",
+                "hospital": "SMS Medical College & Telepsychiatry Hub",
+                "district": "Jaipur",
+                "state": "Rajasthan",
+                "phone": "+91 98291 11234",
+                "email": "dr.meenakshi@sih.gov.in",
+                "mci_number": "MCI-RJ-31089",
+                "specialization": "Complex Trauma, Grief Counseling & Family Therapy",
+                "available_slot": "Available Today 5:00 PM",
+                "status": "available",
+                "experience_years": 16,
+                "languages": ["English", "Hindi"],
+                "rating": 4.95,
+                "verified": True,
+                "created_at": now
+            },
+            {
+                "doctor_id": "DOC-ROY-404",
+                "name": "Dr. Debabrata Roy",
+                "qualification": "DPM, Trauma & Community Crisis Intervention",
+                "hospital": "Burdwan Medical College & District Nodal Centre",
+                "district": "Birbhum",
+                "state": "West Bengal",
+                "phone": "+91 98310 99881",
+                "email": "dr.roy@sih.gov.in",
+                "mci_number": "MCI-WB-21940",
+                "specialization": "Rural Atrocity Rehabilitation & Anxiety Disorders",
+                "available_slot": "Available Tomorrow 10:00 AM",
+                "status": "available",
+                "experience_years": 9,
+                "languages": ["English", "Hindi", "Bengali"],
+                "rating": 4.75,
+                "verified": True,
+                "created_at": now
+            }
+        ]
+
+        for doc in doctors_data:
+            # Sync in psychiatrists collection
+            db.psychiatrists.update_one(
+                {"doctor_id": doc["doctor_id"]},
+                {"$set": doc},
+                upsert=True
+            )
+            # Sync corresponding user account
+            existing_user = db.user.find_one({"email": doc["email"]}) or db.users.find_one({"email": doc["email"]})
+            user_doc = {
+                "email": doc["email"],
+                "doctor_id": doc["doctor_id"],
+                "hashed_password": hash_password("PsyPassword123!"),
+                "full_name": f"{doc['name']}, MD",
+                "role": UserRole.PSYCHIATRIST.value,
+                "phone": doc["phone"],
+                "district": doc["district"],
+                "state": doc["state"],
+                "oauth_provider": "local",
+                "is_active": True,
+                "created_at": now,
+                "updated_at": now
+            }
+            if not existing_user:
+                res = db.user.insert_one(user_doc)
+                user_doc["_id"] = res.inserted_id
+                sync_user_to_all_dbs(user_doc)
+            else:
+                db.user.update_one(
+                    {"_id": existing_user["_id"]},
+                    {"$set": {"doctor_id": doc["doctor_id"], "role": UserRole.PSYCHIATRIST.value}}
+                )
+                sync_user_to_all_dbs({**existing_user, "doctor_id": doc["doctor_id"], "role": UserRole.PSYCHIATRIST.value})
+
+        # Seed initial test connection request so notification queue is visible immediately on first launch
+        if db.doctor_connect_requests.count_documents({}) == 0:
+            sample_request = {
+                "request_id": "REQ-CON-1024",
+                "doctor_id": "DOC-ANITA-101",
+                "doctor_name": "Dr. Anita Joshi",
+                "victim_id": "USR-26094",
+                "victim_name": "Razia B. (Survivor #1024)",
+                "preferred_mode": "video",
+                "district": "Nashik",
+                "state": "Maharashtra",
+                "distress_score": 82.5,
+                "severity_level": "CRITICAL",
+                "reason": "Experiencing high fear and insomnia after court summons. Requested urgent 1:1 teleconsultation.",
+                "status": "pending",
+                "scheduled_slot": None,
+                "created_at": (now - timedelta(minutes=14)).isoformat(),
+                "updated_at": (now - timedelta(minutes=14)).isoformat()
+            }
+            db.doctor_connect_requests.insert_one(sample_request)
+
+    except Exception as e:
+        logger.warning(f"Seeding psychiatrists skipped: {e}")
 
 
 def seed_interview_reports_if_empty(db: Database):

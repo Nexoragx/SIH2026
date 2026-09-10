@@ -5,4 +5,4 @@ export * from './adminReportsApi';
 export * from './observerApi';
 export * from './systemApi';
 export * from './supportApi';
-
+export * from './psychiatristApi';

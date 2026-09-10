@@ -14,12 +14,13 @@ import { ObserverDashboard } from './components/observer/ObserverDashboard';
 import { NationalAnalytics } from './components/analytics/NationalAnalytics';
 import { ResourceDirectory } from './components/resources/ResourceDirectory';
 import { UserProfile, AssessmentResponse, AssessmentResultData, RiskLevel, ChatMessage } from './types';
-import { Bot, MessageSquare, Sparkles } from 'lucide-react';
+import { Bot, MessageSquare, Sparkles, Stethoscope } from 'lucide-react';
 import { assessmentApi, authApi, systemApi, getStoredToken, getStoredRefreshToken, getStoredUser, setStoredUser, clearStoredAuth } from './api';
 import { AuthModal } from './components/auth/AuthModal';
 import { AdminLoginModal } from './components/auth/AdminLoginModal';
 import { LandingPage } from './components/landing/LandingPage';
 import { IvrSimulatorModal } from './components/victim/IvrSimulatorModal';
+import { DoctorDirectoryModal } from './components/victim/DoctorDirectoryModal';
 
 import { CommunityWall } from './components/victim/CommunityWall';
 import { CourtReportModal } from './components/victim/CourtReportModal';
@@ -79,6 +80,7 @@ export const App: React.FC = () => {
   const [isVoiceModalOpen, setIsVoiceModalOpen] = useState<boolean>(false);
   const [isChatbotOpen, setIsChatbotOpen] = useState<boolean>(false);
   const [isObserverChatOpen, setIsObserverChatOpen] = useState<boolean>(false);
+  const [isDoctorDirectoryOpen, setIsDoctorDirectoryOpen] = useState<boolean>(false);
   const [isCommunityWallOpen, setIsCommunityWallOpen] = useState<boolean>(false);
   const [isCourtReportOpen, setIsCourtReportOpen] = useState<boolean>(false);
   const [isTherapeuticOpen, setIsTherapeuticOpen] = useState<boolean>(false);
@@ -815,11 +817,22 @@ export const App: React.FC = () => {
       {/* Floating Action Buttons: AI Saathi & 1:1 Observer Chat (Only for authenticated users) */}
       {currentUser && (
         <div className="fixed bottom-5 right-5 z-40 flex flex-col gap-2.5">
-          {/* 1:1 Observer Chat Floating Button */}
+          {/* 1:1 Observer & Doctor Directory Floating Button */}
+          <button
+            type="button"
+            onClick={() => setIsDoctorDirectoryOpen(true)}
+            className="flex items-center gap-2 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 active:scale-95 text-white px-4 py-2.5 rounded-full shadow-lg shadow-teal-600/30 transition-all font-bold text-xs border border-teal-400/40"
+            title="1:1 Doctor & Observer Directory"
+          >
+            <Stethoscope className="w-4 h-4" />
+            <span className="hidden sm:inline">1:1 Doctors & Observers</span>
+          </button>
+
+          {/* 1:1 Observer Direct Chat Floating Button */}
           <button
             type="button"
             onClick={() => setIsObserverChatOpen(true)}
-            className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white px-4 py-2.5 rounded-full shadow-lg shadow-emerald-600/30 transition-all font-bold text-xs border border-emerald-400/40"
+            className="flex items-center gap-2 bg-slate-900 hover:bg-black active:scale-95 text-white px-4 py-2.5 rounded-full shadow-lg shadow-slate-900/30 transition-all font-bold text-xs border border-slate-700/50"
             title="1:1 Chat with Health Observer"
           >
             <MessageSquare className="w-4 h-4" />
@@ -864,6 +877,15 @@ export const App: React.FC = () => {
         messages={observerChatMessages}
         onSendMessage={handleSendVictimObserverMessage}
         onRequestCall={() => alert('Urgent phone call request queued for Dr. Anita Joshi')}
+        onOpenDoctorDirectory={() => setIsDoctorDirectoryOpen(true)}
+      />
+
+      {/* 1:1 Registered Doctors & Observers Directory Modal */}
+      <DoctorDirectoryModal
+        isOpen={isDoctorDirectoryOpen}
+        onClose={() => setIsDoctorDirectoryOpen(false)}
+        userProfile={userProfile}
+        recentAssessmentScore={resultData?.finalDistressScore}
       />
 
       {/* Immediate Crisis Modal */}

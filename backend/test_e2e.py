@@ -204,7 +204,70 @@ def run_tests():
     assert "14566" in crisis_data["support_numbers"]
     print("✅ 13b. ANVAYA Saathi Chatbot crisis safety trigger intercepted successfully")
 
-    print("\n🎉 ALL 14 INTEGRATION TESTS PASSED SUCCESSFULLY! 🎉")
+    # 14. Doctor Login via official Doctor ID
+    doc_res = client.post("/api/v1/auth/doctor/login", json={
+        "doctor_id": "DOC-ANITA-101",
+        "password": "PsyPassword123!"
+    })
+    assert doc_res.status_code == 200
+    doc_data = doc_res.json()
+    doc_token = doc_data["access_token"]
+    assert doc_data["user"]["role"] == "psychiatrist"
+    assert doc_data["user"]["doctor_id"] == "DOC-ANITA-101"
+    print(f"✅ 14. Dedicated Telepsychiatrist Login verified: {doc_data['user']['full_name']} ({doc_data['user']['doctor_id']})")
+
+    # 14b. Block doctor public signup attempt
+    fraud_reg = client.post("/api/v1/auth/register", json={
+        "email": "fraud.doctor@sih.gov.in",
+        "password": "Password123!",
+        "full_name": "Fraud Doctor",
+        "role": "psychiatrist"
+    })
+    assert fraud_reg.status_code == 403
+    print("✅ 14b. Doctor public signup blocked with statutory 403 Forbidden")
+
+    # 15. List Registered Tele-MANAS Doctors Directory
+    doctors_res = client.get("/api/v1/psychiatrist/doctors")
+    assert doctors_res.status_code == 200
+    doctors_list = doctors_res.json()
+    assert len(doctors_list) >= 4
+    print(f"✅ 15. Registered Doctors Directory verified ({len(doctors_list)} active telepsychiatrists)")
+
+    # 16. Victim Connect Request & Psychiatrist Notification Queue
+    connect_res = client.post("/api/v1/psychiatrist/connect-request", json={
+        "doctor_id": "DOC-ANITA-101",
+        "doctor_name": "Dr. Anita Joshi",
+        "preferred_mode": "video",
+        "victim_name": "Razia B. (Survivor #1024)",
+        "district": "Nashik",
+        "distress_score": 84.5,
+        "severity_level": "CRITICAL",
+        "reason": "Intense witness trial anxiety, requesting 1-on-1 video de-escalation"
+    })
+    assert connect_res.status_code == 200
+    req_data = connect_res.json()
+    req_id = req_data["request_id"]
+    print(f"✅ 16a. 1-to-1 Doctor connect request dispatched: {req_id}")
+
+    # Fetch notification queue
+    notifs_res = client.get("/api/v1/psychiatrist/notifications?doctor_id=DOC-ANITA-101", headers={
+        "Authorization": f"Bearer {doc_token}"
+    })
+    assert notifs_res.status_code == 200
+    notifs = notifs_res.json()
+    assert notifs["pending_count"] >= 1
+    print(f"✅ 16b. Psychiatrist notification queue verified: {notifs['pending_count']} pending patient requests")
+
+    # Accept notification
+    action_res = client.post(f"/api/v1/psychiatrist/notifications/{req_id}/action", json={
+        "action": "accept"
+    }, headers={"Authorization": f"Bearer {doc_token}"})
+    assert action_res.status_code == 200
+    assert action_res.json()["request"]["status"] == "accepted"
+    assert "telepsychiatry" in action_res.json()["request"]["session_link"]
+    print(f"✅ 16c. Psychiatrist accepted 1-on-1 session: Room {action_res.json()['request']['session_link']}")
+
+    print("\n🎉 ALL 17 INTEGRATION TESTS PASSED SUCCESSFULLY! 🎉")
 
 if __name__ == "__main__":
     run_tests()

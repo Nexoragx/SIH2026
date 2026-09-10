@@ -10,6 +10,7 @@ from src.db.db import init_db
 from src.routes.auth_routes import router as auth_router
 from src.routes.interview_routes import router as interview_router
 from src.routes.support_routes import router as support_router
+from src.routes.psychiatrist_routes import router as psychiatrist_router
 
 # Setup logging
 logging.basicConfig(
@@ -105,6 +106,7 @@ def create_app() -> FastAPI:
     app.include_router(auth_router, prefix=settings.API_V1_PREFIX)
     app.include_router(interview_router, prefix=settings.API_V1_PREFIX)
     app.include_router(support_router, prefix=settings.API_V1_PREFIX)
+    app.include_router(psychiatrist_router, prefix=settings.API_V1_PREFIX)
 
     # 5. Root & System Endpoints
     @app.get("/", tags=["System"])

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Shield, PhoneCall, Send, UserCheck, X, CheckCheck, Clock, Lock } from 'lucide-react';
+import { Shield, PhoneCall, Send, UserCheck, X, CheckCheck, Clock, Lock, Stethoscope } from 'lucide-react';
 import { ChatMessage, UserProfile } from '../../types';
 
 interface VictimObserverChatProps {
@@ -9,6 +9,7 @@ interface VictimObserverChatProps {
   messages: ChatMessage[];
   onSendMessage: (text: string) => void;
   onRequestCall: () => void;
+  onOpenDoctorDirectory?: () => void;
 }
 
 export const VictimObserverChat: React.FC<VictimObserverChatProps> = ({
@@ -18,6 +19,7 @@ export const VictimObserverChat: React.FC<VictimObserverChatProps> = ({
   messages,
   onSendMessage,
   onRequestCall,
+  onOpenDoctorDirectory,
 }) => {
   const [text, setText] = useState<string>('');
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -58,10 +60,21 @@ export const VictimObserverChat: React.FC<VictimObserverChatProps> = ({
           </div>
 
           <div className="flex items-center gap-1.5">
+            {onOpenDoctorDirectory && (
+              <button
+                type="button"
+                onClick={onOpenDoctorDirectory}
+                className="px-2.5 py-1.5 rounded-xl bg-teal-50 border border-teal-200 text-teal-800 text-[11px] font-bold hover:bg-teal-100 flex items-center gap-1 transition cursor-pointer shadow-xs"
+                title="View All Registered Doctors & Observers"
+              >
+                <Stethoscope className="w-3.5 h-3.5 text-teal-600" />
+                <span className="hidden sm:inline">All Doctors</span>
+              </button>
+            )}
             <button
               type="button"
               onClick={onRequestCall}
-              className="p-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition"
+              className="p-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition cursor-pointer"
               title="Request Urgent Call"
             >
               <PhoneCall className="w-4 h-4" />
@@ -69,7 +82,7 @@ export const VictimObserverChat: React.FC<VictimObserverChatProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="p-2 rounded-full text-slate-400 hover:text-slate-700 hover:bg-white transition"
+              className="p-2 rounded-full text-slate-400 hover:text-slate-700 hover:bg-white transition cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
