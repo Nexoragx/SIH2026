@@ -177,9 +177,35 @@ def run_tests():
     # Verify blacklisted token is rejected
     res = client.get("/api/v1/auth/me", headers=headers)
     assert res.status_code == 401
-    print("✅ 12. Blacklisted token correctly rejected by auth middleware (401 Unauthorized)")
+    # 13. Test ANVAYA Saathi Chatbot - Normal message
+    chat_payload = {
+        "message": "Hello, I am feeling a bit anxious and overwhelmed today.",
+        "session_id": "TEST-CHAT-SESSION-1",
+        "language": "en"
+    }
+    chat_res = client.post("/api/v1/chat/message", json=chat_payload)
+    assert chat_res.status_code == 200, f"Chat endpoint failed: {chat_res.text}"
+    chat_data = chat_res.json()
+    assert chat_data["crisis_flag"] is False
+    assert len(chat_data["reply"]) > 10
+    print(f"✅ 13a. ANVAYA Saathi Chatbot normal response received: {chat_data['reply'][:60]}...")
 
-    print("\n🎉 ALL 12 INTEGRATION TESTS PASSED SUCCESSFULLY! 🎉")
+    # 13b. Test ANVAYA Saathi Chatbot - Crisis trigger detection
+    crisis_payload = {
+        "message": "I feel completely hopeless and want to end my life.",
+        "session_id": "TEST-CHAT-SESSION-1",
+        "language": "en"
+    }
+    crisis_res = client.post("/api/v1/chat/message", json=crisis_payload)
+    assert crisis_res.status_code == 200
+    crisis_data = crisis_res.json()
+    assert crisis_data["crisis_flag"] is True
+    assert crisis_data["action_required"] == "SHOW_CRISIS_SCREEN"
+    assert "14566" in crisis_data["support_numbers"]
+    print("✅ 13b. ANVAYA Saathi Chatbot crisis safety trigger intercepted successfully")
+
+    print("\n🎉 ALL 14 INTEGRATION TESTS PASSED SUCCESSFULLY! 🎉")
 
 if __name__ == "__main__":
     run_tests()
+
