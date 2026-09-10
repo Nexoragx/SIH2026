@@ -21,6 +21,37 @@ from src.controllers.interview_controller import (
 router = APIRouter(prefix="/interview", tags=["Multi-Modal Interview & Assessments"])
 
 
+@router.get(
+    "/admin/reports",
+    summary="Administrator Assessment Report Registry",
+    dependencies=[Depends(require_roles([UserRole.ADMIN]))]
+)
+def get_admin_reports(
+    limit: int = Query(100, ge=1, le=200),
+    db: Database = Depends(get_db)
+):
+    """List saved assessment reports. Detailed clinical data is admin-only."""
+    return InterviewController.get_admin_reports(db=db, limit=limit)
+
+
+@router.get(
+    "/admin/reports/{report_id}",
+    summary="Administrator Detailed Assessment Report",
+    dependencies=[Depends(require_roles([UserRole.ADMIN]))]
+)
+def get_admin_report(
+    report_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: Database = Depends(get_db)
+):
+    """Return saved questionnaire analysis, trend, and explainability for admins only."""
+    return InterviewController.get_report_by_id(
+        session_or_report_id=report_id,
+        current_user=current_user,
+        db=db,
+    )
+
+
 @router.post("/submit", summary="Submit Multi-Modal Mental Health Assessment")
 async def submit_assessment(
     data: AssessmentSubmissionSchema,

@@ -17,6 +17,7 @@ import { UserProfile, AssessmentResponse, AssessmentResultData, RiskLevel, ChatM
 import { Bot, MessageSquare, Sparkles } from 'lucide-react';
 import { assessmentApi, authApi, systemApi } from './api';
 import { AuthModal } from './components/auth/AuthModal';
+import { AdminLoginModal } from './components/auth/AdminLoginModal';
 import { LandingPage } from './components/landing/LandingPage';
 import { IvrSimulatorModal } from './components/victim/IvrSimulatorModal';
 
@@ -27,7 +28,6 @@ import { NgoPortal } from './components/portals/NgoPortal';
 import { PersonalizedActivities } from './components/victim/PersonalizedActivities';
 import { AdminPanel } from './components/admin/AdminPanel';
 import { UssdSimulatorModal } from './components/victim/UssdSimulatorModal';
-import { auth, onAuthStateChanged, firebaseSignOut } from './firebase';
 
 export const App: React.FC = () => {
   // Global State (Persistent Language throughout website)
@@ -60,6 +60,7 @@ export const App: React.FC = () => {
   const [isSubmittingAssessment, setIsSubmittingAssessment] = useState<boolean>(false);
   const [backendOnline, setBackendOnline] = useState<boolean>(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+  const [isAdminLoginOpen, setIsAdminLoginOpen] = useState<boolean>(false);
   const [authModalMode, setAuthModalMode] = useState<'login' | 'register'>('login');
   const [currentUser, setCurrentUser] = useState<any | null>(null);
   const [isGuestMode, setIsGuestMode] = useState<boolean>(false);
@@ -91,61 +92,16 @@ export const App: React.FC = () => {
         if (mounted) setBackendOnline(false);
       });
 
-    const localUser = authApi.getCurrentLocalUser();
-    if (localUser) {
-      setCurrentUser(localUser);
-      const r = (localUser.role || 'victim').toLowerCase();
-      if (r === 'victim' || r === 'citizen' || r === 'survivor') {
-        setUserProfile((prev) => ({
-          ...prev,
-          id: localUser.id || prev.id,
-          name: localUser.full_name || prev.name,
-          phone: localUser.phone || prev.phone,
-          district: localUser.district || prev.district,
-          state: localUser.state || prev.state,
-        }));
-        setActiveTab('victim');
-      } else if (r.startsWith('observer')) {
-        setActiveTab('observer');
-      } else if (r === 'psychiatrist') {
-        setActiveTab('psychiatrist');
-      } else if (r.startsWith('ngo')) {
-        setActiveTab('ngo');
-      } else if (r.startsWith('admin') || r.includes('secretary')) {
-        setActiveTab('admin');
-      }
+    // A browser cache alone is never considered authenticated. Restore a
+    // session only after the backend validates the JWT and loads the user.
+    if (authApi.getCurrentLocalUser()) {
+      authApi.getMe().then((user) => {
+        if (mounted) handleAuthSuccess(user);
+      }).catch(() => authApi.logout());
     }
-
-    // Listen to Firebase Auth State (Auto-recognize returning citizens)
-    const unsubscribeAuth = onAuthStateChanged(auth, (fbUser: any) => {
-      if (fbUser && !authApi.getCurrentLocalUser()) {
-        try {
-          const profiles = JSON.parse(localStorage.getItem('anvaya_citizen_profiles') || '{}');
-          const saved = profiles[fbUser.uid];
-          if (saved) {
-            const citizenUser = {
-              id: saved.id || fbUser.uid,
-              full_name: saved.name || fbUser.displayName || 'Citizen Survivor',
-              email: fbUser.email,
-              role: 'victim',
-              phone: saved.phone,
-              district: saved.district || 'Nashik',
-              state: saved.state || 'Maharashtra',
-              photoURL: fbUser.photoURL,
-              language: saved.language || 'en',
-            };
-            handleAuthSuccess(citizenUser);
-            if (saved.language) {
-              handleLanguageChange(saved.language);
-            }
-          }
-        } catch {}
-      }
-    });
 
     return () => {
       mounted = false;
-      unsubscribeAuth();
     };
   }, []);
 
@@ -205,15 +161,12 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleSwitchPersona = (role: 'citizen' | 'observer' | 'psychiatrist' | 'ngo' | 'admin') => {
-    const res = authApi.instantDemoLogin(role);
-    handleAuthSuccess(res.user);
+  const handleSwitchPersona = (_role: 'citizen' | 'observer' | 'psychiatrist' | 'ngo' | 'admin') => {
+    setAuthModalMode('login');
+    setIsAuthModalOpen(true);
   };
 
   const handleLogout = async () => {
-    try {
-      await firebaseSignOut(auth);
-    } catch {}
     await authApi.logout();
     setCurrentUser(null);
     setIsGuestMode(false);
@@ -315,7 +268,12 @@ export const App: React.FC = () => {
   ) => {
     setIsSubmittingAssessment(true);
 
-    const rawMadrs = responses.reduce((sum, r) => sum + r.madrsScore, 0);
+    // Only questions 1-10 are MADRS domains. Adaptive questions 11-12 are
+    // safety context and are submitted separately, never added to /60.
+    const madrsResponses = Array.from({ length: 10 }, (_, index) =>
+      responses.find((response) => response.questionId === index + 1)?.madrsScore ?? 0
+    );
+    const rawMadrs = madrsResponses.reduce((sum, score) => sum + score, 0);
     const madrsNorm = (rawMadrs / 60) * 40;
     const phq9Raw = Math.min(27, Math.round((rawMadrs / 60) * 27));
     const phq9Norm = (phq9Raw / 27) * 20;
@@ -328,7 +286,9 @@ export const App: React.FC = () => {
     const hasCrisisFlag = q10Response ? q10Response.madrsScore >= 4 : false;
 
     // Prepare payload for FastAPI multi-modal pipeline
-    const madrsAnswers = responses.map((r) => r.madrsScore);
+    const madrsAnswers = madrsResponses;
+    const safetyFollowup = responses.find((response) => response.questionId === 11);
+    const livingSafetyFollowup = responses.find((response) => response.questionId === 12);
     const payload = {
       touchpoint_type: (touchpointType || 'web_portal') as any,
       language: currentLang,
@@ -340,7 +300,11 @@ export const App: React.FC = () => {
       sleep_hours: sleepHours,
       sleep_quality: sleepQuality,
       mood_input: moodInput,
-      safety_threat_active: threatReport?.threat_active || threatReport?.safety_status === 'threat_perceived',
+      safety_threat_active:
+        threatReport?.threat_active ||
+        threatReport?.safety_status === 'threat_perceived' ||
+        (safetyFollowup?.madrsScore ?? 0) >= 4 ||
+        (livingSafetyFollowup?.madrsScore ?? 0) >= 4,
       threat_report: threatReport,
       context_score: userProfile.caseCategory === 'caste_violence' || userProfile.caseCategory === 'sexual_violence' ? 80.0 : 40.0,
       district: userProfile.district,
@@ -618,6 +582,7 @@ export const App: React.FC = () => {
           setAuthModalMode(m || 'login');
           setIsAuthModalOpen(true);
         }}
+        onOpenAdminLogin={() => setIsAdminLoginOpen(true)}
         onLogout={handleLogout}
         onSwitchPersona={handleSwitchPersona}
         onOpenUssdSimulator={() => setIsUssdModalOpen(true)}
@@ -659,9 +624,9 @@ export const App: React.FC = () => {
               setAuthModalMode(mode || 'login');
               setIsAuthModalOpen(true);
             }}
-            onInstantLogin={(role) => {
-              const res = authApi.instantDemoLogin(role);
-              handleAuthSuccess(res.user);
+            onInstantLogin={() => {
+              setAuthModalMode('login');
+              setIsAuthModalOpen(true);
             }}
             onStartGuestScreening={() => {
               setIsGuestMode(true);
@@ -735,7 +700,7 @@ export const App: React.FC = () => {
 
             {activeTab === 'ngo' && <NgoPortal />}
 
-            {activeTab === 'admin' && <AdminPanel />}
+            {activeTab === 'admin' && currentUser?.role === 'admin' && <AdminPanel />}
 
             {activeTab === 'analytics' && <NationalAnalytics />}
 
@@ -815,6 +780,7 @@ export const App: React.FC = () => {
         currentLang={currentLang}
         onLanguageChange={handleLanguageChange}
       />
+      <AdminLoginModal isOpen={isAdminLoginOpen} onClose={() => setIsAdminLoginOpen(false)} onAuthSuccess={handleAuthSuccess} />
 
       {/* Check-in Schedule Modal */}
       <CheckinScheduleModal

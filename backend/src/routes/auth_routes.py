@@ -7,6 +7,7 @@ from src.controllers.auth_controller import (
     AuthController,
     UserRegisterSchema,
     UserLoginSchema,
+    AdminLoginSchema,
     RefreshTokenSchema,
     RequestOtpSchema,
     VerifyOtpSchema
@@ -31,11 +32,13 @@ def verify_otp(data: VerifyOtpSchema, db: Database = Depends(get_db)):
     return AuthController.verify_otp(data=data, db=db)
 
 
-@router.post("/register", summary="Register a new victim or official")
+@router.post("/register", summary="Register a new citizen account")
 def register(data: UserRegisterSchema, db: Database = Depends(get_db)):
     """
     Registers a new account in MongoDB.
-    - Role options: `victim`, `observer_district`, `observer_state`, `observer_national`, `psychiatrist`, `ngo_partner`
+    - Public registration creates only `victim` accounts.
+    - Observer, psychiatrist, NGO, and administrator accounts are provisioned
+      by an administrator and can only sign in with assigned credentials.
     """
     return AuthController.register(data=data, db=db)
 
@@ -46,6 +49,12 @@ def login(data: UserLoginSchema, db: Database = Depends(get_db)):
     Authenticates user against MongoDB and returns JWT access_token and refresh_token.
     """
     return AuthController.login(data=data, db=db)
+
+
+@router.post("/admin/login", summary="Sign in to the administrator portal")
+def admin_login(data: AdminLoginSchema, db: Database = Depends(get_db)):
+    """Dedicated administrator login; returns a session only for role `admin`."""
+    return AuthController.admin_login(data=data, db=db)
 
 
 @router.post("/refresh", summary="Refresh access token")

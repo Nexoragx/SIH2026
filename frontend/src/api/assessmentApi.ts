@@ -42,6 +42,15 @@ export interface AssessmentBackendResponse {
     modalities_contributions: Record<string, number>;
     fused_raw_score: number;
   };
+  clinical_assessment?: {
+    answered_items: number;
+    total_score: number;
+    maximum_score: number;
+    severity_category: 'Normal/minimal' | 'Mild' | 'Moderate' | 'Severe' | 'Not assessed';
+    item_scores: Record<string, number>;
+    leading_domains: { domain: string; score: number }[];
+    method: string;
+  };
   shap_explainability: {
     features: { feature: string; impact: string; shap_value: number }[];
     primary_driver: string;

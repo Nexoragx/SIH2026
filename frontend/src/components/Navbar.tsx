@@ -34,6 +34,7 @@ interface NavbarProps {
   backendOnline?: boolean;
   currentUser?: any;
   onOpenAuthModal?: (mode?: 'login' | 'register') => void;
+  onOpenAdminLogin?: () => void;
   onLogout?: () => void;
   onSwitchPersona?: (role: 'citizen' | 'observer' | 'psychiatrist' | 'ngo' | 'admin') => void;
   onOpenUssdSimulator?: () => void;
@@ -48,6 +49,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   backendOnline,
   currentUser,
   onOpenAuthModal,
+  onOpenAdminLogin,
   onLogout,
   onSwitchPersona,
   onOpenUssdSimulator,
@@ -635,19 +637,25 @@ export const Navbar: React.FC<NavbarProps> = ({
                   >
                     <span>Register</span>
                   </button>
+                  <button
+                    type="button"
+                    onClick={onOpenAdminLogin}
+                    className="flex items-center gap-1.5 bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs px-3 py-2 rounded-xl shadow-xs transition cursor-pointer min-h-[44px]"
+                  >
+                    <Shield className="w-3.5 h-3.5" />
+                    <span>Admin Sign In</span>
+                  </button>
                 </div>
               )}
 
               {/* Mobile compact Sign In button when logged out */}
               {!currentUser && onOpenAuthModal && (
-                <button
-                  type="button"
-                  onClick={() => onOpenAuthModal('login')}
-                  className="flex lg:hidden items-center gap-1 bg-white hover:bg-slate-50 text-indigo-700 font-black text-xs px-2.5 py-1.5 rounded-xl border border-indigo-200 shadow-2xs transition cursor-pointer min-h-[42px]"
-                >
-                  <User className="w-3.5 h-3.5 text-indigo-600" />
-                  <span>Sign In</span>
-                </button>
+                <div className="flex lg:hidden items-center gap-1">
+                  <button type="button" onClick={() => onOpenAuthModal('login')} className="flex items-center gap-1 bg-white hover:bg-slate-50 text-indigo-700 font-black text-xs px-2.5 py-1.5 rounded-xl border border-indigo-200 shadow-2xs transition cursor-pointer min-h-[42px]">
+                    <User className="w-3.5 h-3.5 text-indigo-600" /><span>Sign In</span>
+                  </button>
+                  <button type="button" onClick={onOpenAdminLogin} className="bg-amber-600 hover:bg-amber-700 text-white font-black text-xs px-2.5 py-1.5 rounded-xl min-h-[42px]">Admin</button>
+                </div>
               )}
 
               {/* Glowing SOS Button (Always visible on all screens: mobile, tablet, desktop) */}

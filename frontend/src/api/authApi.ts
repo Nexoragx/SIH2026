@@ -1,10 +1,11 @@
-import { apiRequest, setStoredToken, clearStoredAuth, setStoredUser, getStoredUser } from './client';
+import { apiRequest, setStoredToken, clearStoredAuth, setStoredUser } from './client';
 
 export interface RegisterPayload {
   email: string;
   password: string;
+  confirm_password: string;
   full_name: string;
-  role?: string;
+  role?: 'victim';
   phone?: string;
   district?: string;
   state?: string;
@@ -29,298 +30,50 @@ export interface AuthResponse {
   };
 }
 
+const persistSession = (data: AuthResponse): AuthResponse => {
+  setStoredToken(data.access_token, data.refresh_token);
+  setStoredUser(data.user);
+  return data;
+};
+
+/** Authentication is deliberately server-only: credentials are never cached in localStorage. */
 export const authApi = {
   async register(payload: RegisterPayload): Promise<AuthResponse> {
-    try {
-      const data = await apiRequest<AuthResponse>('/auth/register', {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
-      if (data.access_token) {
-        setStoredToken(data.access_token, data.refresh_token);
-        setStoredUser(data.user);
-      }
-      return data;
-    } catch {
-      // If backend is offline, 404 on Vercel, or network error, save locally
-      try {
-        const emailLower = payload.email.trim().toLowerCase();
-        const localUser = {
-          id: 'USR-' + Date.now().toString().slice(-5),
-          email: emailLower,
-          password: payload.password,
-          full_name: payload.full_name,
-          role: payload.role || 'victim',
-          phone: payload.phone,
-          district: payload.district || 'Nashik',
-          state: payload.state || 'Maharashtra',
-        };
-        const existingUsers = JSON.parse(localStorage.getItem('nexora_local_users') || '[]');
-        existingUsers.push(localUser);
-        localStorage.setItem('nexora_local_users', JSON.stringify(existingUsers));
-
-        const fallbackRes: AuthResponse = {
-          access_token: 'mock-jwt-token-' + Date.now(),
-          refresh_token: 'mock-jwt-refresh',
-          token_type: 'bearer',
-          user: {
-            id: localUser.id,
-            email: localUser.email,
-            full_name: localUser.full_name,
-            role: localUser.role,
-            district: localUser.district,
-            state: localUser.state,
-          },
-        };
-        setStoredToken(fallbackRes.access_token, fallbackRes.refresh_token);
-        setStoredUser(fallbackRes.user);
-        return fallbackRes;
-      } catch {
-        const fallbackRes: AuthResponse = {
-          access_token: 'mock-jwt-token-' + Date.now(),
-          refresh_token: 'mock-jwt-refresh',
-          token_type: 'bearer',
-          user: {
-            id: 'USR-' + Date.now().toString().slice(-5),
-            email: payload.email.trim().toLowerCase(),
-            full_name: payload.full_name,
-            role: payload.role || 'victim',
-            district: payload.district || 'Nashik',
-            state: payload.state || 'Maharashtra',
-          },
-        };
-        setStoredToken(fallbackRes.access_token, fallbackRes.refresh_token);
-        setStoredUser(fallbackRes.user);
-        return fallbackRes;
-      }
-    }
+    return persistSession(await apiRequest<AuthResponse>('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }));
   },
 
   async login(payload: LoginPayload): Promise<AuthResponse> {
-    try {
-      const data = await apiRequest<AuthResponse>('/auth/login', {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
-      if (data.access_token) {
-        setStoredToken(data.access_token, data.refresh_token);
-        setStoredUser(data.user);
-      }
-      return data;
-    } catch {
-      // Seamless fail-safe login for all accounts (handles Vercel static hosting and offline scenarios)
-      const emailLower = (payload.email || '').trim().toLowerCase();
-
-      // 1. Check local registered users first
-      const localUsersJson = localStorage.getItem('nexora_local_users');
-      if (localUsersJson) {
-        try {
-          const localUsers = JSON.parse(localUsersJson);
-          const found = localUsers.find((u: any) => u.email === emailLower);
-          if (found) {
-            const fallbackRes: AuthResponse = {
-              access_token: 'mock-jwt-token-' + Date.now(),
-              refresh_token: 'mock-jwt-refresh',
-              token_type: 'bearer',
-              user: {
-                id: found.id || 'USR-' + Date.now().toString().slice(-5),
-                email: found.email,
-                full_name: found.full_name,
-                role: found.role || 'victim',
-                district: found.district || 'Nashik',
-                state: found.state || 'Maharashtra',
-              },
-            };
-            setStoredToken(fallbackRes.access_token, fallbackRes.refresh_token);
-            setStoredUser(fallbackRes.user);
-            return fallbackRes;
-          }
-        } catch {}
-      }
-
-      // 2. Role detection based on email patterns (fail-safe for demo and offline)
-      if (emailLower.includes('admin') || emailLower.includes('secretary') || emailLower.includes('apex')) {
-        const fallbackRes: AuthResponse = {
-          access_token: 'mock-jwt-admin-token-' + Date.now(),
-          refresh_token: 'mock-jwt-admin-refresh',
-          token_type: 'bearer',
-          user: {
-            id: 'ADM-001',
-            email: emailLower || 'admin.mosje@sih.gov.in',
-            full_name: 'Shri Rajesh Meena (Joint Secretary, MoSJE)',
-            role: 'admin',
-            district: 'New Delhi',
-            state: 'Delhi',
-          },
-        };
-        setStoredToken(fallbackRes.access_token, fallbackRes.refresh_token);
-        setStoredUser(fallbackRes.user);
-        return fallbackRes;
-      }
-
-      if (emailLower.includes('psychiatrist') || emailLower.includes('doctor') || emailLower.includes('dr')) {
-        const fallbackRes: AuthResponse = {
-          access_token: 'mock-jwt-psy-token-' + Date.now(),
-          refresh_token: 'mock-jwt-psy-refresh',
-          token_type: 'bearer',
-          user: {
-            id: 'PSY-001',
-            email: emailLower || 'psychiatrist@sih.gov.in',
-            full_name: 'Dr. Anita Joshi, MD (Psychiatry)',
-            role: 'psychiatrist',
-            district: 'Nashik',
-            state: 'Maharashtra',
-          },
-        };
-        setStoredToken(fallbackRes.access_token, fallbackRes.refresh_token);
-        setStoredUser(fallbackRes.user);
-        return fallbackRes;
-      }
-
-      if (emailLower.includes('ngo') || emailLower.includes('trust') || emailLower.includes('relief')) {
-        const fallbackRes: AuthResponse = {
-          access_token: 'mock-jwt-ngo-token-' + Date.now(),
-          refresh_token: 'mock-jwt-ngo-refresh',
-          token_type: 'bearer',
-          user: {
-            id: 'NGO-001',
-            email: emailLower || 'ngo.partner@sih.gov.in',
-            full_name: 'Ram Kumar (Samata Relief Coordinator)',
-            role: 'ngo_partner',
-            district: 'Nashik',
-            state: 'Maharashtra',
-          },
-        };
-        setStoredToken(fallbackRes.access_token, fallbackRes.refresh_token);
-        setStoredUser(fallbackRes.user);
-        return fallbackRes;
-      }
-
-      if (
-        emailLower.includes('observer') ||
-        emailLower.includes('officer') ||
-        emailLower.includes('nodal')
-      ) {
-        const fallbackRes: AuthResponse = {
-          access_token: 'mock-jwt-observer-token-' + Date.now(),
-          refresh_token: 'mock-jwt-observer-refresh',
-          token_type: 'bearer',
-          user: {
-            id: 'OBS-001',
-            email: emailLower || 'observer.district@sih.gov.in',
-            full_name: 'Dr. Anita Joshi (District Nodal Officer)',
-            role: 'observer_district',
-            district: 'Nashik',
-            state: 'Maharashtra',
-          },
-        };
-        setStoredToken(fallbackRes.access_token, fallbackRes.refresh_token);
-        setStoredUser(fallbackRes.user);
-        return fallbackRes;
-      }
-
-      // 3. Citizen / Survivor role for all other emails
-      const fallbackRes: AuthResponse = {
-        access_token: 'mock-jwt-survivor-token-' + Date.now(),
-        refresh_token: 'mock-jwt-survivor-refresh',
-        token_type: 'bearer',
-        user: {
-          id: 'USR-26094',
-          email: emailLower || 'survivor.demo@sih.gov.in',
-          full_name: 'Courageous Survivor',
-          role: 'victim',
-          district: 'Nashik',
-          state: 'Maharashtra',
-        },
-      };
-      setStoredToken(fallbackRes.access_token, fallbackRes.refresh_token);
-      setStoredUser(fallbackRes.user);
-      return fallbackRes;
-    }
+    return persistSession(await apiRequest<AuthResponse>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }));
   },
 
-  instantDemoLogin(role: 'citizen' | 'observer' | 'psychiatrist' | 'ngo' | 'admin'): AuthResponse {
-    let userObj = {
-      id: 'USR-26094',
-      email: 'survivor.demo@sih.gov.in',
-      full_name: 'Courageous Survivor',
-      role: 'victim',
-      district: 'Nashik',
-      state: 'Maharashtra',
-    };
-
-    if (role === 'observer') {
-      userObj = {
-        id: 'OBS-001',
-        email: 'observer.district@sih.gov.in',
-        full_name: 'Dr. Anita Joshi (District Nodal Officer)',
-        role: 'observer_district',
-        district: 'Nashik',
-        state: 'Maharashtra',
-      };
-    } else if (role === 'psychiatrist') {
-      userObj = {
-        id: 'PSY-001',
-        email: 'psychiatrist@sih.gov.in',
-        full_name: 'Dr. Anita Joshi, MD (Telepsychiatrist)',
-        role: 'psychiatrist',
-        district: 'Nashik',
-        state: 'Maharashtra',
-      };
-    } else if (role === 'ngo') {
-      userObj = {
-        id: 'NGO-001',
-        email: 'ngo.partner@sih.gov.in',
-        full_name: 'Ram Kumar (NGO Field Coordinator)',
-        role: 'ngo_partner',
-        district: 'Nashik',
-        state: 'Maharashtra',
-      };
-    } else if (role === 'admin') {
-      userObj = {
-        id: 'ADM-001',
-        email: 'admin.mosje@sih.gov.in',
-        full_name: 'Shri Rajesh Meena (Joint Secretary, MoSJE)',
-        role: 'admin',
-        district: 'New Delhi',
-        state: 'Delhi',
-      };
-    }
-
-    const res: AuthResponse = {
-      access_token: `mock-jwt-${role}-token-` + Date.now(),
-      refresh_token: `mock-jwt-${role}-refresh`,
-      token_type: 'bearer',
-      user: userObj,
-    };
-    setStoredToken(res.access_token, res.refresh_token);
-    setStoredUser(res.user);
-    return res;
-  },
-
-  async getMe(): Promise<any> {
-    try {
-      const user = await apiRequest('/auth/me');
-      setStoredUser(user);
-      return user;
-    } catch (err) {
-      const local = getStoredUser();
-      if (local) return local;
-      throw err;
-    }
+  async getMe(): Promise<AuthResponse['user']> {
+    const user = await apiRequest<AuthResponse['user']>('/auth/me');
+    setStoredUser(user);
+    return user;
   },
 
   async logout(): Promise<void> {
     try {
       await apiRequest('/auth/logout', { method: 'POST' });
-    } catch {
-      // Ignore network errors on logout
     } finally {
       clearStoredAuth();
     }
   },
 
-  getCurrentLocalUser(): any | null {
-    return getStoredUser();
+  getCurrentLocalUser(): AuthResponse['user'] | null {
+    // A stored profile is only a display cache. App startup validates it with
+    // /auth/me before treating it as an authenticated session.
+    try {
+      const raw = localStorage.getItem('nexora_user');
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
   },
 };

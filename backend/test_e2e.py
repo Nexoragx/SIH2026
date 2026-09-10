@@ -5,6 +5,7 @@ Distress scoring, 108 emergency dispatch, and Health Observer Dashboard.
 """
 
 from fastapi.testclient import TestClient
+from uuid import uuid4
 from src.app import app
 
 client = TestClient(app)
@@ -23,10 +24,18 @@ def run_tests():
     assert len(res.json()["layers"]) == 9
     print("✅ 2. Architecture layers endpoint verified: 9 tiers present")
 
+    # 2a. Dedicated administrator credentials are authenticated from MongoDB.
+    res = client.post("/api/v1/auth/admin/login", json={"username": "admin123", "password": "123456"})
+    assert res.status_code == 200, res.text
+    assert res.json()["user"]["role"] == "admin"
+    print("✅ 2a. Dedicated administrator login verified")
+
     # 3. Register Victim
+    victim_email = f"victim_test_{uuid4().hex[:10]}@sih.org"
     victim_payload = {
-        "email": "victim_test@sih.org",
+        "email": victim_email,
         "password": "Password123!",
+        "confirm_password": "Password123!",
         "full_name": "Test Victim User",
         "role": "victim",
         "phone": "+919876543210",
@@ -42,7 +51,7 @@ def run_tests():
 
     # 4. Login
     login_payload = {
-        "email": "victim_test@sih.org",
+        "email": victim_email,
         "password": "Password123!"
     }
     res = client.post("/api/v1/auth/login", json=login_payload)
@@ -50,11 +59,17 @@ def run_tests():
     assert "access_token" in res.json()
     print("✅ 4. JWT Login successful")
 
+    # Password verification is performed against the bcrypt hash in MongoDB.
+    res = client.post("/api/v1/auth/login", json={"email": victim_email, "password": "WrongPassword123"})
+    assert res.status_code == 401
+    assert "Password does not match" in res.json()["detail"]
+    print("✅ 4a. Incorrect password is rejected with a clear error")
+
     # 5. Protected profile /auth/me
     headers = {"Authorization": f"Bearer {victim_token}"}
     res = client.get("/api/v1/auth/me", headers=headers)
     assert res.status_code == 200
-    assert res.json()["email"] == "victim_test@sih.org"
+    assert res.json()["email"] == victim_email
     print("✅ 5. /auth/me protected profile verified:", res.json()["full_name"])
 
     # 6. Submit Multi-Modal Assessment (Form + NLP + Context)
@@ -85,16 +100,20 @@ def run_tests():
     assert res.json()["total_assessments"] >= 1
     print("✅ 7. Victim assessment history retrieved successfully")
 
-    # 8. Register District Health Observer
+    # 8. Public users cannot self-register a privileged role. A provisioned
+    # observer logs in from the database instead.
     observer_payload = {
-        "email": "observer_varanasi@sih.gov.in",
-        "password": "ObserverPass123!",
+        "email": "observer.district@sih.gov.in",
+        "password": "ObserverPassword123!",
         "full_name": "Dr. A. Sharma (District Observer)",
         "role": "observer_district",
-        "district": "Varanasi",
-        "state": "Uttar Pradesh"
     }
     res = client.post("/api/v1/auth/register", json=observer_payload)
+    assert res.status_code == 403
+    res = client.post("/api/v1/auth/login", json={
+        "email": "observer.district@sih.gov.in",
+        "password": "ObserverPassword123!",
+    })
     assert res.status_code == 200
     observer_token = res.json()["access_token"]
     observer_headers = {"Authorization": f"Bearer {observer_token}"}

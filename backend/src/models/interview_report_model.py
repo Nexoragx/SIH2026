@@ -39,6 +39,7 @@ class InterviewReport(BaseModel):
     
     # Multi-Modal Analysis Results
     form_data: Optional[Dict[str, Any]] = None
+    clinical_assessment: Optional[Dict[str, Any]] = None
     nlp_analysis: Optional[Dict[str, Any]] = None
     voice_analysis: Optional[Dict[str, Any]] = None
     fused_features: Optional[Dict[str, Any]] = None

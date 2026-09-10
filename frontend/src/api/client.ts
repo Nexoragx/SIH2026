@@ -97,9 +97,24 @@ export async function apiRequest<T = any>(
     const data = await response.json().catch(() => ({}));
 
     if (!response.ok) {
+      let detailMsg = 'API Request Failed';
+      if (typeof data.detail === 'string') {
+        detailMsg = data.detail;
+      } else if (Array.isArray(data.detail)) {
+        detailMsg = data.detail
+          .map((d: any) => (typeof d === 'string' ? d : d.msg || JSON.stringify(d)))
+          .join('; ');
+      } else if (data.detail && typeof data.detail === 'object') {
+        detailMsg = JSON.stringify(data.detail);
+      } else if (data.error) {
+        detailMsg = typeof data.error === 'string' ? data.error : JSON.stringify(data.error);
+      } else if (response.statusText) {
+        detailMsg = response.statusText;
+      }
+
       const errorPayload: ApiError = {
         error: data.error || response.statusText || 'API Request Failed',
-        detail: typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail || data),
+        detail: detailMsg,
         status: response.status,
       };
       throw errorPayload;
@@ -107,14 +122,33 @@ export async function apiRequest<T = any>(
 
     return data as T;
   } catch (err: any) {
-    // If already ApiError, rethrow
-    if (err.status && err.error) {
+    // If already a structured ApiError from server response, rethrow directly
+    if (err.status && err.status !== 0) {
       throw err;
     }
+
+    // Try fallback URL if local or hosted failed due to network
+    const isLocal = url.includes('localhost') || url.includes('127.0.0.1');
+    const fallbackBase = isLocal ? HOSTED_BACKEND_URL : 'http://localhost:8000/api/v1';
+    if (!options.headers?.hasOwnProperty('x-fallback-tried')) {
+      try {
+        const fallbackUrl = endpoint.startsWith('http')
+          ? endpoint
+          : `${fallbackBase}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+        const newHeaders = new Headers(options.headers || {});
+        newHeaders.set('x-fallback-tried', '1');
+        return await apiRequest<T>(fallbackUrl, { ...options, headers: newHeaders });
+      } catch (fallbackErr: any) {
+        if (fallbackErr.status && fallbackErr.status !== 0) {
+          throw fallbackErr;
+        }
+      }
+    }
+
     // Network / offline error
     throw {
       error: 'Network Error',
-      detail: err.message || 'Failed to connect to Nexora backend server.',
+      detail: err.message || 'Failed to connect to backend server. Please verify your connection.',
       status: 0,
     } as ApiError;
   }

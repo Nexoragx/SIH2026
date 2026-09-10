@@ -23,6 +23,43 @@ from src.models.interview_report_model import DistressSeverity
 logger = logging.getLogger("ai_service")
 
 
+# The first ten tiles in the web application are the ten MADRS domains.  The
+# two adaptive safety questions that can follow them are intentionally *not*
+# MADRS items and must never be added to the 0-60 MADRS total.
+MADRS_DOMAINS = (
+    "Apparent sadness", "Reported sadness", "Inner tension", "Reduced sleep",
+    "Reduced appetite", "Concentration difficulties", "Lassitude",
+    "Inability to feel", "Pessimistic thoughts", "Suicidal thoughts",
+)
+
+
+def _madrs_severity(total: int) -> str:
+    """MADRS screening bands used by the notebook dataset and UI reporting."""
+    if total <= 6:
+        return "Normal/minimal"
+    if total <= 19:
+        return "Mild"
+    if total <= 34:
+        return "Moderate"
+    return "Severe"
+
+
+def _valid_madrs_answers(madrs_data: Optional[Dict[str, Any]]) -> List[int]:
+    """Return the validated ten MADRS ratings (0, 2, 4, or 6 in this UI)."""
+    if not madrs_data or not isinstance(madrs_data.get("answers"), list):
+        return []
+
+    validated: List[int] = []
+    for value in madrs_data["answers"][:10]:
+        try:
+            score = int(value)
+        except (TypeError, ValueError):
+            continue
+        if 0 <= score <= 6:
+            validated.append(score)
+    return validated
+
+
 # =====================================================================
 # 1. FORM ANALYSIS (MADRS, PHQ-9, GAD-7)
 # =====================================================================
@@ -40,10 +77,11 @@ def analyze_clinical_forms(
     - Validate item constraints, calculate subscale dimensions, or use fine-tuned
       classifiers for nuanced psychopathology indexing.
     """
+    madrs_answers = _valid_madrs_answers(madrs_data)
     madrs_raw = 0
-    if madrs_data and "answers" in madrs_data:
-        # Sum of 10 MADRS items (each rated 0 to 6; max score = 60)
-        madrs_raw = sum(int(v) for v in madrs_data["answers"] if str(v).isdigit())
+    if madrs_answers:
+        # Sum of exactly ten MADRS items (each 0-6; max score 60).
+        madrs_raw = sum(madrs_answers)
     elif madrs_data and "total_score" in madrs_data:
         madrs_raw = int(madrs_data["total_score"])
     
@@ -66,14 +104,49 @@ def analyze_clinical_forms(
     phq9_norm = (phq9_raw / 27.0) * 100.0 if phq9_raw > 0 else 0.0
     gad7_norm = (gad7_raw / 21.0) * 100.0 if gad7_raw > 0 else 0.0
 
-    # Composite clinical form distress score
-    composite_form_score = (0.50 * madrs_norm) + (0.30 * phq9_norm) + (0.20 * gad7_norm)
+    # The notebooks train on the ten item-level MADRS features and classify a
+    # severity category.  Preserve those features and the resulting category
+    # in the API, rather than reducing everything to an opaque frontend score.
+    item_scores = {
+        domain.lower().replace(" ", "_"): score
+        for domain, score in zip(MADRS_DOMAINS, madrs_answers)
+    }
+    ranked_items = sorted(item_scores.items(), key=lambda item: item[1], reverse=True)
+    madrs_assessment = {
+        "answered_items": len(madrs_answers),
+        "total_score": madrs_raw,
+        "maximum_score": 60,
+        "severity_category": _madrs_severity(madrs_raw) if madrs_answers else "Not assessed",
+        "item_scores": item_scores,
+        "leading_domains": [
+            {"domain": domain.replace("_", " ").title(), "score": score}
+            for domain, score in ranked_items[:3] if score > 0
+        ],
+        "method": "MADRS item-feature severity classification (notebook-derived)",
+    }
+
+    # Use only scales that were actually submitted.  Previously, a MADRS-only
+    # check-in was silently halved because absent PHQ-9/GAD-7 values were
+    # treated as zero-valued observations.
+    available_scales = []
+    if madrs_answers or (madrs_data and "total_score" in madrs_data):
+        available_scales.append((madrs_norm, 0.50))
+    if phq9_data:
+        available_scales.append((phq9_norm, 0.30))
+    if gad7_data:
+        available_scales.append((gad7_norm, 0.20))
+    composite_form_score = (
+        sum(value * weight for value, weight in available_scales)
+        / sum(weight for _, weight in available_scales)
+        if available_scales else 0.0
+    )
 
     return {
-        "madrs": {"raw_score": madrs_raw, "normalized": round(madrs_norm, 2), "max": 60},
+        "madrs": {"raw_score": madrs_raw, "normalized": round(madrs_norm, 2), "max": 60, **madrs_assessment},
         "phq9": {"raw_score": phq9_raw, "normalized": round(phq9_norm, 2), "max": 27},
         "gad7": {"raw_score": gad7_raw, "normalized": round(gad7_norm, 2), "max": 21},
-        "composite_form_score": round(composite_form_score, 2)
+        "composite_form_score": round(composite_form_score, 2),
+        "madrs_assessment": madrs_assessment,
     }
 
 
@@ -289,16 +362,35 @@ def compute_distress_score(
         severity = DistressSeverity.CRITICAL
         severity_label = "🔴 Critical"
 
-    # SHAP Explainability Values Stub (explains feature contributions to the clinician)
+    # Contribution-based explanation for the deployed weighted model.  This is
+    # deliberately calculated from the real submitted signals; it is not
+    # presented as a SHAP value from a model artifact that is not deployed.
+    contributions = fused_features.get("modalities_contributions", {})
+    feature_labels = {
+        "questionnaire_score": "MADRS questionnaire",
+        "emotion_score": "Written reflection sentiment and emotion",
+        "voice_features": "Voice stress signal",
+        "sleep_behaviour": "Sleep and behavioural check-in",
+        "threat_indicators": "Safety and threat report",
+    }
+    ordered_contributions = sorted(
+        ((key, float(contributions.get(key, 0.0))) for key in feature_labels),
+        key=lambda item: item[1],
+        reverse=True,
+    )
+    total_contribution = sum(value for _, value in ordered_contributions) or 1.0
+    explanation_features = [
+        {
+            "feature": feature_labels[key],
+            "impact": f"+{value:.1f} pts",
+            "shap_value": round(value / total_contribution, 3),
+        }
+        for key, value in ordered_contributions if value > 0
+    ]
     shap_explainability = {
-        "features": [
-            {"feature": "MADRS Depression Scale", "impact": "+18.4 pts", "shap_value": 0.38},
-            {"feature": "NLP Atrocity & Emotional Trauma", "impact": "+14.2 pts", "shap_value": 0.28},
-            {"feature": "Acoustic Vocal Tremor & Pitch", "impact": "+6.5 pts", "shap_value": 0.14},
-            {"feature": "Socio-Environmental Context", "impact": "+5.1 pts", "shap_value": 0.11},
-            {"feature": "Historical Vulnerability Index", "impact": "+4.3 pts", "shap_value": 0.09},
-        ],
-        "primary_driver": "Clinical Questionnaire & Trauma NLP Indicators",
+        "features": explanation_features,
+        "primary_driver": feature_labels[ordered_contributions[0][0]] if ordered_contributions else "No submitted signals",
+        "method": "Weighted feature-contribution explanation",
         "confidence_interval": [max(0.0, final_score - 4.2), min(100.0, final_score + 4.2)]
     }
 

@@ -70,6 +70,34 @@ class CaseInterventionSchema(BaseModel):
 class InterviewController:
 
     @staticmethod
+    def get_admin_reports(db: Database, limit: int = 100) -> dict:
+        """Return saved assessment report summaries for the administrator portal.
+
+        The detailed document remains in MongoDB and is retrieved through the
+        protected admin report endpoint only after an administrator selects it.
+        """
+        reports = list(
+            db.interview_reports.find({}).sort("created_at", DESCENDING).limit(limit)
+        )
+        return {
+            "total_reports": db.interview_reports.count_documents({}),
+            "reports": [
+                {
+                    "id": str(report["_id"]),
+                    "session_id": report.get("session_id"),
+                    "victim_id": report.get("victim_id"),
+                    "distress_score": report.get("distress_score", 0),
+                    "severity_level": report.get("severity_level", "LOW"),
+                    "status": report.get("status", "PENDING"),
+                    "alert_triggered": report.get("alert_triggered", False),
+                    "clinical_assessment": report.get("clinical_assessment"),
+                    "created_at": report.get("created_at").isoformat() if report.get("created_at") else None,
+                }
+                for report in reports
+            ],
+        }
+
+    @staticmethod
     async def submit_assessment(
         data: AssessmentSubmissionSchema,
         current_user: Optional[dict],
@@ -207,6 +235,7 @@ class InterviewController:
             "touchpoint_type": data.touchpoint_type.value if hasattr(data.touchpoint_type, "value") else str(data.touchpoint_type),
             "detected_language": data.language or "en",
             "form_data": forms_analysis,
+            "clinical_assessment": forms_analysis.get("madrs_assessment"),
             "nlp_analysis": nlp_analysis,
             "voice_analysis": voice_analysis,
             "fused_features": fused_features,
@@ -235,6 +264,7 @@ class InterviewController:
             "alert_triggered": report_doc["alert_triggered"],
             "alert_details": alert_result,
             "fused_features": report_doc["fused_features"],
+            "clinical_assessment": report_doc["clinical_assessment"],
             "ambulance_108_dispatched": alert_result.get("ambulance_108_dispatched", False),
             "shap_explainability": report_doc["shap_explanations"],
             "temporal_trend": report_doc["temporal_trend"],
@@ -259,23 +289,14 @@ class InterviewController:
                 detail="Interview report not found."
             )
 
-        # Check authorization
-        user_id = str(current_user.get("id"))
-        is_owner = report.get("victim_id") == user_id
+        # Detailed clinical signals, model contributions, and trajectories are
+        # restricted to the administrator portal. Victims receive the
+        # intentionally minimal completion/support response from /submit.
         user_role = current_user.get("role")
-        is_observer = user_role in [
-            UserRole.OBSERVER_DISTRICT.value,
-            UserRole.OBSERVER_STATE.value,
-            UserRole.OBSERVER_NATIONAL.value,
-            UserRole.PSYCHIATRIST.value,
-            UserRole.NGO_PARTNER.value,
-            UserRole.ADMIN.value
-        ]
-
-        if not (is_owner or is_observer):
+        if user_role != UserRole.ADMIN.value:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="You do not have permission to access this report."
+                detail="Detailed assessment reports are restricted to administrators."
             )
 
         return serialize_report(report)

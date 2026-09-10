@@ -1,10 +1,11 @@
 import re
 from datetime import datetime, timezone, timedelta
 from typing import Optional
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from fastapi import HTTPException, status
 from bson import ObjectId
 from pymongo.database import Database
+from pymongo.errors import DuplicateKeyError
 import jwt
 
 from src.config.config import settings
@@ -23,12 +24,19 @@ from src.db.db import sync_user_to_all_dbs
 
 class UserRegisterSchema(BaseModel):
     email: str
-    password: str = Field(..., min_length=6)
+    password: str = Field(..., min_length=8, max_length=72, description="Password must be 8-72 characters")
+    confirm_password: Optional[str] = Field(None, description="Confirm password must match password")
     full_name: str
     role: Optional[UserRole] = UserRole.VICTIM
     phone: Optional[str] = None
     district: Optional[str] = None
     state: Optional[str] = None
+
+    @model_validator(mode="after")
+    def verify_passwords_match(self) -> "UserRegisterSchema":
+        if self.confirm_password is not None and self.password != self.confirm_password:
+            raise ValueError("Passwords do not match. Please make sure your password and confirm password match.")
+        return self
 
     @field_validator("email")
     @classmethod
@@ -46,6 +54,13 @@ class UserRegisterSchema(BaseModel):
             raise ValueError("Full name cannot be empty.")
         return cleaned
 
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, v: str) -> str:
+        if not re.search(r"[A-Za-z]", v) or not re.search(r"\d", v):
+            raise ValueError("Password must contain at least one letter and one number.")
+        return v
+
     @field_validator("district", "state", "phone", mode="before")
     @classmethod
     def sanitize_optional_fields(cls, v):
@@ -62,6 +77,16 @@ class UserLoginSchema(BaseModel):
     @field_validator("email")
     @classmethod
     def validate_email(cls, v: str) -> str:
+        return v.strip().lower()
+
+
+class AdminLoginSchema(BaseModel):
+    username: str = Field(..., min_length=1, max_length=64)
+    password: str = Field(..., min_length=1, max_length=72)
+
+    @field_validator("username")
+    @classmethod
+    def normalize_username(cls, v: str) -> str:
         return v.strip().lower()
 
 
@@ -99,11 +124,20 @@ class AuthController:
         """
         Registers a new user (victim, health observer, psychiatrist, or NGO partner) in MongoDB 'user' collection.
         """
+        # Privileged roles must be provisioned by an administrator.  Trusting a
+        # role sent by an unauthenticated browser would allow anyone to become
+        # an admin, observer, psychiatrist, or NGO partner.
+        if data.role != UserRole.VICTIM:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Official accounts are provisioned by an administrator. Please sign in with your assigned account."
+            )
+
         existing_user = db.user.find_one({"email": data.email}) or db.users.find_one({"email": data.email})
         if existing_user:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="A user with this email address already exists."
+                detail="An account with this email address already exists. Please sign in instead."
             )
 
         now = datetime.now(timezone.utc)
@@ -122,7 +156,15 @@ class AuthController:
             "updated_at": now
         }
         # Insert directly into the MongoDB 'user' collection
-        result = db.user.insert_one(user_doc)
+        try:
+            result = db.user.insert_one(user_doc)
+        except DuplicateKeyError:
+            # The unique database index is the final authority when two
+            # registrations for the same email arrive at the same time.
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="An account with this email address already exists. Please sign in instead."
+            )
         user_id_str = str(result.inserted_id)
 
         # Synchronize across databases ('Mental' and 'mental_health_db') and collections ('user' and 'users')
@@ -157,68 +199,120 @@ class AuthController:
     def login(data: UserLoginSchema, db: Database) -> dict:
         """
         Authenticates user credentials against MongoDB 'user' collection and issues JWT tokens.
+        Strictly verifies hashed password using bcrypt and enforces distinct error messaging:
+        - If email does not exist: 'No account found with this email address.'
+        - If password does not match: 'Password does not match. Please verify your password and try again.'
         """
-        user = db.user.find_one({"email": data.email}) or db.users.find_one({"email": data.email})
+        email_lower = data.email.lower().strip()
+        user = db.user.find_one({"email": email_lower}) or db.users.find_one({"email": email_lower})
 
-        # Auto-provision standard SIH demo accounts if not yet created in the active database instance
-        if not user:
-            demo_accounts = {
-                "survivor.demo@sih.gov.in": {
-                    "full_name": "Courageous Survivor",
-                    "role": "victim",
-                    "district": "Nashik",
-                    "state": "Maharashtra",
-                    "phone": "+91 98231 14566",
-                    "password": "Password123!"
-                },
-                "observer.district@sih.gov.in": {
-                    "full_name": "Dr. Anita Joshi (District Nodal Officer)",
-                    "role": "observer_district",
-                    "district": "Nashik",
-                    "state": "Maharashtra",
-                    "phone": "+91 94222 10800",
-                    "password": "ObserverPassword123!"
-                }
+        # Predefined SIH standard role demo accounts
+        demo_accounts = {
+            "survivor.demo@sih.gov.in": {
+                "full_name": "Courageous Survivor",
+                "role": "victim",
+                "district": "Nashik",
+                "state": "Maharashtra",
+                "phone": "+91 98231 14566",
+                "password": "Password123!"
+            },
+            "observer.district@sih.gov.in": {
+                "full_name": "Dr. Anita Joshi (District Nodal Officer)",
+                "role": "observer_district",
+                "district": "Nashik",
+                "state": "Maharashtra",
+                "phone": "+91 94222 10800",
+                "password": "ObserverPassword123!"
+            },
+            "observer.state@sih.gov.in": {
+                "full_name": "Shri Sunil Patil (State Surveillance Director)",
+                "role": "observer_state",
+                "district": "Mumbai",
+                "state": "Maharashtra",
+                "phone": "+91 98200 11223",
+                "password": "StatePassword123!"
+            },
+            "observer.national@sih.gov.in": {
+                "full_name": "Dr. K. S. Mehra (National Health Director)",
+                "role": "observer_national",
+                "district": "New Delhi",
+                "state": "Delhi",
+                "phone": "+91 99111 22334",
+                "password": "NationalPassword123!"
+            },
+            "psychiatrist@sih.gov.in": {
+                "full_name": "Dr. Anita Joshi, MD (Telepsychiatrist)",
+                "role": "psychiatrist",
+                "district": "Nashik",
+                "state": "Maharashtra",
+                "phone": "+91 94222 10801",
+                "password": "PsyPassword123!"
+            },
+            "ngo.partner@sih.gov.in": {
+                "full_name": "Ram Kumar (Samata NGO Field Coordinator)",
+                "role": "ngo_partner",
+                "district": "Nashik",
+                "state": "Maharashtra",
+                "phone": "+91 98230 45678",
+                "password": "NgoPassword123!"
+            },
+            "admin.mosje@sih.gov.in": {
+                "full_name": "Shri Rajesh Meena (Joint Secretary, MoSJE)",
+                "role": "admin",
+                "district": "New Delhi",
+                "state": "Delhi",
+                "phone": "+91 98100 99887",
+                "password": "AdminPassword123!"
             }
-            email_lower = data.email.lower().strip()
-            if email_lower in demo_accounts and data.password == demo_accounts[email_lower]["password"]:
-                now = datetime.now(timezone.utc)
-                demo_info = demo_accounts[email_lower]
-                user_doc = {
-                    "email": email_lower,
-                    "hashed_password": hash_password(demo_info["password"]),
-                    "full_name": demo_info["full_name"],
-                    "role": demo_info["role"],
-                    "phone": demo_info["phone"],
-                    "district": demo_info["district"],
-                    "state": demo_info["state"],
-                    "oauth_provider": "local",
-                    "oauth_id": None,
-                    "is_active": True,
-                    "created_at": now,
-                    "updated_at": now
-                }
-                res = db.user.insert_one(user_doc)
-                user_doc["_id"] = res.inserted_id
-                sync_user_to_all_dbs(user_doc)
-                user = user_doc
+        }
 
-        if not user or not user.get("hashed_password"):
+        # Auto-provision standard demo accounts into active DB if not yet seeded
+        if not user and email_lower in demo_accounts:
+            now = datetime.now(timezone.utc)
+            demo_info = demo_accounts[email_lower]
+            user_doc = {
+                "email": email_lower,
+                "hashed_password": hash_password(demo_info["password"]),
+                "full_name": demo_info["full_name"],
+                "role": demo_info["role"],
+                "phone": demo_info["phone"],
+                "district": demo_info["district"],
+                "state": demo_info["state"],
+                "oauth_provider": "local",
+                "oauth_id": None,
+                "is_active": True,
+                "created_at": now,
+                "updated_at": now
+            }
+            res = db.user.insert_one(user_doc)
+            user_doc["_id"] = res.inserted_id
+            sync_user_to_all_dbs(user_doc)
+            user = user_doc
+
+        # If user still does not exist:
+        if not user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid email or password."
+                detail="No account found with this email address. Please register or check your credentials."
             )
 
+        if not user.get("hashed_password"):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Account password is not set. Please use password reset or social login."
+            )
+
+        # Precise bcrypt verification - raises error when password does not match
         if not verify_password(data.password, user["hashed_password"]):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid email or password."
+                detail="Password does not match. Please verify your password and try again."
             )
 
         if not user.get("is_active", True):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Your account has been deactivated."
+                detail="Your account has been deactivated. Please contact an administrator."
             )
 
         user_id_str = str(user["_id"])
@@ -241,6 +335,32 @@ class AuthController:
                 "role": user.get("role", "victim"),
                 "district": user.get("district"),
                 "state": user.get("state")
+            }
+        }
+
+    @staticmethod
+    def admin_login(data: AdminLoginSchema, db: Database) -> dict:
+        """Authenticate the dedicated administrator account from MongoDB only."""
+        user = db.user.find_one({"username": data.username, "role": UserRole.ADMIN.value}) \
+            or db.users.find_one({"username": data.username, "role": UserRole.ADMIN.value})
+
+        if not user or not user.get("hashed_password") or not verify_password(data.password, user["hashed_password"]):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid administrator ID or password."
+            )
+        if not user.get("is_active", True):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Administrator account is inactive.")
+
+        token_data = {"sub": str(user["_id"]), "email": user["email"], "role": UserRole.ADMIN.value}
+        return {
+            "access_token": create_access_token(token_data),
+            "refresh_token": create_refresh_token(token_data),
+            "token_type": "bearer",
+            "user": {
+                "id": str(user["_id"]), "email": user["email"],
+                "full_name": user.get("full_name", "Administrator"), "role": UserRole.ADMIN.value,
+                "district": user.get("district"), "state": user.get("state")
             }
         }
 

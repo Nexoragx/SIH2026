@@ -91,7 +91,7 @@ def init_db():
         except Exception as e:
             logger.warning(f"Error while ensuring indexes on {target_db.name}: {e}")
 
-    # Pre-seed default SIH demo accounts (citizen & observer)
+    # Pre-seed standard SIH demo accounts across all system roles
     try:
         from src.middlewares.auth_middleware import hash_password
         from datetime import datetime, timezone
@@ -118,6 +118,84 @@ def init_db():
                 "phone": "+91 94222 10800",
                 "district": "Nashik",
                 "state": "Maharashtra",
+                "oauth_provider": "local",
+                "is_active": True,
+                "created_at": now,
+                "updated_at": now
+            },
+            {
+                "email": "observer.state@sih.gov.in",
+                "hashed_password": hash_password("StatePassword123!"),
+                "full_name": "Shri Sunil Patil (State Surveillance Director)",
+                "role": "observer_state",
+                "phone": "+91 98200 11223",
+                "district": "Mumbai",
+                "state": "Maharashtra",
+                "oauth_provider": "local",
+                "is_active": True,
+                "created_at": now,
+                "updated_at": now
+            },
+            {
+                "email": "observer.national@sih.gov.in",
+                "hashed_password": hash_password("NationalPassword123!"),
+                "full_name": "Dr. K. S. Mehra (National Health Director)",
+                "role": "observer_national",
+                "phone": "+91 99111 22334",
+                "district": "New Delhi",
+                "state": "Delhi",
+                "oauth_provider": "local",
+                "is_active": True,
+                "created_at": now,
+                "updated_at": now
+            },
+            {
+                "email": "psychiatrist@sih.gov.in",
+                "hashed_password": hash_password("PsyPassword123!"),
+                "full_name": "Dr. Anita Joshi, MD (Telepsychiatrist)",
+                "role": "psychiatrist",
+                "phone": "+91 94222 10801",
+                "district": "Nashik",
+                "state": "Maharashtra",
+                "oauth_provider": "local",
+                "is_active": True,
+                "created_at": now,
+                "updated_at": now
+            },
+            {
+                "email": "ngo.partner@sih.gov.in",
+                "hashed_password": hash_password("NgoPassword123!"),
+                "full_name": "Ram Kumar (Samata NGO Field Coordinator)",
+                "role": "ngo_partner",
+                "phone": "+91 98230 45678",
+                "district": "Nashik",
+                "state": "Maharashtra",
+                "oauth_provider": "local",
+                "is_active": True,
+                "created_at": now,
+                "updated_at": now
+            },
+            {
+                "email": "admin123@internal.local",
+                "username": "admin123",
+                "hashed_password": hash_password("123456"),
+                "full_name": "System Administrator",
+                "role": "admin",
+                "district": "New Delhi",
+                "state": "Delhi",
+                "oauth_provider": "local",
+                "is_active": True,
+                "created_at": now,
+                "updated_at": now
+            },
+            {
+                "email": "admin.mosje@sih.gov.in",
+                "hashed_password": hash_password("AdminPassword123!"),
+                "full_name": "Shri Rajesh Meena (Joint Secretary, MoSJE)",
+                "role": "admin",
+                "phone": "+91 98100 99887",
+                "district": "New Delhi",
+                "state": "Delhi",
                 "oauth_provider": "local",
                 "is_active": True,
                 "created_at": now,
