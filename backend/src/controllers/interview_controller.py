@@ -160,16 +160,23 @@ class InterviewController:
             except (ValueError, TypeError):
                 pass
         
-        # Threat / Safety indicators evaluation
-        threat_reported = (
+        # Threat / Safety indicators evaluation (contributes to multimodal threat fusion)
+        threat_reported = bool(
             data.safety_threat_active
-            or (data.threat_report and data.threat_report.get("threat_active", False))
             or (data.threat_report and data.threat_report.get("safety_status") in ["threat_perceived", "active_intimidation"])
-            or nlp_analysis.get("threat_detected", False)
+            or (data.threat_report and data.threat_report.get("threat_active", False))
         )
-        threat_distress = 85.0 if threat_reported else (10.0 if (data.threat_report and data.threat_report.get("safety_status") == "safe") else None)
+        threat_distress = 75.0 if threat_reported else (10.0 if (data.threat_report and data.threat_report.get("safety_status") == "safe") else None)
 
-        is_crisis = data.is_crisis_halt or q10_score >= 4 or threat_reported
+        # Genuine clinical crisis requiring emergency ambulance override:
+        # 1. User triggered crisis halt
+        # 2. MADRS Q10 (Suicidal thoughts) is acute (>= 4)
+        # 3. Explicit active physical threat in progress reported
+        is_crisis = bool(
+            data.is_crisis_halt
+            or q10_score >= 4
+            or (data.safety_threat_active and data.threat_report and data.threat_report.get("threat_active"))
+        )
 
         # 4. Feature Fusion Layer (Multimodal Combination: Emotion, Form, Voice, Sleep, Threat)
         fused_features = fuse_features(
@@ -179,7 +186,7 @@ class InterviewController:
             sleep_distress=sleep_distress,
             threat_distress=threat_distress,
             context_score=data.context_score or 20.0,
-            baseline_score=30.0
+            baseline_score=20.0
         )
 
         # 5. Distress Score Engine & SHAP Explainability (Notebook Phase 3 Multimodal Tree Attribution)
@@ -201,7 +208,7 @@ class InterviewController:
         )
         if is_crisis:
             distress_result["severity"] = DistressSeverity.CRITICAL
-            distress_result["score"] = max(distress_result["score"], 82.0)
+            distress_result["score"] = max(distress_result["score"], 76.0)
 
         # 6. Temporal Trend Model (LSTM Progression, e.g. 32 -> 41 -> 53 -> 71)
         historical_scores = []

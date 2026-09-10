@@ -277,9 +277,9 @@ export const App: React.FC = () => {
     const madrsNorm = (rawMadrs / 60) * 40;
     const phq9Raw = Math.min(27, Math.round((rawMadrs / 60) * 27));
     const phq9Norm = (phq9Raw / 27) * 20;
-    const voiceScore = voiceSample ? (voiceSample.stressScore / 100) * 10 : 4.0;
-    const nlpScore = 9.0;
-    const contextBonus = userProfile.caseCategory === 'caste_violence' || userProfile.caseCategory === 'sexual_violence' ? 10 : 6;
+    const voiceScore = voiceSample ? (voiceSample.stressScore / 100) * 10 : 0.0;
+    const nlpScore = personalHistory ? 5.0 : 0.0;
+    const contextBonus = userProfile.caseCategory === 'caste_violence' || userProfile.caseCategory === 'sexual_violence' ? 3 : 0;
     const fallbackScore = Math.min(100, Math.round((madrsNorm + phq9Norm + voiceScore + nlpScore + contextBonus) * 10) / 10);
 
     const q10Response = responses.find((r) => r.questionId === 10);
@@ -294,19 +294,18 @@ export const App: React.FC = () => {
       language: currentLang,
       madrs: { answers: madrsAnswers },
       phq9: { answers: [Math.min(3, Math.round(rawMadrs / 20))] },
-      text_content: personalHistory || voiceSample?.transcript || `${userProfile.caseCategory} survivor check-in from ${userProfile.district}, ${userProfile.state}`,
-      personal_history: personalHistory,
+      text_content: personalHistory || voiceSample?.transcript || '',
+      personal_history: personalHistory || '',
       is_crisis_halt: hasCrisisFlag,
       sleep_hours: sleepHours,
       sleep_quality: sleepQuality,
       mood_input: moodInput,
       safety_threat_active:
-        threatReport?.threat_active ||
-        threatReport?.safety_status === 'threat_perceived' ||
+        Boolean(threatReport?.threat_active) ||
         (safetyFollowup?.madrsScore ?? 0) >= 4 ||
         (livingSafetyFollowup?.madrsScore ?? 0) >= 4,
       threat_report: threatReport,
-      context_score: userProfile.caseCategory === 'caste_violence' || userProfile.caseCategory === 'sexual_violence' ? 80.0 : 40.0,
+      context_score: userProfile.caseCategory === 'caste_violence' || userProfile.caseCategory === 'sexual_violence' ? 30.0 : 20.0,
       district: userProfile.district,
       state: userProfile.state,
     };

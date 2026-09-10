@@ -72,14 +72,38 @@ def run_tests():
     assert res.json()["email"] == victim_email
     print("✅ 5. /auth/me protected profile verified:", res.json()["full_name"])
 
-    # 6. Submit Multi-Modal Assessment (Form + NLP + Context)
+    # 6a. Submit Normal Well-Being Assessment (Verifying normal answers do NOT trigger false 82/100 or alert)
+    normal_payload = {
+        "touchpoint_type": "web_portal",
+        "language": "en",
+        "madrs": {"answers": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]},
+        "phq9": {"answers": [0]},
+        "text_content": "I am feeling okay today and resting well.",
+        "is_crisis_halt": False,
+        "sleep_hours": 8,
+        "sleep_quality": "good",
+        "safety_threat_active": False,
+        "context_score": 20.0,
+        "district": "Nashik",
+        "state": "Maharashtra"
+    }
+    normal_res = client.post("/api/v1/interview/submit", json=normal_payload, headers=headers)
+    assert normal_res.status_code == 200, f"Normal submission failed: {normal_res.text}"
+    normal_report = normal_res.json()
+    assert normal_report["distress_score"] <= 25.0, f"Expected low score, got {normal_report['distress_score']}"
+    assert normal_report["severity_level"] == "LOW", f"Expected LOW severity, got {normal_report['severity_level']}"
+    assert normal_report["alert_triggered"] is False, "Normal report should NOT trigger alert"
+    assert normal_report["ambulance_108_dispatched"] is False, "Normal report should NOT dispatch ambulance"
+    print(f"✅ 6a. Normal assessment verified: Score={normal_report['distress_score']}/100, Band={normal_report['severity_level']}, Alert={normal_report['alert_triggered']}")
+
+    # 6b. Submit Acute Crisis Multi-Modal Assessment (Form + NLP + Acute Suicide Q10)
     assessment_payload = {
         "touchpoint_type": "mobile_app",
         "language": "en",
-        "madrs": {"answers": [4, 5, 4, 6, 4, 5, 5, 4, 5, 5]}, # High MADRS depression
+        "madrs": {"answers": [4, 5, 4, 6, 4, 5, 5, 4, 5, 5]}, # High MADRS depression, Q10 = 5
         "phq9": {"answers": [3, 3, 2, 3, 3, 2, 3, 3, 3]},       # High PHQ-9
         "gad7": {"answers": [3, 3, 3, 2, 3, 3, 2]},             # High GAD-7
-        "text_content": "I was attacked and subjected to extreme violence. I can't sleep and I feel completely helpless.",
+        "text_content": "I am thinking of ending my life. I can't take this anymore and want to die.",
         "context_score": 80.0,
         "district": "Varanasi",
         "state": "Uttar Pradesh"
@@ -87,7 +111,9 @@ def run_tests():
     res = client.post("/api/v1/interview/submit", json=assessment_payload, headers=headers)
     assert res.status_code == 200, f"Submission failed: {res.text}"
     report_data = res.json()
-    print("✅ 6. Multi-modal assessment submitted successfully:")
+    assert report_data["severity_level"] == "CRITICAL"
+    assert report_data["ambulance_108_dispatched"] is True
+    print("✅ 6b. Acute Crisis multi-modal assessment submitted successfully:")
     print(f"   Session ID: {report_data['session_id']}")
     print(f"   Distress Score: {report_data['distress_score']}/100")
     print(f"   Severity Band: {report_data['severity_level']}")

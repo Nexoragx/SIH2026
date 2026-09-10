@@ -15,6 +15,7 @@ It implements the 9-tier system architecture:
 """
 
 import logging
+import re
 from typing import Dict, Any, List, Optional
 import httpx
 from src.config.config import settings
@@ -197,13 +198,15 @@ def analyze_nlp(text_content: Optional[str], language: str = "en") -> Dict[str, 
 
     lowered = text_content.lower()
 
-    # 1. Critical Threat & Crisis Keywords (SC/ST Atrocity & Acute Self-Harm)
-    crisis_keywords = [
-        "suicide", "kill myself", "end my life", "threat", "attack", "violence",
-        "torture", "raped", "beaten", "lynched", "boycott", "mar jaunga", "khatam",
-        "assault", "forced", "weapon", "death"
+    # 1. Critical Threat & Crisis Keywords (Acute Self-Harm & Active Imminent Danger)
+    # Use word boundary regex matching so demographic metadata like 'caste_violence' or 'non-violence'
+    # does NOT falsely trigger an emergency crisis alert on normal questionnaires.
+    crisis_patterns = [
+        r"\bsuicide\b", r"\bkill myself\b", r"\bend my life\b", r"\bwant to die\b",
+        r"\bmar jaunga\b", r"\bjaan de dunga\b", r"\bunder attack\b", r"\bactively threatened\b",
+        r"\bimmediate threat\b", r"\bkill me\b", r"\bbeing beaten\b", r"\blynch\b"
     ]
-    threat_found = any(k in lowered for k in crisis_keywords)
+    threat_found = any(re.search(pat, lowered) for pat in crisis_patterns)
     threat_confidence = 0.96 if threat_found else 0.04
 
     # 2. 7-Class Emotion Analysis (Notebook Phase 2 DistilRoBERTa aligner)
