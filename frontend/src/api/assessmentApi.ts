@@ -132,4 +132,26 @@ export const assessmentApi = {
   async getVictimHistory(): Promise<AssessmentHistoryResponse> {
     return apiRequest<AssessmentHistoryResponse>('/interview/history');
   },
+
+  /**
+   * Fetch all assessment reports for Executive Admin Panel with ML diagnostics
+   */
+  async getAdminReports(params?: { severity?: string; search?: string; limit?: number }): Promise<{
+    total_count: number;
+    matched_count: number;
+    severity_summary: {
+      critical: number;
+      high: number;
+      moderate: number;
+      low: number;
+    };
+    reports: any[];
+  }> {
+    const q = new URLSearchParams();
+    if (params?.severity) q.append('severity', params.severity);
+    if (params?.search) q.append('search', params.search);
+    if (params?.limit) q.append('limit', String(params.limit));
+    const url = `/interview/admin/reports${q.toString() ? `?${q.toString()}` : ''}`;
+    return apiRequest(url);
+  },
 };

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Shield,
   BarChart3,
@@ -15,7 +15,13 @@ import {
   Server,
   FileSpreadsheet,
   Activity,
-  Layers
+  Layers,
+  Search,
+  Filter,
+  Eye,
+  FileText,
+  Ambulance,
+  RefreshCw
 } from 'lucide-react';
 import {
   BarChart,
@@ -28,44 +34,29 @@ import {
   LineChart,
   Line,
 } from 'recharts';
+import { assessmentApi } from '../../api/assessmentApi';
 import { adminReportsApi, AdminReportSummary, AssessmentBackendResponse } from '../../api';
+import { ReportDetailModal } from './ReportDetailModal';
 
 export const AdminPanel: React.FC = () => {
   const [selectedTier, setSelectedTier] = useState<'L1' | 'L2' | 'L3' | 'L4'>('L4');
-  const [activeTab, setActiveTab] = useState<'overview' | 'assessments' | 'sla' | 'court' | 'model'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'reports' | 'assessments' | 'sla' | 'court' | 'model'>('reports');
+
+  // Reports state
+  const [reports, setReports] = useState<any[]>([]);
+  const [reportsLoading, setReportsLoading] = useState<boolean>(true);
+  const [reportsError, setReportsError] = useState<string>('');
+  const [searchFilter, setSearchFilter] = useState<string>('');
+  const [severityFilter, setSeverityFilter] = useState<string>('ALL');
+  const [selectedReport, setSelectedReport] = useState<any | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [savedReports, setSavedReports] = useState<AdminReportSummary[]>([]);
-  const [selectedReport, setSelectedReport] = useState<(AssessmentBackendResponse & Record<string, any>) | null>(null);
-  const [reportsLoading, setReportsLoading] = useState(false);
-  const [reportsError, setReportsError] = useState('');
-
-  const loadReports = async () => {
-    setReportsLoading(true);
-    setReportsError('');
-    try {
-      const registry = await adminReportsApi.getReports();
-      setSavedReports(registry.reports);
-    } catch {
-      setReportsError('Saved assessment reports could not be loaded. Please try again.');
-    } finally {
-      setReportsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadReports();
-  }, []);
-
-  const openReport = async (reportId: string) => {
-    setReportsLoading(true);
-    setReportsError('');
-    try {
-      setSelectedReport(await adminReportsApi.getReport(reportId));
-    } catch {
-      setReportsError('The detailed report could not be loaded.');
-    } finally {
-      setReportsLoading(false);
-    }
-  };
+  const [summaryStats, setSummaryStats] = useState({
+    critical: 0,
+    high: 0,
+    moderate: 0,
+    low: 0
+  });
 
   const stateData = [
     { state: 'Maharashtra', activeCases: 320, criticalCount: 24, avgScore: 54.2, slaCompliance: '96%' },
@@ -98,6 +89,53 @@ export const AdminPanel: React.FC = () => {
     fairnessParity: '99.1%',
     driftStatus: 'Normal (Zero Drift Detected)',
     lastRetrainDate: '01 Sep 2026',
+  };
+
+  const loadReports = async () => {
+    setReportsLoading(true);
+    setReportsError('');
+    try {
+      const data = await assessmentApi.getAdminReports({
+        severity: severityFilter,
+        search: searchFilter,
+        limit: 100
+      });
+      if (data && data.reports) {
+        setReports(data.reports);
+        setSavedReports(data.reports as any);
+        if (data.severity_summary) {
+          setSummaryStats(data.severity_summary);
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to fetch admin reports from backend:', err);
+      setReportsError('Saved assessment reports could not be loaded. Please try again.');
+    } finally {
+      setReportsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadReports();
+  }, [severityFilter]);
+
+  const openReport = async (reportId: string) => {
+    setReportsLoading(true);
+    setReportsError('');
+    try {
+      const rep = await adminReportsApi.getReport(reportId);
+      setSelectedReport(rep);
+      setIsModalOpen(true);
+    } catch {
+      setReportsError('The detailed report could not be loaded.');
+    } finally {
+      setReportsLoading(false);
+    }
+  };
+
+  const handleOpenReport = (rep: any) => {
+    setSelectedReport(rep);
+    setIsModalOpen(true);
   };
 
   const handleExportMoSJEReport = () => {
@@ -212,8 +250,9 @@ export const AdminPanel: React.FC = () => {
       </div>
 
       {/* Admin Sub-Tabs */}
-      <div className="flex border-b border-slate-200 gap-4 text-xs font-black">
+      <div className="flex border-b border-slate-200 gap-4 text-xs font-black overflow-x-auto no-scrollbar">
         {[
+          { id: 'reports', label: 'Detailed Reports & ML Diagnostics' },
           { id: 'overview', label: 'State Overview & Heatmap' },
           { id: 'assessments', label: 'Saved Assessment Reports' },
           { id: 'sla', label: 'SLA Adherence & Escalations' },
@@ -224,7 +263,7 @@ export const AdminPanel: React.FC = () => {
             key={tab.id}
             type="button"
             onClick={() => setActiveTab(tab.id as any)}
-            className={`pb-3 transition cursor-pointer border-b-2 -mb-px ${
+            className={`pb-3 transition cursor-pointer border-b-2 -mb-px whitespace-nowrap ${
               activeTab === tab.id
                 ? 'border-indigo-600 text-indigo-600'
                 : 'border-transparent text-slate-500 hover:text-black'
@@ -234,6 +273,180 @@ export const AdminPanel: React.FC = () => {
           </button>
         ))}
       </div>
+
+      {/* Tab: Detailed Reports & ML Diagnostics */}
+      {activeTab === 'reports' && (
+        <div className="space-y-6">
+          {/* Reports Header & Filter Bar */}
+          <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-black text-black flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-indigo-600" />
+                  <span>Participant Clinical Assessments & Model Analysis Reports</span>
+                </h3>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">
+                  Click any assessment to inspect detailed ML distress score breakdown, SHAP explainability waterfall, and LSTM trajectories.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={loadReports}
+                className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-black text-xs font-extrabold rounded-xl flex items-center gap-1.5 transition cursor-pointer self-start sm:self-auto"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${reportsLoading ? 'animate-spin' : ''}`} />
+                <span>Refresh Reports</span>
+              </button>
+            </div>
+
+            {/* Filter Row */}
+            <div className="flex flex-col sm:flex-row items-center gap-3 pt-1">
+              <div className="relative flex-1 w-full">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Search by session ID, participant ID, language, or status..."
+                  value={searchFilter}
+                  onChange={(e) => setSearchFilter(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && loadReports()}
+                  className="w-full pl-9.5 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-black focus:outline-hidden focus:border-indigo-500 focus:bg-white transition"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <Filter className="w-4 h-4 text-slate-500 flex-shrink-0" />
+                <select
+                  value={severityFilter}
+                  onChange={(e) => setSeverityFilter(e.target.value)}
+                  className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-black focus:outline-hidden focus:border-indigo-500 cursor-pointer w-full sm:w-auto"
+                >
+                  <option value="ALL">All Severity Levels</option>
+                  <option value="CRITICAL">Critical Priority (76-100)</option>
+                  <option value="HIGH">High Vulnerability (51-75)</option>
+                  <option value="MODERATE">Moderate Distress (26-50)</option>
+                  <option value="LOW">Low Distress (0-25)</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Severity Quick Tally Counters */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-2">
+              <div className="p-3 rounded-xl bg-red-50 border border-red-200 flex items-center justify-between">
+                <span className="text-[11px] font-bold text-red-900">Critical Priority</span>
+                <span className="text-sm font-black text-red-700 font-mono">{summaryStats.critical}</span>
+              </div>
+              <div className="p-3 rounded-xl bg-orange-50 border border-orange-200 flex items-center justify-between">
+                <span className="text-[11px] font-bold text-orange-900">High Vulnerability</span>
+                <span className="text-sm font-black text-orange-700 font-mono">{summaryStats.high}</span>
+              </div>
+              <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-between">
+                <span className="text-[11px] font-bold text-amber-900">Moderate Distress</span>
+                <span className="text-sm font-black text-amber-700 font-mono">{summaryStats.moderate}</span>
+              </div>
+              <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-between">
+                <span className="text-[11px] font-bold text-emerald-900">Low / Stabilized</span>
+                <span className="text-sm font-black text-emerald-700 font-mono">{summaryStats.low}</span>
+              </div>
+            </div>
+
+            {/* Reports Interactive Data Table */}
+            <div className="overflow-x-auto pt-2">
+              {reportsLoading ? (
+                <div className="py-12 flex flex-col items-center justify-center gap-2 text-slate-500">
+                  <RefreshCw className="w-6 h-6 animate-spin text-indigo-600" />
+                  <span className="text-xs font-bold">Querying secure clinical reports database...</span>
+                </div>
+              ) : reports.length === 0 ? (
+                <div className="py-12 text-center text-slate-500 space-y-1">
+                  <p className="text-xs font-extrabold text-black">No clinical reports match your active filter.</p>
+                  <p className="text-[11px]">Assessments submitted by citizens will automatically populate here in real-time.</p>
+                </div>
+              ) : (
+                <table className="w-full text-xs text-left">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-slate-500 uppercase text-[10px]">
+                      <th className="py-3 font-bold">Session Reference</th>
+                      <th className="py-3 font-bold">Touchpoint & Lang</th>
+                      <th className="py-3 font-bold">Distress Score</th>
+                      <th className="py-3 font-bold">Severity Level</th>
+                      <th className="py-3 font-bold">Emergency 108</th>
+                      <th className="py-3 font-bold">Timestamp</th>
+                      <th className="py-3 font-bold text-right">Model Analytics</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 font-semibold text-slate-900">
+                    {reports.map((rep, idx) => {
+                      const score = rep.distress_score ?? 0;
+                      const sev = (rep.severity_level || 'MODERATE').toUpperCase();
+                      const isCrisis = rep.alert_triggered || sev === 'CRITICAL';
+                      const dateStr = rep.created_at ? new Date(rep.created_at).toLocaleDateString() : 'Today';
+
+                      return (
+                        <tr
+                          key={rep.id || rep.session_id || idx}
+                          onClick={() => handleOpenReport(rep)}
+                          className="hover:bg-indigo-50/50 transition cursor-pointer group"
+                        >
+                          <td className="py-3.5 font-bold font-mono text-black flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 group-hover:scale-150 transition"></span>
+                            <span>{rep.session_id || 'SES-DEMO'}</span>
+                          </td>
+                          <td className="py-3.5 text-slate-600 font-medium">
+                            {(rep.touchpoint_type || 'web_portal').replace('_', ' ')} • {(rep.detected_language || 'en').toUpperCase()}
+                          </td>
+                          <td className="py-3.5 font-mono font-black text-black">
+                            {score.toFixed(1)} / 100
+                          </td>
+                          <td className="py-3.5">
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                              sev === 'CRITICAL'
+                                ? 'bg-red-100 text-red-800'
+                                : sev === 'HIGH'
+                                ? 'bg-orange-100 text-orange-800'
+                                : sev === 'MODERATE'
+                                ? 'bg-amber-100 text-amber-800'
+                                : 'bg-emerald-100 text-emerald-800'
+                            }`}>
+                              {sev}
+                            </span>
+                          </td>
+                          <td className="py-3.5">
+                            {isCrisis ? (
+                              <span className="text-red-700 font-bold flex items-center gap-1 text-[11px]">
+                                <Ambulance className="w-3.5 h-3.5 flex-shrink-0" />
+                                <span>Dispatched</span>
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 font-medium text-[11px]">—</span>
+                            )}
+                          </td>
+                          <td className="py-3.5 text-slate-500 font-medium">
+                            {dateStr}
+                          </td>
+                          <td className="py-3.5 text-right">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenReport(rep);
+                              }}
+                              className="px-3 py-1 bg-black hover:bg-slate-800 active:scale-95 text-white font-extrabold text-[11px] rounded-lg transition inline-flex items-center gap-1 cursor-pointer shadow-xs"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                              <span>View Report</span>
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Tab 1: State Overview & Heatmap */}
       {activeTab === 'overview' && (
@@ -322,7 +535,7 @@ export const AdminPanel: React.FC = () => {
                   <div className="h-60"><h4 className="text-xs font-black text-black mb-3">Signal contribution breakdown</h4><ResponsiveContainer width="100%" height="90%"><BarChart data={selectedReport.shap_explainability?.features || []} layout="vertical" margin={{ left: 12 }}><CartesianGrid strokeDasharray="3 3" /><XAxis type="number" domain={[0, 1]} hide /><YAxis type="category" dataKey="feature" width={130} tick={{ fontSize: 10 }} /><Tooltip /><Bar dataKey="shap_value" fill="#4f46e5" radius={[0, 4, 4, 0]} /></BarChart></ResponsiveContainer></div>
                   <div className="h-60"><h4 className="text-xs font-black text-black mb-3">Assessment trend and seven-day projection</h4><ResponsiveContainer width="100%" height="90%"><LineChart data={(selectedReport.temporal_trend?.historical_series || []).map((score: number, index: number) => ({ checkin: String(index + 1), score })).concat([{ checkin: 'Projected', score: selectedReport.temporal_trend?.projected_7d_score }])}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="checkin" tick={{ fontSize: 10 }} /><YAxis domain={[0, 100]} tick={{ fontSize: 10 }} /><Tooltip /><Line type="monotone" dataKey="score" stroke="#0f172a" strokeWidth={2} /></LineChart></ResponsiveContainer></div>
                 </div>
-                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200"><h4 className="text-xs font-black text-black mb-2">Leading questionnaire domains</h4><div className="flex flex-wrap gap-2">{selectedReport.clinical_assessment?.leading_domains?.map((domain) => <span key={domain.domain} className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-xs font-bold text-slate-700">{domain.domain}: {domain.score}/6</span>) || <span className="text-xs text-slate-500">No questionnaire domains recorded.</span>}</div></div>
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200"><h4 className="text-xs font-black text-black mb-2">Leading questionnaire domains</h4><div className="flex flex-wrap gap-2">{selectedReport.clinical_assessment?.leading_domains?.map((domain: any) => <span key={domain.domain} className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-xs font-bold text-slate-700">{domain.domain}: {domain.score}/6</span>) || <span className="text-xs text-slate-500">No questionnaire domains recorded.</span>}</div></div>
               </div>
             )}
           </section>
@@ -442,6 +655,17 @@ export const AdminPanel: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Detailed Analysis Report with Graphs Modal */}
+      {isModalOpen && selectedReport && (
+        <ReportDetailModal
+          report={selectedReport}
+          onClose={() => {
+            setIsModalOpen(false);
+            setSelectedReport(null);
+          }}
+        />
       )}
     </div>
   );

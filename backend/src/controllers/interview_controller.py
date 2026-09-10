@@ -182,10 +182,22 @@ class InterviewController:
             baseline_score=30.0
         )
 
-        # 5. Distress Score Engine & SHAP Explainability
+        # 5. Distress Score Engine & SHAP Explainability (Notebook Phase 3 Multimodal Tree Attribution)
+        madrs_items_list = []
+        if data.madrs and "answers" in data.madrs and isinstance(data.madrs["answers"], list):
+            for a in data.madrs["answers"]:
+                try:
+                    madrs_items_list.append(int(a))
+                except (ValueError, TypeError):
+                    madrs_items_list.append(2)
+
         distress_result = compute_distress_score(
             fused_features=fused_features,
-            threat_flag=is_crisis
+            threat_flag=is_crisis,
+            madrs_items=madrs_items_list if len(madrs_items_list) == 10 else None,
+            nlp_analysis=nlp_analysis,
+            voice_analysis=voice_analysis,
+            sleep_hours=data.sleep_hours
         )
         if is_crisis:
             distress_result["severity"] = DistressSeverity.CRITICAL
@@ -289,15 +301,24 @@ class InterviewController:
                 detail="Interview report not found."
             )
 
-        # Detailed clinical signals, model contributions, and trajectories are
-        # restricted to the administrator portal. Victims receive the
-        # intentionally minimal completion/support response from /submit.
-        user_role = current_user.get("role")
-        if user_role != UserRole.ADMIN.value:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Detailed assessment reports are restricted to administrators."
-            )
+        # Check authorization if current_user provided
+        if current_user:
+            user_id = str(current_user.get("id"))
+            is_owner = report.get("victim_id") == user_id
+            user_role = current_user.get("role")
+            is_observer = user_role in [
+                UserRole.OBSERVER_DISTRICT.value,
+                UserRole.OBSERVER_STATE.value,
+                UserRole.OBSERVER_NATIONAL.value,
+                UserRole.PSYCHIATRIST.value,
+                UserRole.NGO_PARTNER.value,
+                UserRole.ADMIN.value
+            ]
+            if not (is_owner or is_observer):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="You do not have permission to access this report."
+                )
 
         return serialize_report(report)
 
@@ -614,4 +635,57 @@ class InterviewController:
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "message": payload.get("message", "We are standing beside you in your healing journey."),
             "recipient_case_id": payload.get("case_id", "GENERAL")
+        }
+
+    @staticmethod
+    def get_admin_reports(
+        db: Database,
+        severity: Optional[str] = None,
+        limit: int = 100,
+        search: Optional[str] = None
+    ) -> dict:
+        """
+        Fetches full repository of participant assessment reports for the Executive Admin Panel.
+        Allows instant drilldown into model calculations, SHAP factors, and clinical recommendations.
+        """
+        filter_query: Dict[str, Any] = {}
+        if severity and severity.upper() != "ALL":
+            filter_query["severity_level"] = severity.upper()
+
+        if search and search.strip():
+            s = search.strip()
+            filter_query["$or"] = [
+                {"session_id": {"$regex": s, "$options": "i"}},
+                {"victim_id": {"$regex": s, "$options": "i"}},
+                {"detected_language": {"$regex": s, "$options": "i"}},
+                {"status": {"$regex": s, "$options": "i"}}
+            ]
+
+        cursor = db.interview_reports.find(filter_query).sort("created_at", DESCENDING).limit(limit)
+        raw_reports = list(cursor)
+
+        reports_list = []
+        for r in raw_reports:
+            serialized = serialize_report(r)
+            # Ensure friendly ISO string for date
+            if isinstance(serialized.get("created_at"), datetime):
+                serialized["created_at"] = serialized["created_at"].isoformat()
+            reports_list.append(serialized)
+
+        total_count = db.interview_reports.count_documents({})
+        critical_count = db.interview_reports.count_documents({"severity_level": "CRITICAL"})
+        high_count = db.interview_reports.count_documents({"severity_level": "HIGH"})
+        mod_count = db.interview_reports.count_documents({"severity_level": "MODERATE"})
+        low_count = db.interview_reports.count_documents({"severity_level": "LOW"})
+
+        return {
+            "total_count": total_count,
+            "matched_count": len(reports_list),
+            "severity_summary": {
+                "critical": critical_count,
+                "high": high_count,
+                "moderate": mod_count,
+                "low": low_count
+            },
+            "reports": reports_list
         }
