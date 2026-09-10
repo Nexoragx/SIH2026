@@ -28,6 +28,7 @@ import { NgoPortal } from './components/portals/NgoPortal';
 import { PersonalizedActivities } from './components/victim/PersonalizedActivities';
 import { AdminPanel } from './components/admin/AdminPanel';
 import { UssdSimulatorModal } from './components/victim/UssdSimulatorModal';
+import { CalmingReportModal } from './components/victim/CalmingReportModal';
 
 export const App: React.FC = () => {
   // Global State (Persistent Language throughout website)
@@ -48,6 +49,7 @@ export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'victim' | 'observer' | 'psychiatrist' | 'ngo' | 'analytics' | 'resources' | 'admin'>('victim');
   const [voiceGuidance, setVoiceGuidance] = useState<boolean>(false);
   const [isCrisisOpen, setIsCrisisOpen] = useState<boolean>(false);
+  const [isCalmingReportOpen, setIsCalmingReportOpen] = useState<boolean>(false);
   const [isVoiceModalOpen, setIsVoiceModalOpen] = useState<boolean>(false);
   const [isChatbotOpen, setIsChatbotOpen] = useState<boolean>(false);
   const [isObserverChatOpen, setIsObserverChatOpen] = useState<boolean>(false);
@@ -393,6 +395,8 @@ export const App: React.FC = () => {
       setResultData(backendResult);
       if (backendRes.ambulance_108_dispatched) {
         setIsCrisisOpen(true);
+      } else {
+        setIsCalmingReportOpen(true);
       }
     } catch (err) {
       console.warn('Backend unavailable, using local clinical assessment heuristics:', err);
@@ -467,6 +471,11 @@ export const App: React.FC = () => {
       };
 
       setResultData(computedResult);
+      if (hasCrisisFlag) {
+        setIsCrisisOpen(true);
+      } else {
+        setIsCalmingReportOpen(true);
+      }
     } finally {
       setIsSubmittingAssessment(false);
       setVictimStep('result');
@@ -686,6 +695,7 @@ export const App: React.FC = () => {
                     onOpenObserverChat={() => setIsObserverChatOpen(true)}
                     onViewSupport={() => setActiveTab('resources')}
                     onDone={() => setVictimStep('dashboard')}
+                    onOpenCalmingReport={() => setIsCalmingReportOpen(true)}
                   />
                 )}
               </div>
@@ -821,6 +831,16 @@ export const App: React.FC = () => {
         onClose={() => setIsCourtReportOpen(false)}
         resultData={resultData}
         userProfile={userProfile}
+      />
+
+      {/* Calming Colorful Report Popup Box for Citizen / Survivor */}
+      <CalmingReportModal
+        isOpen={isCalmingReportOpen}
+        onClose={() => setIsCalmingReportOpen(false)}
+        riskLevel={resultData.riskLevel}
+        recommendedCheckinDays={resultData.recommendedCheckinDays}
+        onOpenChatbot={() => setIsChatbotOpen(true)}
+        onOpenSupport={() => setActiveTab('resources')}
       />
 
       {/* Therapeutic & Grounding Activities Modal */}

@@ -8,7 +8,8 @@ import {
   CheckCircle2,
   Wind,
   ShieldCheck,
-  Bot
+  Bot,
+  Sparkles
 } from 'lucide-react';
 import { AssessmentResultData, UserProfile } from '../../types';
 
@@ -22,6 +23,7 @@ interface AssessmentResultProps {
   onOpenObserverChat: () => void;
   onViewSupport?: () => void;
   onDone?: () => void;
+  onOpenCalmingReport?: () => void;
 }
 
 export const AssessmentResult: React.FC<AssessmentResultProps> = ({
@@ -30,6 +32,7 @@ export const AssessmentResult: React.FC<AssessmentResultProps> = ({
   onOpenObserverChat,
   onViewSupport,
   onDone,
+  onOpenCalmingReport,
 }) => {
   const [activeExercise, setActiveExercise] = useState<boolean>(false);
   const [exerciseCount, setExerciseCount] = useState<number>(4);
@@ -65,6 +68,18 @@ export const AssessmentResult: React.FC<AssessmentResultProps> = ({
             Taking time to listen to your mind and body is an act of strength. You don't have to handle everything alone, and compassionate assistance is available whenever you are ready.
           </p>
         </div>
+
+        {onOpenCalmingReport && (
+          <button
+            type="button"
+            onClick={onOpenCalmingReport}
+            className="w-full py-3.5 px-5 rounded-2xl bg-gradient-to-r from-emerald-50 via-teal-50 to-indigo-50 hover:from-emerald-100 hover:to-indigo-100 border border-emerald-200/80 text-emerald-950 font-black text-xs sm:text-sm transition flex items-center justify-center gap-2.5 cursor-pointer shadow-xs"
+          >
+            <Sparkles className="w-4 h-4 text-emerald-600" />
+            <span>View Personalized Wellbeing Care Reflection</span>
+            <ArrowRight className="w-4 h-4 text-emerald-700 ml-1" />
+          </button>
+        )}
 
         {/* Action Buttons: Talk to someone, View support, Done */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
