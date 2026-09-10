@@ -166,8 +166,6 @@ export const Navbar: React.FC<NavbarProps> = ({
     if (isPsychiatrist) {
       return [
         { id: 'psychiatrist' as NavTab, label: 'Telepsychiatry Workstation', icon: Activity, highlight: true },
-        { id: 'observer' as NavTab, label: 'Clinical Caseload', icon: Shield },
-        { id: 'resources' as NavTab, label: 'Helplines', icon: Globe },
       ];
     }
     if (isNgo) {
@@ -232,13 +230,19 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
                 <span>MoSJE • GOVT OF INDIA</span>
               </div>
-              <a
-                href="tel:14566"
-                className="flex items-center gap-1 text-emerald-400 font-black text-[10px] bg-emerald-950/80 px-2.5 py-0.5 rounded-full border border-emerald-500/40"
-              >
-                <PhoneCall className="w-2.5 h-2.5 text-emerald-400" />
-                <span>14566 (24x7)</span>
-              </a>
+              {!isPsychiatrist ? (
+                <a
+                  href="tel:14566"
+                  className="flex items-center gap-1 text-emerald-400 font-black text-[10px] bg-emerald-950/80 px-2.5 py-0.5 rounded-full border border-emerald-500/40"
+                >
+                  <PhoneCall className="w-2.5 h-2.5 text-emerald-400" />
+                  <span>14566 (24x7)</span>
+                </a>
+              ) : (
+                <span className="text-emerald-400 font-bold text-[10px] bg-emerald-950/80 px-2 py-0.5 rounded-full border border-emerald-500/40">
+                  🩺 Doctor Active
+                </span>
+              )}
             </div>
 
             {/* Desktop & Tablet view: rich metadata bar */}
@@ -290,8 +294,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <span>{isOnline ? 'FastAPI' : 'Local'}</span>
                 </div>
 
-                {/* 2G USSD Feature-Phone Launcher */}
-                {onOpenUssdSimulator && (
+                {/* 2G USSD Feature-Phone Launcher (for victims) */}
+                {!isPsychiatrist && onOpenUssdSimulator && (
                   <button
                     type="button"
                     onClick={onOpenUssdSimulator}
@@ -303,14 +307,21 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </button>
                 )}
 
-                {/* 24x7 Helpline */}
-                <a
-                  href="tel:14566"
-                  className="flex items-center gap-1 text-emerald-400 hover:text-emerald-300 transition font-bold text-[10px] sm:text-[11px] bg-emerald-950/80 px-2 sm:px-2.5 py-0.5 rounded-full border border-emerald-500/40 shadow-xs"
-                >
-                  <PhoneCall className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
-                  <span>14566 (24x7)</span>
-                </a>
+                {/* 24x7 Helpline (for victims) / Doctor Duty indicator */}
+                {!isPsychiatrist ? (
+                  <a
+                    href="tel:14566"
+                    className="flex items-center gap-1 text-emerald-400 hover:text-emerald-300 transition font-bold text-[10px] sm:text-[11px] bg-emerald-950/80 px-2 sm:px-2.5 py-0.5 rounded-full border border-emerald-500/40 shadow-xs"
+                  >
+                    <PhoneCall className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                    <span>14566 (24x7)</span>
+                  </a>
+                ) : (
+                  <div className="flex items-center gap-1.5 bg-emerald-950/80 text-emerald-300 px-2.5 py-0.5 rounded-full border border-emerald-500/40 text-[10px] font-bold shadow-xs">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span>MCI Tele-MANAS Duty</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -658,17 +669,19 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </div>
               )}
 
-              {/* Glowing SOS Button (Always visible on all screens: mobile, tablet, desktop) */}
-              <button
-                onClick={onTriggerCrisis}
-                className="group relative flex items-center justify-center gap-1.5 bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 active:scale-95 text-white px-3 sm:px-3.5 py-2 rounded-xl text-xs font-black shadow-md shadow-rose-500/25 transition-all border border-rose-400/40 min-h-[42px] cursor-pointer"
-                title="Immediate Crisis Intervention & Emergency Calling"
-              >
-                <span className="w-2 h-2 rounded-full bg-white animate-ping"></span>
-                <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
-                <span className="hidden sm:inline font-black">SOS Help</span>
-                <span className="sm:hidden font-black">SOS</span>
-              </button>
+              {/* Glowing SOS Button (Visible for victims and general visitors, hidden for psychiatrists) */}
+              {!isPsychiatrist && (
+                <button
+                  onClick={onTriggerCrisis}
+                  className="group relative flex items-center justify-center gap-1.5 bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 active:scale-95 text-white px-3 sm:px-3.5 py-2 rounded-xl text-xs font-black shadow-md shadow-rose-500/25 transition-all border border-rose-400/40 min-h-[42px] cursor-pointer"
+                  title="Immediate Crisis Intervention & Emergency Calling"
+                >
+                  <span className="w-2 h-2 rounded-full bg-white animate-ping"></span>
+                  <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span className="hidden sm:inline font-black">SOS Help</span>
+                  <span className="sm:hidden font-black">SOS</span>
+                </button>
+              )}
 
               {/* Mobile/Tablet Hamburger Toggle Button */}
               <button
@@ -890,45 +903,47 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </div>
                 )}
 
-                {/* 4. Rural & Emergency Safety Net Links */}
-                <div className="space-y-1.5">
-                  <div className="text-[10px] font-black uppercase tracking-wider text-slate-500">
-                    Emergency & Telecom
-                  </div>
+                {/* 4. Rural & Emergency Safety Net Links (for victims only) */}
+                {!isPsychiatrist && (
                   <div className="space-y-1.5">
-                    {onOpenUssdSimulator && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsMobileMenuOpen(false);
-                          onOpenUssdSimulator();
-                        }}
-                        className="w-full p-3 rounded-xl bg-slate-900 hover:bg-black text-white flex items-center justify-between text-xs font-extrabold shadow-sm transition cursor-pointer min-h-[48px]"
+                    <div className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+                      Emergency & Telecom
+                    </div>
+                    <div className="space-y-1.5">
+                      {onOpenUssdSimulator && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsMobileMenuOpen(false);
+                            onOpenUssdSimulator();
+                          }}
+                          className="w-full p-3 rounded-xl bg-slate-900 hover:bg-black text-white flex items-center justify-between text-xs font-extrabold shadow-sm transition cursor-pointer min-h-[48px]"
+                        >
+                          <div className="flex items-center gap-2">
+                            <Radio className="w-4 h-4 text-emerald-400" />
+                            <span>*14566# Rural 2G USSD</span>
+                          </div>
+                          <span className="text-[10px] text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-500/40">
+                            Offline Mode
+                          </span>
+                        </button>
+                      )}
+
+                      <a
+                        href="tel:14566"
+                        className="w-full p-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-950 border border-emerald-200 flex items-center justify-between text-xs font-extrabold shadow-2xs transition min-h-[48px]"
                       >
                         <div className="flex items-center gap-2">
-                          <Radio className="w-4 h-4 text-emerald-400" />
-                          <span>*14566# Rural 2G USSD</span>
+                          <PhoneCall className="w-4 h-4 text-emerald-600" />
+                          <span>24x7 MoSJE Helpline: 14566</span>
                         </div>
-                        <span className="text-[10px] text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-500/40">
-                          Offline Mode
+                        <span className="text-[10px] text-emerald-700 font-black">
+                          Toll-Free
                         </span>
-                      </button>
-                    )}
-
-                    <a
-                      href="tel:14566"
-                      className="w-full p-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-950 border border-emerald-200 flex items-center justify-between text-xs font-extrabold shadow-2xs transition min-h-[48px]"
-                    >
-                      <div className="flex items-center gap-2">
-                        <PhoneCall className="w-4 h-4 text-emerald-600" />
-                        <span>24x7 MoSJE Helpline: 14566</span>
-                      </div>
-                      <span className="text-[10px] text-emerald-700 font-black">
-                        Toll-Free
-                      </span>
-                    </a>
+                      </a>
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* 5. Accessibility Settings */}
                 <div className="space-y-2 p-3 bg-slate-50 rounded-2xl border border-slate-200/80">

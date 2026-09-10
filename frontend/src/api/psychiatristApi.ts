@@ -122,4 +122,50 @@ export const psychiatristApi = {
       }),
     });
   },
+
+  async getCaseload(params?: {
+    severity?: string;
+    district?: string;
+    limit?: number;
+  }): Promise<ClinicalCaseloadCase[]> {
+    const q = new URLSearchParams();
+    if (params?.severity && params.severity !== 'ALL') q.append('severity', params.severity);
+    if (params?.district && params.district !== 'ALL') q.append('district', params.district);
+    if (params?.limit) q.append('limit', String(params.limit));
+    const qs = q.toString();
+    const url = '/psychiatrist/caseload' + (qs ? '?' + qs : '');
+    return apiRequest<ClinicalCaseloadCase[]>(url);
+  },
+
+  async saveCaseloadNotes(
+    caseId: string,
+    data: { clinical_notes?: string; scheduled_slot?: string; status?: string }
+  ): Promise<{ success: boolean; message: string }> {
+    return apiRequest('/psychiatrist/caseload/' + caseId + '/notes', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
 };
+
+export interface ClinicalCaseloadCase {
+  id: string;
+  session_id: string;
+  pseudonym: string;
+  age: number;
+  district: string;
+  state?: string;
+  distressScore: number;
+  riskLevel: 'low' | 'moderate' | 'high' | 'critical';
+  severity_level: 'LOW' | 'MODERATE' | 'HIGH' | 'CRITICAL';
+  madrsScore: number;
+  dsm5Probable: boolean;
+  referredBy: string;
+  referredDate: string;
+  slotScheduled?: string;
+  status: 'pending_review' | 'session_scheduled' | 'consultation_completed';
+  shapSummary: string;
+  clinicalNotes?: string;
+  detectedLanguage?: string;
+  touchpoint?: string;
+}

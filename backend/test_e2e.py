@@ -265,10 +265,32 @@ def run_tests():
     assert action_res.status_code == 200
     assert action_res.json()["request"]["status"] == "accepted"
     assert "telepsychiatry" in action_res.json()["request"]["session_link"]
-    print(f"✅ 16c. Psychiatrist accepted 1-on-1 session: Room {action_res.json()['request']['session_link']}")
+    # Test 17: Fetch clinical caseload from database
+    caseload_res = client.get("/api/v1/psychiatrist/caseload", headers={
+        "Authorization": f"Bearer {doc_token}"
+    })
+    assert caseload_res.status_code == 200
+    cases_list = caseload_res.json()
+    assert isinstance(cases_list, list)
+    assert len(cases_list) >= 1
+    target_case = cases_list[0]
+    assert "distressScore" in target_case
+    assert "pseudonym" in target_case
+    assert "madrsScore" in target_case
+    print(f"✅ 17a. Psychiatrist Caseload fetched from DB: {len(cases_list)} real assessment reports found")
 
-    print("\n🎉 ALL 17 INTEGRATION TESTS PASSED SUCCESSFULLY! 🎉")
+    # Update clinical notes for first case
+    case_note_res = client.post(f"/api/v1/psychiatrist/caseload/{target_case['id']}/notes", json={
+        "clinical_notes": "Prescribed grounding exercises and somatic breathing.",
+        "scheduled_slot": "12 Sep 2026, 04:30 PM"
+    }, headers={"Authorization": f"Bearer {doc_token}"})
+    assert case_note_res.status_code == 200
+    assert case_note_res.json()["success"] is True
+    print(f"✅ 17b. Caseload clinical notes and slot updated in database for Case #{target_case['id']}")
+
+    print("\n🎉 ALL 18 INTEGRATION TESTS PASSED SUCCESSFULLY! 🎉")
 
 if __name__ == "__main__":
     run_tests()
+
 

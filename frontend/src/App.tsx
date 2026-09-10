@@ -814,8 +814,8 @@ export const App: React.FC = () => {
         )}
       </main>
 
-      {/* Floating Action Buttons: AI Saathi & 1:1 Observer Chat (Only for authenticated users) */}
-      {currentUser && (
+      {/* Floating Action Buttons: AI Saathi & 1:1 Observer Chat (Only for authenticated victims / citizens) */}
+      {currentUser && (currentUser.role === 'victim' || currentUser.role === 'citizen') && (
         <div className="fixed bottom-5 right-5 z-40 flex flex-col gap-2.5">
           {/* 1:1 Observer & Doctor Directory Floating Button */}
           <button

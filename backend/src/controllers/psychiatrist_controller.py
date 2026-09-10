@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 from fastapi import HTTPException, status
 from pymongo.database import Database
 from pymongo import DESCENDING
+from bson import ObjectId
 
 
 class ConnectRequestSchema(BaseModel):
@@ -27,6 +28,12 @@ class NotificationActionSchema(BaseModel):
     clinical_notes: Optional[str] = None
 
 
+class CaseloadNoteSchema(BaseModel):
+    clinical_notes: Optional[str] = None
+    scheduled_slot: Optional[str] = None
+    status: Optional[str] = None
+
+
 class PsychiatristController:
 
     @staticmethod
@@ -34,7 +41,7 @@ class PsychiatristController:
         """Retrieve list of registered verified Tele-MANAS Psychiatrists for the patient directory."""
         query = {}
         if district and district.upper() != "ALL":
-            query["district"] = {"": f"^{district}$", "off on off off off off off off off off on off on off off off off off on off off off on on off off off off on off off off off off off off off off off off off on off off off off off off off on off on on off off off on off off on off off on off off on off on off off on off on off off off off on off off off on off off on off off off off off off off off on off on off off on off off off off off off off off off off off off on off off off on off on off on on off off off off on on off off on on off on off on on off off off off on on off off on off off off off off on off off on off off on off off off off off off on off off off off on on off on off off off off off on off on off off off off off off off off off off on on off on off off off": "i"}
+            query["district"] = {"$regex": f"^{district}$", "$options": "i"}
 
         doctors = list(db.psychiatrists.find(query, {"_id": 0}).sort("rating", DESCENDING))
         if not doctors:
@@ -189,3 +196,87 @@ class PsychiatristController:
             "message": f"Request {request_id} has been marked as {updates.get('status')}.",
             "request": updated_req
         }
+
+    @staticmethod
+    def get_caseload(
+        db: Database,
+        severity: Optional[str] = None,
+        district: Optional[str] = None,
+        limit: int = 50
+    ) -> List[dict]:
+        """
+        Fetches user assessment reports from MongoDB (db.interview_reports)
+        for the psychiatrist clinical caseload and workstation review.
+        """
+        query = {}
+        if severity and severity.upper() != "ALL":
+            query["severity_level"] = severity.upper()
+        if district and district.upper() != "ALL":
+            query["district"] = {"$regex": f"^{district}$", "$options": "i"}
+
+        cursor = db.interview_reports.find(query).sort("created_at", DESCENDING).limit(limit)
+        reports = list(cursor)
+
+        formatted_cases = []
+        for r in reports:
+            rep_id = str(r.get("_id", uuid.uuid4().hex[:8]))
+            ca = r.get("clinical_assessment") or {}
+            shap_list = ca.get("shap_explanations") or []
+            shap_summary = ", ".join(
+                [f"{s.get('feature', '')} ({s.get('importance', 0):.0f}%)" for s in shap_list[:3]]
+            ) or ca.get("primary_driver") or "Multimodal psychological distress factors assessed."
+
+            created_date = r.get("created_at")
+            if isinstance(created_date, datetime):
+                created_str = created_date.strftime("%d %b %Y")
+            elif isinstance(created_date, str):
+                created_str = created_date[:10]
+            else:
+                created_str = "Recent"
+
+            formatted_cases.append({
+                "id": rep_id,
+                "session_id": r.get("session_id", f"SESS-{rep_id[:6]}"),
+                "pseudonym": f"Survivor #{rep_id[-4:].upper()}",
+                "age": r.get("age") or 28,
+                "district": r.get("district") or "Nashik",
+                "state": r.get("state") or "Maharashtra",
+                "distressScore": float(r.get("distress_score") or 0.0),
+                "riskLevel": (r.get("severity_level") or "LOW").lower(),
+                "severity_level": (r.get("severity_level") or "LOW").upper(),
+                "madrsScore": int(ca.get("madrs_total") or 0),
+                "dsm5Probable": bool(ca.get("dsm5_probable_depression", False)),
+                "referredBy": r.get("referred_by") or "Automated Multimodal Triage",
+                "referredDate": created_str,
+                "slotScheduled": r.get("slot_scheduled") or r.get("scheduled_slot"),
+                "status": r.get("status") or "pending_review",
+                "shapSummary": shap_summary,
+                "clinicalNotes": r.get("clinical_notes") or ca.get("clinical_summary"),
+                "detectedLanguage": r.get("detected_language") or "en",
+                "touchpoint": r.get("touchpoint_type") or "web"
+            })
+
+        return formatted_cases
+
+    @staticmethod
+    def update_caseload_case(
+        case_id: str,
+        data: CaseloadNoteSchema,
+        db: Database
+    ) -> dict:
+        """Updates clinical observations or confirmed schedule slots in MongoDB."""
+        query = {"_id": ObjectId(case_id)} if ObjectId.is_valid(case_id) else {"session_id": case_id}
+        update_fields = {}
+        if data.clinical_notes is not None:
+            update_fields["clinical_notes"] = data.clinical_notes
+        if data.scheduled_slot is not None:
+            update_fields["slot_scheduled"] = data.scheduled_slot
+            update_fields["status"] = "session_scheduled"
+        if data.status is not None:
+            update_fields["status"] = data.status
+
+        if update_fields:
+            update_fields["updated_at"] = datetime.now(timezone.utc).isoformat()
+            db.interview_reports.update_one(query, {"$set": update_fields})
+
+        return {"success": True, "message": "Clinical case notes updated successfully in database."}

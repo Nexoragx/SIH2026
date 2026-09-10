@@ -7,7 +7,8 @@ from src.middlewares.auth_middleware import get_optional_current_user
 from src.controllers.psychiatrist_controller import (
     PsychiatristController,
     ConnectRequestSchema,
-    NotificationActionSchema
+    NotificationActionSchema,
+    CaseloadNoteSchema
 )
 
 router = APIRouter(prefix="/psychiatrist", tags=["Telepsychiatry & Doctor Directory"])
@@ -82,3 +83,39 @@ def action_psychiatrist_notification(
         current_user=current_user,
         db=db
     )
+
+
+@router.get("/caseload", summary="Fetch Psychiatrist Clinical Caseload Reports from DB")
+def get_psychiatrist_caseload(
+    severity: Optional[str] = Query(None, description="Filter by severity level (CRITICAL, HIGH, etc.)"),
+    district: Optional[str] = Query(None, description="Filter by district"),
+    limit: int = Query(50, description="Max reports to fetch"),
+    db: Database = Depends(get_db)
+):
+    """
+    Returns user assessment reports directly from MongoDB (db.interview_reports)
+    for the clinical caseload workstation.
+    """
+    return PsychiatristController.get_caseload(
+        db=db,
+        severity=severity,
+        district=district,
+        limit=limit
+    )
+
+
+@router.post("/caseload/{case_id}/notes", summary="Save Clinical Notes or Slot for Caseload Report")
+def update_caseload_notes(
+    case_id: str = Path(..., description="Report Object ID or Session ID"),
+    data: CaseloadNoteSchema = ...,
+    db: Database = Depends(get_db)
+):
+    """
+    Updates clinical observation notes or scheduled slot directly in MongoDB (db.interview_reports).
+    """
+    return PsychiatristController.update_caseload_case(
+        case_id=case_id,
+        data=data,
+        db=db
+    )
+
