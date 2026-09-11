@@ -21,11 +21,18 @@ export interface AssessmentSubmissionPayload {
   context_score?: number;
   district?: string;
   state?: string;
+  patient_name?: string;
+  victim_name?: string;
+  victim_id?: string;
+  user_id?: string;
 }
 
 export interface AssessmentBackendResponse {
   id: string;
   session_id: string;
+  patient_name?: string;
+  victim_name?: string;
+  victim_id?: string;
   distress_score: number;
   severity_level: 'LOW' | 'MODERATE' | 'HIGH' | 'CRITICAL';
   alert_triggered: boolean;

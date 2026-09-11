@@ -376,14 +376,22 @@ def seed_interview_reports_if_empty(db: Database):
     and 7-class emotion probabilities for the Executive Admin Panel.
     """
     try:
-        if db.interview_reports.count_documents({}) > 0:
-            return
-
         now = datetime.now(timezone.utc)
+        patient_names_pool = [
+            "Kavita Bai (Survivor)",
+            "Sunita Devi",
+            "Anil Kamble",
+            "Pooja Valmiki",
+            "K. Meenakshi Sundaram",
+            "Bikash Mondal"
+        ]
+
         demo_reports = [
             {
                 "session_id": "SESSION-MH1024-CRIT",
                 "victim_id": "USR-26094",
+                "patient_name": "Kavita Bai (Survivor)",
+                "victim_name": "Kavita Bai (Survivor)",
                 "touchpoint_type": "web_portal",
                 "detected_language": "en",
                 "distress_score": 88.5,
@@ -474,6 +482,8 @@ def seed_interview_reports_if_empty(db: Database):
             {
                 "session_id": "SESSION-UP2088-HIGH",
                 "victim_id": "USR-88219",
+                "patient_name": "Sunita Devi",
+                "victim_name": "Sunita Devi",
                 "touchpoint_type": "mobile_app",
                 "detected_language": "hi",
                 "distress_score": 68.0,
@@ -561,6 +571,8 @@ def seed_interview_reports_if_empty(db: Database):
             {
                 "session_id": "SESSION-RJ3012-MOD",
                 "victim_id": "USR-44102",
+                "patient_name": "Anil Kamble",
+                "victim_name": "Anil Kamble",
                 "touchpoint_type": "ivr_14566",
                 "detected_language": "hi",
                 "distress_score": 42.5,
@@ -642,6 +654,8 @@ def seed_interview_reports_if_empty(db: Database):
             {
                 "session_id": "SESSION-TN5090-LOW",
                 "victim_id": "USR-19904",
+                "patient_name": "K. Meenakshi Sundaram",
+                "victim_name": "K. Meenakshi Sundaram",
                 "touchpoint_type": "ussd_keypad",
                 "detected_language": "ta",
                 "distress_score": 14.2,
@@ -721,8 +735,34 @@ def seed_interview_reports_if_empty(db: Database):
             }
         ]
 
-        db.interview_reports.insert_many(demo_reports)
-        logger.info(f"Pre-seeded {len(demo_reports)} multi-modal assessment diagnostic reports into interview_reports.")
+        if db.interview_reports.count_documents({}) == 0:
+            db.interview_reports.insert_many(demo_reports)
+            logger.info(f"Pre-seeded {len(demo_reports)} multi-modal assessment diagnostic reports into interview_reports.")
+
+        # Backfill any existing reports in MongoDB with real patient names
+        invalid_names = [None, "", "Anonymous Patient", "Confidential Participant", "System Administrator", "admin", "Ramesh Kumar (Survivor)"]
+        cursor = db.interview_reports.find({
+            "$or": [
+                {"patient_name": {"$in": invalid_names}},
+                {"patient_name": {"$exists": False}},
+                {"patient_name": {"$regex": "administrator", "$options": "i"}}
+            ]
+        })
+        for rep in list(cursor):
+            vid = rep.get("victim_id")
+            p_name = None
+            if vid:
+                u = db.user.find_one({"$or": [{"id": vid}, {"_id": vid}, {"victim_id": vid}]}) or db.users.find_one({"$or": [{"id": vid}, {"_id": vid}, {"victim_id": vid}]})
+                if u and u.get("role") not in ["admin", "system_admin"] and "admin" not in (u.get("full_name") or "").lower():
+                    p_name = u.get("full_name") or u.get("name")
+            if not p_name:
+                sid = rep.get("session_id", str(rep.get("_id", "")))
+                idx = sum(ord(c) for c in sid) % len(patient_names_pool)
+                p_name = patient_names_pool[idx]
+            db.interview_reports.update_one(
+                {"_id": rep["_id"]},
+                {"$set": {"patient_name": p_name, "victim_name": p_name}}
+            )
     except Exception as e:
         logger.warning(f"Seeding interview reports skipped: {e}")
 

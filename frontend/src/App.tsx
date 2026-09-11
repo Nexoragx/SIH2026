@@ -399,6 +399,9 @@ export const App: React.FC = () => {
     const madrsAnswers = madrsResponses;
     const safetyFollowup = responses.find((response) => response.questionId === 11);
     const livingSafetyFollowup = responses.find((response) => response.questionId === 12);
+    const activePatientName = (currentUser?.full_name || currentUser?.name || userProfile?.name || 'Citizen Survivor').trim();
+    const activePatientId = currentUser?.id || userProfile?.id || 'USR-26094';
+
     const payload = {
       touchpoint_type: (touchpointType || 'web_portal') as any,
       language: currentLang,
@@ -418,6 +421,10 @@ export const App: React.FC = () => {
       context_score: userProfile.caseCategory === 'caste_violence' || userProfile.caseCategory === 'sexual_violence' ? 30.0 : 20.0,
       district: userProfile.district,
       state: userProfile.state,
+      patient_name: activePatientName,
+      victim_name: activePatientName,
+      victim_id: activePatientId,
+      user_id: activePatientId,
     };
 
     try {
@@ -429,6 +436,14 @@ export const App: React.FC = () => {
       }
 
       setBackendOnline(true);
+      if (backendRes?.session_id) {
+        try {
+          const sMap = JSON.parse(localStorage.getItem('anvaya_session_user_map') || '{}');
+          sMap[backendRes.session_id] = activePatientName;
+          localStorage.setItem('anvaya_session_user_map', JSON.stringify(sMap));
+          localStorage.setItem('anvaya_last_user_name', activePatientName);
+        } catch {}
+      }
 
       const sevMap: Record<string, RiskLevel> = {
         CRITICAL: 'critical',

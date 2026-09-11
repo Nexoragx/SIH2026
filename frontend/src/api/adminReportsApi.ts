@@ -5,6 +5,8 @@ export interface AdminReportSummary {
   id: string;
   session_id: string;
   victim_id?: string;
+  patient_name?: string;
+  victim_name?: string;
   distress_score: number;
   severity_level: 'LOW' | 'MODERATE' | 'HIGH' | 'CRITICAL';
   status: string;
