@@ -98,7 +98,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         setIsNotificationsOpen(false);
       }
     };
-    const handleClickOutside = (e: MouseEvent) => {
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
       if (accessibilityRef.current && !accessibilityRef.current.contains(e.target as Node)) {
         setIsAccessibilityOpen(false);
       }
@@ -108,9 +108,11 @@ export const Navbar: React.FC<NavbarProps> = ({
     };
     window.addEventListener('keydown', handleKeyDown);
     document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
     };
   }, []);
 
@@ -150,6 +152,19 @@ export const Navbar: React.FC<NavbarProps> = ({
       );
       setUnreadCount((prev) => Math.max(0, prev - 1));
       await supportApi.markNotificationRead(notifId);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleMarkAllRead = async () => {
+    try {
+      const unread = notifications.filter((n) => !n.is_read);
+      setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+      setUnreadCount(0);
+      await Promise.all(
+        unread.map((n) => supportApi.markNotificationRead(n.id).catch(() => {}))
+      );
     } catch (e) {
       console.error(e);
     }
@@ -394,7 +409,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span>Download App</span>
               </button>
 
-              {/* Notification Bell with Badge & Popover (Desktop) */}
+              {/* Notification Bell with Badge & Responsive Popover */}
               <div className="relative" ref={notificationRef}>
                 <button
                   type="button"
@@ -415,32 +430,54 @@ export const Navbar: React.FC<NavbarProps> = ({
                   )}
                 </button>
 
-                {/* Notifications Dropdown Panel */}
+                {/* Mobile Backdrop Overlay */}
                 {isNotificationsOpen && (
-                  <div className="absolute right-0 mt-2 w-80 sm:w-96 p-0 rounded-2xl bg-white border border-slate-200 shadow-2xl z-50 animate-fadeIn overflow-hidden">
-                    <div className="p-3.5 bg-gradient-to-r from-indigo-50 via-purple-50 to-rose-50 border-b border-indigo-100/60 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-xs">
-                          <Bell className="w-3.5 h-3.5" />
+                  <div
+                    className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-[9998] sm:hidden"
+                    onClick={() => setIsNotificationsOpen(false)}
+                    aria-hidden="true"
+                  />
+                )}
+
+                {/* Notifications Dropdown Panel (Responsive on Mobile & Desktop) */}
+                {isNotificationsOpen && (
+                  <div className="fixed inset-x-3 top-16 sm:absolute sm:top-full sm:right-0 sm:left-auto sm:inset-x-auto sm:mt-2 sm:w-96 p-0 rounded-3xl bg-white border border-slate-200 shadow-2xl z-[9999] animate-fadeIn overflow-hidden flex flex-col max-h-[82vh] sm:max-h-[500px]">
+                    <div className="p-3.5 sm:p-4 bg-gradient-to-r from-indigo-50 via-purple-50 to-rose-50 border-b border-indigo-100/60 flex items-center justify-between flex-shrink-0">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-xs flex-shrink-0">
+                          <Bell className="w-4 h-4" />
                         </div>
                         <div>
-                          <h4 className="text-xs font-black text-slate-900">Notifications & Daily Quotes</h4>
+                          <h4 className="text-xs sm:text-sm font-black text-slate-900 leading-tight">Notifications & Daily Quotes</h4>
                           <p className="text-[10px] text-slate-500 font-semibold">{unreadCount} unread updates</p>
                         </div>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => setIsNotificationsOpen(false)}
-                        className="text-slate-400 hover:text-slate-700 text-xs font-bold p-1 rounded-md"
-                      >
-                        ✕
-                      </button>
+                      <div className="flex items-center gap-1.5">
+                        {unreadCount > 0 && (
+                          <button
+                            type="button"
+                            onClick={handleMarkAllRead}
+                            className="text-[10px] font-bold text-indigo-700 hover:text-indigo-900 bg-white/90 hover:bg-white px-2 py-1 rounded-lg border border-indigo-200 transition cursor-pointer shadow-2xs"
+                          >
+                            Mark all read
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setIsNotificationsOpen(false)}
+                          className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/80 hover:bg-white text-slate-500 hover:text-slate-800 text-xs font-bold border border-slate-200 transition cursor-pointer"
+                        >
+                          ✕
+                        </button>
+                      </div>
                     </div>
 
-                    <div className="max-h-[380px] overflow-y-auto divide-y divide-slate-100">
+                    <div className="flex-1 overflow-y-auto divide-y divide-slate-100 p-0 overscroll-contain">
                       {notifications.length === 0 ? (
-                        <div className="py-8 text-center text-slate-400 text-xs font-medium">
-                          No notifications right now.
+                        <div className="py-10 text-center text-slate-400 text-xs font-medium space-y-1">
+                          <p className="text-xl">🌸</p>
+                          <p className="font-bold text-slate-600">No notifications right now.</p>
+                          <p className="text-[11px]">You're all caught up with your daily resilience updates.</p>
                         </div>
                       ) : (
                         notifications.map((notif) => {
@@ -451,7 +488,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                           return (
                             <div
                               key={notif.id}
-                              className={`p-3.5 transition flex flex-col gap-1.5 ${
+                              className={`p-3.5 sm:p-4 transition flex flex-col gap-1.5 ${
                                 notif.is_read ? 'bg-white' : 'bg-indigo-50/40 hover:bg-indigo-50/60'
                               }`}
                             >
@@ -465,16 +502,16 @@ export const Navbar: React.FC<NavbarProps> = ({
                                   )}
                                 </span>
                                 <span className="text-[10px] text-slate-400 font-medium">
-                                  {!notif.is_read && <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 inline-block mr-1"></span>}
+                                  {!notif.is_read && <span className="w-2 h-2 rounded-full bg-indigo-600 inline-block mr-1"></span>}
                                 </span>
                               </div>
 
-                              <h5 className="text-xs font-bold text-slate-900 leading-snug">{notif.title}</h5>
-                              <p className="text-[11px] text-slate-600 leading-relaxed font-medium">
+                              <h5 className="text-xs sm:text-sm font-bold text-slate-900 leading-snug">{notif.title}</h5>
+                              <p className="text-[11px] sm:text-xs text-slate-600 leading-relaxed font-medium">
                                 {notif.message}
                               </p>
 
-                              <div className="flex items-center justify-between pt-1 mt-1 border-t border-slate-100/80">
+                              <div className="flex items-center justify-between pt-1.5 mt-1 border-t border-slate-100/80 gap-2 flex-wrap">
                                 {notif.action_label && (
                                   <button
                                     type="button"
@@ -491,10 +528,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                                         onTabChange('victim');
                                       }
                                     }}
-                                    className="text-[10px] font-extrabold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 cursor-pointer bg-indigo-50 px-2 py-1 rounded-md"
+                                    className="text-[11px] font-extrabold text-indigo-700 hover:text-indigo-900 flex items-center gap-1 cursor-pointer bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1.5 rounded-xl border border-indigo-200 transition"
                                   >
                                     <span>{notif.action_label}</span>
-                                    <ChevronRight className="w-3 h-3" />
+                                    <ChevronRight className="w-3.5 h-3.5" />
                                   </button>
                                 )}
 
@@ -502,7 +539,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                                   <button
                                     type="button"
                                     onClick={() => handleMarkAsRead(notif.id)}
-                                    className="text-[10px] text-slate-400 hover:text-slate-700 font-bold ml-auto cursor-pointer"
+                                    className="text-[11px] text-slate-400 hover:text-slate-700 font-bold ml-auto cursor-pointer py-1 px-2 rounded-lg hover:bg-slate-100 transition"
                                   >
                                     Mark as read
                                   </button>
@@ -812,6 +849,69 @@ export const Navbar: React.FC<NavbarProps> = ({
                     )}
                   </div>
                 )}
+
+                {/* Mobile Drawer Notifications & Daily Quotes Section */}
+                <div className="space-y-2 p-3.5 rounded-2xl bg-gradient-to-br from-indigo-50/90 via-purple-50/70 to-pink-50/90 border border-indigo-100/90 shadow-2xs">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-xs shadow-xs">
+                        <Bell className="w-3.5 h-3.5" />
+                      </div>
+                      <span className="text-xs font-black text-slate-900">Notifications & Daily Quotes</span>
+                    </div>
+                    {unreadCount > 0 ? (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-500 text-white animate-pulse">
+                        {unreadCount} New
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                        All Caught Up
+                      </span>
+                    )}
+                  </div>
+
+                  {notifications.length > 0 && (
+                    <div className="p-2.5 rounded-xl bg-white/95 border border-indigo-100 space-y-1 shadow-2xs">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-black text-indigo-700 uppercase tracking-wider">
+                          {notifications[0].category === 'QUOTE' ? '🌸 Daily Quote' : '📢 Latest Update'}
+                        </span>
+                        {!notifications[0].is_read && (
+                          <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+                        )}
+                      </div>
+                      <p className="text-[11px] font-bold text-slate-800 leading-snug line-clamp-2">
+                        {notifications[0].title}
+                      </p>
+                      <p className="text-[10px] text-slate-600 line-clamp-2">
+                        {notifications[0].message}
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="flex gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsMobileMenuOpen(false);
+                        setIsNotificationsOpen(true);
+                      }}
+                      className="flex-1 py-2 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs shadow-xs text-center cursor-pointer transition flex items-center justify-center gap-1.5"
+                    >
+                      <Bell className="w-3.5 h-3.5" />
+                      <span>View All Updates ({notifications.length})</span>
+                    </button>
+                    {unreadCount > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleMarkAllRead}
+                        className="py-2 px-3 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-bold text-xs text-center cursor-pointer transition shadow-2xs"
+                      >
+                        Mark Read
+                      </button>
+                    )}
+                  </div>
+                </div>
 
                 {/* 2. Role-Based Navigation Items */}
                 {currentUser && (

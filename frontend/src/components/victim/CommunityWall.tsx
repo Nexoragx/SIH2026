@@ -238,8 +238,8 @@ export const CommunityWall: React.FC<CommunityWallProps> = ({
 
       {/* Post Message Input Bar with Author Selector */}
       <div className="p-4 border-t border-indigo-100/60 bg-white/95 space-y-2.5">
-        <div className="flex items-center justify-between text-xs px-1">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-between text-xs px-1 gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className="text-[11px] font-bold text-slate-600">Posting as:</span>
             {isAnonymous ? (
               <span className="text-[11px] font-black text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
@@ -251,7 +251,7 @@ export const CommunityWall: React.FC<CommunityWallProps> = ({
                 value={authorName}
                 onChange={(e) => setAuthorName(e.target.value)}
                 placeholder="Your Name (e.g. Priya S.)"
-                className="px-2.5 py-1 text-xs font-bold rounded-lg border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-500 max-w-[180px]"
+                className="px-2.5 py-1 text-xs font-bold rounded-lg border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-500 max-w-[150px] sm:max-w-[180px]"
               />
             )}
           </div>

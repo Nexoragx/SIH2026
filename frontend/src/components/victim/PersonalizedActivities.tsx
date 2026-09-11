@@ -888,7 +888,7 @@ export const PersonalizedActivities: React.FC<PersonalizedActivitiesProps> = ({
               </div>
 
               {/* Quick Switch Dropdown + Cross Button */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 sm:gap-2 ml-auto sm:ml-0">
                 <select
                   value={selectedActivity}
                   onChange={(e) => {
@@ -896,7 +896,7 @@ export const PersonalizedActivities: React.FC<PersonalizedActivitiesProps> = ({
                     playChime(528, 0.3);
                   }}
                   aria-label="Switch Exercise"
-                  className="px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-700 shadow-2xs outline-none focus:ring-2 focus:ring-indigo-400 cursor-pointer"
+                  className="px-2.5 sm:px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-700 shadow-2xs outline-none focus:ring-2 focus:ring-indigo-400 cursor-pointer max-w-[130px] sm:max-w-[220px] truncate"
                 >
                   {exercisesCatalog.map((ex) => (
                     <option key={ex.id} value={ex.id}>
@@ -911,8 +911,9 @@ export const PersonalizedActivities: React.FC<PersonalizedActivitiesProps> = ({
                     setSelectedActivity(null);
                     stopSoundscape();
                   }}
-                  className="p-2 rounded-full hover:bg-rose-100 text-slate-500 hover:text-rose-700 transition cursor-pointer"
+                  className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 border border-slate-200 transition cursor-pointer flex-shrink-0 shadow-2xs"
                   title="Close Exercise"
+                  aria-label="Close Exercise"
                 >
                   <X className="w-5 h-5" />
                 </button>
