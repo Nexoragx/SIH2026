@@ -504,57 +504,52 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
   const greeting = getGreetingInfo();
 
   return (
-    <div className="max-w-5xl mx-auto px-3 sm:px-6 py-6 sm:py-10 space-y-7 animate-fadeIn">
+    <div className="max-w-5xl mx-auto px-3 sm:px-6 py-5 sm:py-8 space-y-6 animate-fadeIn">
       {/* 1. Header with Personalized Time-Aware Greeting */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-indigo-100/60">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-indigo-100/60">
         <div>
-          <div className="flex flex-wrap items-center gap-2 mb-1.5">
-            <span className="text-[11px] font-extrabold uppercase tracking-widest text-indigo-700 bg-indigo-50/90 px-2.5 py-0.5 rounded-full border border-indigo-200/70">
+          <div className="flex flex-wrap items-center gap-2 mb-1">
+            <span className="text-[11px] font-extrabold uppercase tracking-wider text-indigo-700 bg-indigo-50/90 px-2.5 py-0.5 rounded-full border border-indigo-200/70">
               ANVAYA • {greeting.hindiSalutation}
             </span>
-            <span className="text-slate-300">•</span>
-            <span className="text-xs font-semibold text-slate-500">
-              Confidential Wellbeing Sanctuary
-            </span>
             {userProfile?.district && (
-              <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50/60 px-2 py-0.5 rounded-md border border-indigo-100">
+              <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">
                 📍 {userProfile.district}, {userProfile.state || 'IN'}
               </span>
             )}
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2 flex-wrap">
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
             <span>{greeting.icon}</span>
-            <span>{greeting.salutation}, {firstName}.</span>
-            <span className="text-indigo-600 font-semibold text-lg sm:text-2xl block sm:inline">Your healing journey matters.</span>
+            <span>{greeting.salutation}, {firstName}</span>
           </h1>
-          <p className="text-sm font-medium text-slate-600 mt-1">
-            {greeting.message} Safe, encrypted sanctuary with personalized exercises and accredited clinical support.
+          <p className="text-xs sm:text-sm text-slate-600 font-medium mt-0.5">
+            Your private space for emotional recovery, daily check-ins, and accredited care.
           </p>
         </div>
 
         {/* 1-Click Helpline Quick Pill */}
         <a
           href="tel:14566"
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200/80 text-emerald-900 text-xs font-bold shadow-xs hover:shadow-sm hover:scale-[1.02] transition flex-shrink-0 self-start md:self-auto"
+          className="inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 text-emerald-900 text-xs font-bold shadow-2xs hover:shadow-xs hover:scale-[1.01] transition flex-shrink-0 self-start sm:self-auto"
         >
           <PhoneCall className="w-3.5 h-3.5 text-emerald-600" />
           <span>MoSJE Helpline: 14566 (24x7 Free)</span>
         </a>
       </div>
 
-      {/* 2. Frosted Glass Sub-Navigation Tabs (Overview, Exercises, Scale, Community) */}
-      <div className="liquid-glass-panel p-1.5 rounded-2xl grid grid-cols-2 sm:flex sm:flex-nowrap gap-1.5 shadow-sm">
+      {/* 2. Sub-Navigation Tabs (Overview, Exercises, Scale, Community) */}
+      <div className="liquid-glass-panel p-1.5 rounded-2xl grid grid-cols-2 sm:grid-cols-4 gap-1.5 shadow-xs">
         <button
           type="button"
           onClick={() => setActiveSubTab('overview')}
-          className={`flex-1 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-extrabold transition-all flex items-center justify-center gap-2 cursor-pointer min-h-[44px] ${
+          className={`py-2 px-3 rounded-xl text-xs sm:text-sm font-extrabold transition-all flex items-center justify-center gap-2 cursor-pointer min-h-[40px] ${
             activeSubTab === 'overview'
-              ? 'bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow-md shadow-indigo-500/20'
+              ? 'bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow-sm'
               : 'text-slate-700 hover:text-indigo-900 hover:bg-white/60'
           }`}
         >
           <Sparkles className="w-4 h-4 flex-shrink-0" />
-          <span className="truncate">Sanctuary Overview</span>
+          <span>Overview</span>
         </button>
 
         <button
@@ -563,41 +558,40 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
             setActiveSubTab('exercises');
             setCurrentSelectedExercise(undefined);
           }}
-          className={`flex-1 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-extrabold transition-all flex items-center justify-center gap-2 cursor-pointer min-h-[44px] ${
+          className={`py-2 px-3 rounded-xl text-xs sm:text-sm font-extrabold transition-all flex items-center justify-center gap-2 cursor-pointer min-h-[40px] ${
             activeSubTab === 'exercises'
-              ? 'bg-gradient-to-r from-teal-600 to-emerald-600 text-white shadow-md shadow-teal-500/20'
+              ? 'bg-gradient-to-r from-teal-600 to-emerald-600 text-white shadow-sm'
               : 'text-slate-700 hover:text-teal-900 hover:bg-white/60'
           }`}
         >
           <Wind className="w-4 h-4 flex-shrink-0" />
-          <span className="truncate">Exercises</span>
-          <span className="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0"></span>
+          <span>Exercises</span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveSubTab('scale')}
-          className={`flex-1 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-extrabold transition-all flex items-center justify-center gap-2 cursor-pointer min-h-[44px] ${
+          className={`py-2 px-3 rounded-xl text-xs sm:text-sm font-extrabold transition-all flex items-center justify-center gap-2 cursor-pointer min-h-[40px] ${
             activeSubTab === 'scale'
-              ? 'bg-gradient-to-r from-violet-600 to-purple-600 text-white shadow-md shadow-violet-500/20'
+              ? 'bg-gradient-to-r from-violet-600 to-purple-600 text-white shadow-sm'
               : 'text-slate-700 hover:text-purple-900 hover:bg-white/60'
           }`}
         >
           <Activity className="w-4 h-4 flex-shrink-0" />
-          <span className="truncate">Distress Scale</span>
+          <span>Distress Scale</span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveSubTab('community')}
-          className={`flex-1 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-extrabold transition-all flex items-center justify-center gap-2 cursor-pointer min-h-[44px] ${
+          className={`py-2 px-3 rounded-xl text-xs sm:text-sm font-extrabold transition-all flex items-center justify-center gap-2 cursor-pointer min-h-[40px] ${
             activeSubTab === 'community'
-              ? 'bg-gradient-to-r from-rose-600 to-pink-600 text-white shadow-md shadow-rose-500/20'
+              ? 'bg-gradient-to-r from-rose-600 to-pink-600 text-white shadow-sm'
               : 'text-slate-700 hover:text-rose-900 hover:bg-white/60'
           }`}
         >
           <Users className="w-4 h-4 flex-shrink-0" />
-          <span className="truncate">Hope Wall</span>
+          <span>Hope Wall</span>
         </button>
       </div>
 
@@ -605,82 +599,75 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
           TAB 1: SANCTUARY OVERVIEW
           ======================================================== */}
       {activeSubTab === 'overview' && (
-        <div className="space-y-6 animate-fadeIn">
-          {/* Daily Affirmation Strip with Soft Pastel Gradient & Real Check-in Status */}
-          <div className="p-4 sm:p-5 rounded-2xl pastel-amber flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
-            <div className="flex items-center gap-3">
-              <span className="text-2xl">🌱</span>
-              <div>
-                <span className="text-[10px] font-black uppercase tracking-widest text-amber-800">
-                  Daily Affirmation & Healing Anchor
-                </span>
-                <p className="text-xs sm:text-sm font-bold text-amber-950 leading-snug">
-                  "Every gentle step you take towards your healing is an act of courage, {firstName}. You are stronger than what happened."
-                </p>
-              </div>
+        <div className="space-y-5 animate-fadeIn">
+          {/* Daily Affirmation Strip */}
+          <div className="p-3.5 sm:p-4 rounded-2xl pastel-amber flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 shadow-2xs">
+            <div className="flex items-center gap-2.5">
+              <span className="text-xl">🌱</span>
+              <p className="text-xs sm:text-sm font-bold text-amber-950 leading-snug">
+                "Every gentle step you take is an act of courage, {firstName}."
+              </p>
             </div>
 
             <div className="flex items-center gap-2 flex-shrink-0 self-start sm:self-auto">
-              <span className="px-3.5 py-1.5 rounded-full text-[11px] font-black bg-white/95 border border-amber-200 text-amber-900 shadow-2xs flex items-center gap-1.5">
+              <span className="px-3 py-1 rounded-full text-[11px] font-black bg-white/95 border border-amber-200 text-amber-900 shadow-2xs flex items-center gap-1.5">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
                 <span>
                   {scheduleData.completed_sessions === 0
-                    ? 'Baseline Check-in Ready'
-                    : scheduleData.completed_sessions === 1
-                    ? '1 Check-in Completed'
-                    : `${scheduleData.completed_sessions} Check-ins Completed`}
+                    ? 'Baseline Ready'
+                    : `${scheduleData.completed_sessions} Completed`}
                 </span>
               </span>
             </div>
           </div>
 
-          {/* Primary CTA: How are you feeling today? (Frosted Glass) */}
-          <div className="anvaya-card p-6 sm:p-8 relative overflow-hidden">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-              <div className="space-y-2 max-w-lg">
+          {/* Primary CTA: How are you feeling today? */}
+          <div className="anvaya-card p-5 sm:p-7 relative overflow-hidden">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="space-y-1.5 max-w-lg">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-800 bg-indigo-50/90 px-3 py-1 rounded-full border border-indigo-200/70">
-                    <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-                    <span>Confidential MADRS Check-in</span>
+                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-800 bg-indigo-50/90 px-2.5 py-0.5 rounded-full border border-indigo-200/70">
+                    <Sparkles className="w-3 h-3 text-indigo-600" />
+                    <span>Confidential Check-in</span>
                   </span>
-                  <span className="text-[11px] font-bold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full">
-                    ⏱️ 2–3 Mins • 100% Private
+                  <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                    ⏱️ 2 Mins • Private
                   </span>
                 </div>
-                <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                <h2 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">
                   How are you feeling today, {firstName}?
                 </h2>
-                <p className="text-sm text-slate-600 font-medium leading-relaxed">
-                  Take a short, gentle check-in to reflect on your sleep, mood, energy, and peace of mind. Your responses are encrypted and protected.
+                <p className="text-xs sm:text-sm text-slate-600 font-medium">
+                  Take a quick check-in to reflect on your sleep, mood, and emotional wellbeing.
                 </p>
               </div>
 
               <button
                 type="button"
                 onClick={onStartCheckin}
-                className="w-full sm:w-auto px-7 py-3.5 btn-primary font-extrabold text-sm rounded-2xl flex items-center justify-center gap-2.5 cursor-pointer shadow-md shadow-indigo-500/25 hover:scale-[1.02] active:scale-95 transition"
+                className="w-full sm:w-auto px-6 py-3 btn-primary font-extrabold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-indigo-500/25 hover:scale-[1.02] active:scale-95 transition"
               >
-                <span>Start Gentle Check-in</span>
+                <span>Start Check-in</span>
                 <ArrowRight className="w-4 h-4 text-white" />
               </button>
             </div>
           </div>
 
-          {/* Direct Feature Launchers (Frosted Glass Pastel Tiles) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Direct Feature Launchers */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div
               onClick={() => {
                 setActiveSubTab('exercises');
                 setCurrentSelectedExercise(undefined);
               }}
-              className="p-4 rounded-2xl pastel-teal hover:shadow-md transition-all cursor-pointer flex items-center gap-3.5 group"
+              className="p-3.5 rounded-2xl pastel-teal hover:shadow-xs transition-all cursor-pointer flex items-center gap-3 group"
             >
-              <div className="w-11 h-11 rounded-2xl bg-teal-100 text-teal-800 flex items-center justify-center text-2xl flex-shrink-0 group-hover:scale-105 transition">
+              <div className="w-10 h-10 rounded-xl bg-teal-100 text-teal-800 flex items-center justify-center text-xl flex-shrink-0 group-hover:scale-105 transition">
                 🧘
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-black text-teal-950 truncate">Therapeutic Suite</h4>
+                  <h4 className="text-xs font-black text-teal-950 truncate">Calming Exercises</h4>
                   <ChevronRight className="w-3.5 h-3.5 text-teal-700 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition" />
                 </div>
                 <p className="text-[11px] text-teal-800 font-medium">4-7-8 Breathing & Soundscapes</p>
@@ -689,9 +676,9 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
 
             <div
               onClick={() => setActiveSubTab('scale')}
-              className="p-4 rounded-2xl pastel-lavender hover:shadow-md transition-all cursor-pointer flex items-center gap-3.5 group"
+              className="p-3.5 rounded-2xl pastel-lavender hover:shadow-xs transition-all cursor-pointer flex items-center gap-3 group"
             >
-              <div className="w-11 h-11 rounded-2xl bg-violet-100 text-violet-800 flex items-center justify-center text-2xl flex-shrink-0 group-hover:scale-105 transition">
+              <div className="w-10 h-10 rounded-xl bg-violet-100 text-violet-800 flex items-center justify-center text-xl flex-shrink-0 group-hover:scale-105 transition">
                 📊
               </div>
               <div className="flex-1 min-w-0">
@@ -699,16 +686,16 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
                   <h4 className="text-xs font-black text-violet-950 truncate">Distress Scale</h4>
                   <ChevronRight className="w-3.5 h-3.5 text-violet-700 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition" />
                 </div>
-                <p className="text-[11px] text-violet-800 font-medium">Multimodal 0-100 Decomposition</p>
+                <p className="text-[11px] text-violet-800 font-medium">Multimodal Wellbeing Score (0–100)</p>
               </div>
             </div>
           </div>
 
-          {/* Dynamic Assigned Health Observer / Counsellor Support Card */}
+          {/* Assigned Health Observer Support Card */}
           {liveAssignedObserver ? (
-            <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-md">
-              <div className="flex items-center gap-3.5">
-                <div className="w-11 h-11 rounded-2xl bg-indigo-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0 shadow-xs">
+            <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3.5 shadow-md">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
                   {liveAssignedObserver.name
                     ? liveAssignedObserver.name
                         .split(' ')
@@ -719,93 +706,87 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
                     : 'OB'}
                 </div>
                 <div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-xs font-black text-white">{liveAssignedObserver.name}</span>
-                    <span className="text-[10px] text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded-full font-bold border border-emerald-800">
-                      ● {liveAssignedObserver.role || 'Assigned Observer'}
+                    <span className="text-[10px] text-emerald-400 bg-emerald-950 px-2 py-0.2 rounded-full font-bold border border-emerald-800">
+                      ● {liveAssignedObserver.role || 'Assigned Care Officer'}
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-300 font-medium mt-0.5">
-                    {liveAssignedObserver.hospital || 'District Nodal Mental Health Unit'} • Direct encrypted 1:1 care channel
+                    {liveAssignedObserver.hospital || 'District Mental Health Unit'}
                   </p>
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+              <div className="grid grid-cols-2 gap-2 w-full sm:flex sm:w-auto">
                 <button
                   type="button"
                   onClick={() => setIsDoctorDirectoryOpen(true)}
-                  className="flex-1 sm:flex-initial px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition cursor-pointer shadow-xs flex items-center justify-center gap-1.5 border border-indigo-400/30"
+                  className="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition cursor-pointer flex items-center justify-center gap-1.5 border border-indigo-400/30"
                 >
                   <Stethoscope className="w-3.5 h-3.5 text-indigo-200" />
-                  <span>Doctors Directory</span>
+                  <span>Doctors</span>
                 </button>
                 <button
                   type="button"
                   onClick={onOpenChat}
-                  className="flex-1 sm:flex-initial px-4 py-2 rounded-xl bg-white text-slate-900 hover:bg-slate-100 font-bold text-xs transition cursor-pointer shadow-xs flex items-center justify-center gap-1.5"
+                  className="px-3.5 py-2 rounded-xl bg-white text-slate-900 hover:bg-slate-100 font-bold text-xs transition cursor-pointer flex items-center justify-center gap-1.5"
                 >
                   <MessageSquare className="w-3.5 h-3.5" />
-                  <span>Message Observer</span>
+                  <span>Message</span>
                 </button>
               </div>
             </div>
           ) : (
-            <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-amber-950 via-slate-900 to-amber-950 text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-md border border-amber-500/30">
-              <div className="flex items-center gap-3.5">
-                <div className="w-11 h-11 rounded-2xl bg-amber-500/20 text-amber-300 border border-amber-400/40 flex items-center justify-center font-bold text-lg flex-shrink-0 shadow-xs">
+            <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-amber-950 via-slate-900 to-amber-950 text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3.5 shadow-md border border-amber-500/30">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-400/40 flex items-center justify-center font-bold text-base flex-shrink-0">
                   ⏳
                 </div>
                 <div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-xs font-black text-amber-300">Observer Allocation in Progress</span>
-                    <span className="text-[10px] text-amber-300 bg-amber-900/60 px-2 py-0.5 rounded-full font-bold border border-amber-600">
-                      Pending Admin Allocation
+                    <span className="text-[10px] text-amber-300 bg-amber-900/60 px-2 py-0.2 rounded-full font-bold border border-amber-600">
+                      Pending Allocation
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-300 font-medium mt-0.5">
-                    The District Mental Health Cell is allocating a dedicated health observer to your profile.
+                    District care cell is assigning your dedicated observer.
                   </p>
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+              <div className="grid grid-cols-2 gap-2 w-full sm:flex sm:w-auto">
                 <button
                   type="button"
                   onClick={() => setIsDoctorDirectoryOpen(true)}
-                  className="flex-1 sm:flex-initial px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs transition cursor-pointer shadow-xs flex items-center justify-center gap-1.5"
+                  className="px-3 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs transition cursor-pointer flex items-center justify-center gap-1.5"
                 >
                   <Stethoscope className="w-3.5 h-3.5 text-amber-100" />
-                  <span>Browse Observers</span>
+                  <span>Browse Doctors</span>
                 </button>
                 <a
                   href="tel:14566"
-                  className="flex-1 sm:flex-initial px-4 py-2 rounded-xl bg-white text-slate-900 hover:bg-slate-100 font-bold text-xs transition cursor-pointer shadow-xs flex items-center justify-center gap-1.5"
+                  className="px-3.5 py-2 rounded-xl bg-white text-slate-900 hover:bg-slate-100 font-bold text-xs transition cursor-pointer flex items-center justify-center gap-1.5"
                 >
                   <PhoneCall className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Call 14566 Toll-Free</span>
+                  <span>Call 14566</span>
                 </a>
               </div>
             </div>
           )}
 
-          {/* Wellbeing Status & Next Check-in (2-Column Grid) */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {/* Wellbeing Status Card */}
-            <div className="anvaya-card p-6 space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-extrabold uppercase tracking-wider text-slate-600">
-                  Your recent wellbeing
-                </span>
-                <span className="text-[11px] font-semibold text-slate-500">
-                  Last check-in
-                </span>
-              </div>
+          {/* Wellbeing Status & Next Check-in */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="anvaya-card p-5 space-y-3">
+              <span className="text-xs font-extrabold uppercase tracking-wider text-slate-500">
+                Recent Status
+              </span>
 
-              <div className={`p-4 rounded-2xl border ${wellbeingStatus.borderColor} ${wellbeingStatus.bgColor} flex items-start gap-3`}>
-                <span className={`w-3 h-3 rounded-full mt-1 flex-shrink-0 ${wellbeingStatus.dotColor}`}></span>
+              <div className={`p-3.5 rounded-xl border ${wellbeingStatus.borderColor} ${wellbeingStatus.bgColor} flex items-start gap-2.5`}>
+                <span className={`w-2.5 h-2.5 rounded-full mt-1 flex-shrink-0 ${wellbeingStatus.dotColor}`}></span>
                 <div>
-                  <div className="text-base font-black text-slate-900">
+                  <div className="text-sm font-black text-slate-900">
                     {wellbeingStatus.label}
                   </div>
                   <p className="text-xs font-medium text-slate-700 mt-0.5">
@@ -815,34 +796,33 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
               </div>
             </div>
 
-            {/* Next Check-in Card */}
-            <div className="anvaya-card p-6 flex flex-col justify-between space-y-4">
+            <div className="anvaya-card p-5 flex flex-col justify-between space-y-3">
               <div>
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-extrabold uppercase tracking-wider text-slate-600">
-                    Next check-in
+                  <span className="text-xs font-extrabold uppercase tracking-wider text-slate-500">
+                    Next Check-in
                   </span>
-                  <Calendar className="w-4 h-4 text-slate-500" />
+                  <Calendar className="w-4 h-4 text-slate-400" />
                 </div>
 
-                <div className="mt-3">
-                  <div className="text-2xl font-black text-slate-900">
+                <div className="mt-2">
+                  <div className="text-xl font-black text-slate-900">
                     In {scheduleData.days_remaining} days
                   </div>
-                  <p className="text-xs font-medium text-slate-600 mt-1">
+                  <p className="text-xs font-medium text-slate-500 mt-0.5">
                     Due: {scheduleData.next_due_date}
                   </p>
                 </div>
               </div>
 
-              <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-600">
-                  {scheduleData.completed_sessions} check-ins completed
+              <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+                <span className="font-bold text-slate-600">
+                  {scheduleData.completed_sessions} completed
                 </span>
                 <button
                   type="button"
                   onClick={onOpenSchedule}
-                  className="text-xs font-extrabold text-indigo-700 hover:text-indigo-900 hover:underline cursor-pointer"
+                  className="font-extrabold text-indigo-700 hover:text-indigo-900 hover:underline cursor-pointer"
                 >
                   View schedule →
                 </button>
@@ -850,25 +830,25 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
             </div>
           </div>
 
-          {/* Progress / Trend: Your wellbeing over time */}
-          <div className="anvaya-card p-6 sm:p-7 space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+          {/* Progress / Trend */}
+          <div className="anvaya-card p-5 sm:p-6 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 border-b border-slate-100 pb-2.5">
               <div>
-                <h3 className="text-base font-black text-slate-900">
-                  Your wellbeing over time
+                <h3 className="text-sm font-black text-slate-900">
+                  Wellbeing Trajectory
                 </h3>
-                <p className="text-xs text-slate-500 font-medium">
-                  Simple trajectory based on your completed check-ins.
+                <p className="text-[11px] text-slate-500 font-medium">
+                  Trend across completed check-ins.
                 </p>
               </div>
-              <div className="inline-flex items-center gap-1.5 text-xs font-extrabold text-indigo-800 bg-indigo-50/80 px-3 py-1 rounded-full border border-indigo-200/60 self-start">
+              <div className="inline-flex items-center gap-1.5 text-xs font-extrabold text-indigo-800 bg-indigo-50/80 px-2.5 py-0.5 rounded-full border border-indigo-200/60 self-start">
                 <TrendingUp className="w-3.5 h-3.5 text-indigo-600" />
-                <span>Reflective Trend</span>
+                <span>Score Trend</span>
               </div>
             </div>
 
             {historyData.length > 0 ? (
-              <div className="h-48 w-full pt-2">
+              <div className="h-44 w-full pt-1">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={historyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                     <XAxis dataKey="date" tick={{ fill: '#475569', fontSize: 11, fontWeight: 700 }} stroke="#E2E8F0" />
@@ -878,10 +858,10 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
                         if (active && payload && payload.length) {
                           const data = payload[0].payload;
                           return (
-                            <div className="liquid-glass-panel p-2.5 rounded-xl border border-indigo-200 shadow-md text-xs font-bold text-slate-900">
+                            <div className="liquid-glass-panel p-2 rounded-xl border border-indigo-200 shadow-md text-xs font-bold text-slate-900">
                               <div>{data.date}</div>
                               <div className="text-indigo-700 text-[11px] font-medium mt-0.5">
-                                Status: {data.status} (Wellbeing: {data.value}/100)
+                                Status: {data.status} ({data.value}/100)
                               </div>
                             </div>
                           );
@@ -901,107 +881,102 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
                 </ResponsiveContainer>
               </div>
             ) : (
-              <div className="py-8 px-4 text-center rounded-2xl bg-indigo-50/40 border border-dashed border-indigo-200/80 space-y-2">
-                <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center mx-auto text-lg">
+              <div className="py-6 px-4 text-center rounded-xl bg-indigo-50/40 border border-dashed border-indigo-200/80 space-y-1.5">
+                <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center mx-auto text-base">
                   🌱
                 </div>
                 <div className="text-xs font-bold text-slate-800">
-                  Ready for your baseline check-in
+                  Baseline Ready
                 </div>
-                <p className="text-[11px] text-slate-500 max-w-sm mx-auto">
-                  As you complete gentle check-ins, your personalized emotional recovery trajectory and SHAP clinical factors will be charted here.
+                <p className="text-[11px] text-slate-500 max-w-xs mx-auto">
+                  Complete your check-ins to track your recovery trend here.
                 </p>
               </div>
             )}
           </div>
 
-
-
-          {/* Immediate Support Channels (Frosted Glass Pastel Cards) */}
-          <div className="space-y-3">
-            <h3 className="text-base font-black text-slate-900">
+          {/* Immediate Support Channels */}
+          <div className="space-y-2.5">
+            <h3 className="text-sm font-black text-slate-900">
               Immediate Support Channels
             </h3>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {/* Card 1: Chat with support */}
               <div
                 onClick={onOpenChat}
-                className="p-5 pastel-indigo rounded-2xl cursor-pointer hover:shadow-md transition flex flex-col justify-between space-y-3 group"
+                className="p-4 pastel-indigo rounded-2xl cursor-pointer hover:shadow-xs transition flex flex-col justify-between space-y-2 group"
               >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-white/90 text-indigo-700 flex items-center justify-center font-bold text-lg shadow-2xs">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-white/90 text-indigo-700 flex items-center justify-center font-bold text-base shadow-2xs">
                     💬
                   </div>
                   <div>
-                    <h4 className="text-sm font-black text-indigo-950 group-hover:underline">
-                      Talk to someone
+                    <h4 className="text-xs font-black text-indigo-950 group-hover:underline">
+                      AI Companion
                     </h4>
-                    <p className="text-xs font-medium text-indigo-800">
-                      Chat with ANVAYA Saathi
+                    <p className="text-[11px] font-medium text-indigo-800">
+                      ANVAYA Saathi
                     </p>
                   </div>
                 </div>
-                <p className="text-xs text-indigo-900 font-medium">
-                  Confidential, gentle companion to share your thoughts in a safe space.
+                <p className="text-[11px] text-indigo-900 font-medium">
+                  Confidential companion to chat and share thoughts safely.
                 </p>
-                <div className="text-xs font-extrabold text-indigo-700 flex items-center gap-1">
-                  <span>Start conversation</span>
-                  <span>→</span>
+                <div className="text-xs font-extrabold text-indigo-700 flex items-center gap-1 pt-1">
+                  <span>Start conversation →</span>
                 </div>
               </div>
 
               {/* Card 2: Helpline */}
               <div
                 onClick={onOpenSupport}
-                className="p-5 pastel-emerald rounded-2xl cursor-pointer hover:shadow-md transition flex flex-col justify-between space-y-3 group"
+                className="p-4 pastel-emerald rounded-2xl cursor-pointer hover:shadow-xs transition flex flex-col justify-between space-y-2 group"
               >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-white/90 text-emerald-700 flex items-center justify-center font-bold text-lg shadow-2xs">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-white/90 text-emerald-700 flex items-center justify-center font-bold text-base shadow-2xs">
                     ☎
                   </div>
                   <div>
-                    <h4 className="text-sm font-black text-emerald-950 group-hover:underline">
-                      Helpline
+                    <h4 className="text-xs font-black text-emerald-950 group-hover:underline">
+                      Helplines
                     </h4>
-                    <p className="text-xs font-medium text-emerald-800">
-                      Get immediate support
+                    <p className="text-[11px] font-medium text-emerald-800">
+                      24x7 Toll-Free
                     </p>
                   </div>
                 </div>
-                <p className="text-xs text-emerald-900 font-medium">
-                  Toll-free 24x7 support: Tele-MANAS (14416) and Atrocity Helpline (14566).
+                <p className="text-[11px] text-emerald-900 font-medium">
+                  Tele-MANAS (14416) and Atrocity Helpline (14566).
                 </p>
-                <div className="text-xs font-extrabold text-emerald-700 flex items-center gap-1">
-                  <span>View helplines</span>
-                  <span>→</span>
+                <div className="text-xs font-extrabold text-emerald-700 flex items-center gap-1 pt-1">
+                  <span>View helplines →</span>
                 </div>
               </div>
 
               {/* Card 3: Emergency */}
               <div
                 onClick={onOpenEmergency}
-                className="p-5 pastel-rose rounded-2xl cursor-pointer hover:shadow-md transition flex flex-col justify-between space-y-3 group"
+                className="p-4 pastel-rose rounded-2xl cursor-pointer hover:shadow-xs transition flex flex-col justify-between space-y-2 group"
               >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-rose-600 text-white flex items-center justify-center font-bold text-lg shadow-2xs">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-rose-600 text-white flex items-center justify-center font-bold text-base shadow-2xs">
                     🚑
                   </div>
                   <div>
-                    <h4 className="text-sm font-black text-rose-950">
+                    <h4 className="text-xs font-black text-rose-950">
                       Emergency
                     </h4>
-                    <p className="text-xs font-medium text-rose-800">
-                      Get emergency assistance
+                    <p className="text-[11px] font-medium text-rose-800">
+                      Immediate Aid
                     </p>
                   </div>
                 </div>
-                <p className="text-xs text-rose-900 font-medium">
-                  Immediate crisis response and 108 medical / psychological safety net.
+                <p className="text-[11px] text-rose-900 font-medium">
+                  Immediate crisis response and 108 emergency dispatch.
                 </p>
-                <div className="text-xs font-extrabold text-rose-700 flex items-center gap-1">
-                  <span>Request emergency aid</span>
-                  <span>→</span>
+                <div className="text-xs font-extrabold text-rose-700 flex items-center gap-1 pt-1">
+                  <span>Get emergency aid →</span>
                 </div>
               </div>
             </div>
@@ -1014,15 +989,15 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
           ======================================================== */}
       {activeSubTab === 'exercises' && (
         <div className="space-y-4 animate-fadeIn">
-          <div className="flex items-center justify-between p-4 rounded-2xl pastel-teal">
-            <div className="flex items-center gap-3">
-              <span className="text-2xl">🧘</span>
+          <div className="flex items-center justify-between p-3.5 rounded-2xl pastel-teal">
+            <div className="flex items-center gap-2.5">
+              <span className="text-xl">🧘</span>
               <div>
-                <h3 className="text-sm font-extrabold text-teal-950">
-                  Trauma-Informed Therapeutic Suite
+                <h3 className="text-xs sm:text-sm font-extrabold text-teal-950">
+                  Calming Exercises & Recovery
                 </h3>
-                <p className="text-xs text-teal-800 font-medium">
-                  Score-adapted calming exercises: 4-7-8 Pranayama, Somatic Grounding, Dissolving Journal & Soundscapes.
+                <p className="text-[11px] text-teal-800 font-medium">
+                  4-7-8 Pranayama, Somatic Grounding, Dissolving Journal & Soundscapes.
                 </p>
               </div>
             </div>
@@ -1044,16 +1019,16 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
           TAB 3: PROPER DISTRESS SCALE & CLINICAL DECOMPOSITION (EMBEDDED DIRECTLY)
           ======================================================== */}
       {activeSubTab === 'scale' && (
-        <div className="space-y-6 animate-fadeIn">
-          <div className="flex items-center justify-between p-4 rounded-2xl pastel-lavender">
-            <div className="flex items-center gap-3">
-              <span className="text-2xl">📊</span>
+        <div className="space-y-5 animate-fadeIn">
+          <div className="flex items-center justify-between p-3.5 rounded-2xl pastel-lavender">
+            <div className="flex items-center gap-2.5">
+              <span className="text-xl">📊</span>
               <div>
-                <h3 className="text-sm font-extrabold text-violet-950">
-                  Multimodal Clinical Distress Scale (0–100)
+                <h3 className="text-xs sm:text-sm font-extrabold text-violet-950">
+                  Clinical Distress Decomposition (0–100)
                 </h3>
-                <p className="text-xs text-violet-800 font-medium">
-                  Transparent score decomposition: MADRS (40%), PHQ-9 Mood Velocity (20%), Voice Biomarkers (10%), Legal Context (30%).
+                <p className="text-[11px] text-violet-800 font-medium">
+                  MADRS (40%), PHQ-9 (20%), Voice Biomarkers (10%), Legal Context (30%).
                 </p>
               </div>
             </div>
@@ -1063,38 +1038,38 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
           <DistressMeter result={latestAssessment} />
 
           {/* Clinical Severity Bands Reference Card */}
-          <div className="anvaya-card p-6 space-y-4">
+          <div className="anvaya-card p-5 space-y-3">
             <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-2">
               <ShieldCheck className="w-4 h-4 text-indigo-600" />
-              <span>MoSJE Clinical Severity Bands & Care Thresholds</span>
+              <span>Clinical Severity Bands</span>
             </h4>
 
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-              <div className="p-3.5 rounded-2xl pastel-emerald space-y-1">
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5">
+              <div className="p-3 rounded-xl pastel-emerald space-y-0.5">
                 <div className="text-xs font-extrabold text-emerald-950">0 – 25 : Stable</div>
                 <div className="text-[11px] text-emerald-800 font-medium leading-tight">
-                  Normal affective baseline. Routine bi-weekly check-ins.
+                  Normal baseline. Routine check-ins.
                 </div>
               </div>
 
-              <div className="p-3.5 rounded-2xl pastel-teal space-y-1">
+              <div className="p-3 rounded-xl pastel-teal space-y-0.5">
                 <div className="text-xs font-extrabold text-teal-950">26 – 50 : Mild Strain</div>
                 <div className="text-[11px] text-teal-800 font-medium leading-tight">
-                  Gentle stress markers. Breathwork & soundscapes recommended.
+                  Gentle stress markers. Calming exercises recommended.
                 </div>
               </div>
 
-              <div className="p-3.5 rounded-2xl pastel-amber space-y-1">
+              <div className="p-3 rounded-xl pastel-amber space-y-0.5">
                 <div className="text-xs font-extrabold text-amber-950">51 – 75 : Moderate</div>
                 <div className="text-[11px] text-amber-800 font-medium leading-tight">
-                  High emotional load. Counselor callback & weekly monitoring.
+                  Elevated load. Observer care & regular check-ins.
                 </div>
               </div>
 
-              <div className="p-3.5 rounded-2xl pastel-rose space-y-1">
+              <div className="p-3 rounded-xl pastel-rose space-y-0.5">
                 <div className="text-xs font-extrabold text-rose-950">76 – 100 : Critical</div>
                 <div className="text-[11px] text-rose-800 font-medium leading-tight">
-                  Immediate safety alert. 108 protocol & priority psychiatric care.
+                  Immediate safety alert & 108 protocol.
                 </div>
               </div>
             </div>
@@ -1107,15 +1082,15 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
           ======================================================== */}
       {activeSubTab === 'community' && (
         <div className="space-y-4 animate-fadeIn">
-          <div className="flex items-center justify-between p-4 rounded-2xl pastel-rose">
-            <div className="flex items-center gap-3">
-              <span className="text-2xl">💬</span>
+          <div className="flex items-center justify-between p-3.5 rounded-2xl pastel-rose">
+            <div className="flex items-center gap-2.5">
+              <span className="text-xl">💬</span>
               <div>
-                <h3 className="text-sm font-extrabold text-rose-950">
+                <h3 className="text-xs sm:text-sm font-extrabold text-rose-950">
                   Survivor Hope & Solidarity Wall
                 </h3>
-                <p className="text-xs text-rose-800 font-medium">
-                  Safe, anonymous messages of hope, strength, and resilience from fellow survivors.
+                <p className="text-[11px] text-rose-800 font-medium">
+                  Anonymous messages of strength and resilience from fellow survivors.
                 </p>
               </div>
             </div>
