@@ -292,6 +292,11 @@ export const App: React.FC = () => {
     };
     try {
       const stored = getStoredUser();
+      const lastAssigned =
+        JSON.parse(localStorage.getItem('anvaya_last_assigned_observer') || 'null') ||
+        JSON.parse(localStorage.getItem('anvaya_global_assigned_observer') || 'null');
+      const obs = stored?.assigned_observer || stored?.assignedObserver || lastAssigned || null;
+
       if (stored) {
         return {
           ...defaultProfile,
@@ -302,8 +307,11 @@ export const App: React.FC = () => {
           state: stored.state || defaultProfile.state,
           caseCategory: stored.caseCategory || defaultProfile.caseCategory,
           language: stored.language || defaultProfile.language,
-          assignedObserver: stored.assigned_observer || stored.assignedObserver || null,
+          assignedObserver: obs,
         };
+      }
+      if (lastAssigned) {
+        return { ...defaultProfile, assignedObserver: lastAssigned };
       }
     } catch {}
     return defaultProfile;
@@ -312,24 +320,34 @@ export const App: React.FC = () => {
   // Synchronize userProfile whenever currentUser updates (e.g. login, session restore, profile edit)
   useEffect(() => {
     if (currentUser) {
-      setUserProfile((prev) => ({
-        ...prev,
-        id: currentUser.id || currentUser.user_id || prev.id,
-        name: currentUser.full_name || currentUser.name || prev.name,
-        phone: currentUser.phone || prev.phone,
-        district: currentUser.district || prev.district,
-        state: currentUser.state || prev.state,
-        caseCategory: currentUser.caseCategory || prev.caseCategory,
-        language: currentUser.language || prev.language,
-        assignedObserver: currentUser.assigned_observer || currentUser.assignedObserver || prev.assignedObserver,
-      }));
+      setUserProfile((prev) => {
+        const lastAssigned =
+          JSON.parse(localStorage.getItem('anvaya_last_assigned_observer') || 'null') ||
+          JSON.parse(localStorage.getItem('anvaya_global_assigned_observer') || 'null');
+        return {
+          ...prev,
+          id: currentUser.id || currentUser.user_id || prev.id,
+          name: currentUser.full_name || currentUser.name || prev.name,
+          phone: currentUser.phone || prev.phone,
+          district: currentUser.district || prev.district,
+          state: currentUser.state || prev.state,
+          caseCategory: currentUser.caseCategory || prev.caseCategory,
+          language: currentUser.language || prev.language,
+          assignedObserver:
+            currentUser.assigned_observer ||
+            currentUser.assignedObserver ||
+            prev.assignedObserver ||
+            lastAssigned ||
+            null,
+        };
+      });
     }
   }, [currentUser]);
 
-  // Listen for real-time observer assignment events from Admin Panel
+  // Listen for real-time observer assignment events from Admin Panel & Storage
   useEffect(() => {
     const handleObserverAssigned = (e: any) => {
-      const assigned = e.detail?.observer;
+      const assigned = e.detail?.observer !== undefined ? e.detail.observer : null;
       setUserProfile((prev) => ({
         ...prev,
         assignedObserver: assigned,
@@ -341,8 +359,24 @@ export const App: React.FC = () => {
         return updated;
       });
     };
+
+    const handleStorageChange = () => {
+      try {
+        const lastAssigned =
+          JSON.parse(localStorage.getItem('anvaya_last_assigned_observer') || 'null') ||
+          JSON.parse(localStorage.getItem('anvaya_global_assigned_observer') || 'null');
+        if (lastAssigned) {
+          setUserProfile((prev) => ({ ...prev, assignedObserver: lastAssigned }));
+        }
+      } catch {}
+    };
+
     window.addEventListener('anvaya_observer_assigned', handleObserverAssigned);
-    return () => window.removeEventListener('anvaya_observer_assigned', handleObserverAssigned);
+    window.addEventListener('storage', handleStorageChange);
+    return () => {
+      window.removeEventListener('anvaya_observer_assigned', handleObserverAssigned);
+      window.removeEventListener('storage', handleStorageChange);
+    };
   }, []);
 
   // Synced 1:1 Messages between Victim and Observer

@@ -17,9 +17,10 @@ import {
   ChevronRight,
   Send,
   Calendar,
-  Lock
+  Lock,
+  UserCheck
 } from 'lucide-react';
-import { psychiatristApi, DoctorProfile, ConnectRequestPayload } from '../../api';
+import { psychiatristApi, DoctorProfile, ConnectRequestPayload, authApi, getStoredUser } from '../../api';
 
 interface DoctorDirectoryModalProps {
   isOpen: boolean;
@@ -74,6 +75,53 @@ export const DoctorDirectoryModal: React.FC<DoctorDirectoryModalProps> = ({
     setReason('');
     setSuccessMessage(null);
     setErrorMessage(null);
+  };
+
+  const handleDirectAssign = async (doc: DoctorProfile) => {
+    const observerObj = {
+      id: doc.doctor_id,
+      name: doc.name,
+      role: `${doc.specialization} (${doc.qualification})`,
+      phone: doc.phone,
+      hospital: doc.hospital,
+      assignedAt: new Date().toISOString(),
+    };
+
+    const targetUserId = userProfile?.id || getStoredUser()?.id || 'USR-26094';
+
+    try {
+      await authApi.assignObserver(targetUserId, observerObj);
+    } catch {}
+
+    try {
+      localStorage.setItem(`anvaya_assigned_observer_${targetUserId}`, JSON.stringify(observerObj));
+      localStorage.setItem('anvaya_last_assigned_observer', JSON.stringify(observerObj));
+      localStorage.setItem('anvaya_global_assigned_observer', JSON.stringify(observerObj));
+
+      const curr = authApi.getCurrentLocalUser();
+      if (curr) {
+        authApi.saveLocalSession({ ...curr, assigned_observer: observerObj, assignedObserver: observerObj });
+      }
+
+      const storedProfile = JSON.parse(localStorage.getItem('anvaya_user_profile') || '{}');
+      storedProfile.assignedObserver = observerObj;
+      storedProfile.assigned_observer = observerObj;
+      localStorage.setItem('anvaya_user_profile', JSON.stringify(storedProfile));
+    } catch {}
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent('anvaya_observer_assigned', {
+          detail: { userId: targetUserId, observer: observerObj },
+        })
+      );
+      window.dispatchEvent(new Event('storage'));
+    }
+
+    setSuccessMessage(`✅ ${doc.name} is now allocated as your primary Health Observer!`);
+    setTimeout(() => {
+      onClose();
+    }, 1200);
   };
 
   const handleSubmitRequest = async (e: React.FormEvent) => {
@@ -376,14 +424,24 @@ export const DoctorDirectoryModal: React.FC<DoctorDirectoryModalProps> = ({
                         <span>{doc.available_slot}</span>
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={() => handleOpenRequest(doc)}
-                        className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-extrabold text-[11px] transition cursor-pointer shadow-xs flex items-center gap-1"
-                      >
-                        <span>Connect 1:1</span>
-                        <ChevronRight className="w-3 h-3" />
-                      </button>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => handleDirectAssign(doc)}
+                          className="px-2.5 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 active:scale-95 text-emerald-800 font-extrabold text-[11px] border border-emerald-200 transition cursor-pointer flex items-center gap-1"
+                          title="Assign as your official health observer"
+                        >
+                          <span>🤝 Assign</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenRequest(doc)}
+                          className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-extrabold text-[11px] transition cursor-pointer shadow-xs flex items-center gap-1"
+                        >
+                          <span>Connect</span>
+                          <ChevronRight className="w-3 h-3" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))

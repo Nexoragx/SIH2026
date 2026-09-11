@@ -65,18 +65,65 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
   const [activeSubTab, setActiveSubTab] = useState<'overview' | 'exercises' | 'scale' | 'community'>(initialSubTab);
   const [currentSelectedExercise, setCurrentSelectedExercise] = useState<string | undefined>(targetExercise);
   const [liveAssignedObserver, setLiveAssignedObserver] = useState<any>(() => {
-    const stored = getStoredUser();
-    return (
-      userProfile?.assignedObserver ||
-      userProfile?.assigned_observer ||
-      stored?.assigned_observer ||
-      stored?.assignedObserver ||
-      null
-    );
+    try {
+      const stored = getStoredUser();
+      const lastAssigned =
+        JSON.parse(localStorage.getItem('anvaya_last_assigned_observer') || 'null') ||
+        JSON.parse(localStorage.getItem('anvaya_global_assigned_observer') || 'null');
+      const byId = userProfile?.id
+        ? JSON.parse(localStorage.getItem(`anvaya_assigned_observer_${userProfile.id}`) || 'null')
+        : null;
+      const byEmail = userProfile?.email
+        ? JSON.parse(localStorage.getItem(`anvaya_assigned_observer_${userProfile.email}`) || 'null')
+        : null;
+
+      return (
+        userProfile?.assignedObserver ||
+        userProfile?.assigned_observer ||
+        byId ||
+        byEmail ||
+        stored?.assigned_observer ||
+        stored?.assignedObserver ||
+        lastAssigned ||
+        null
+      );
+    } catch {
+      return null;
+    }
   });
 
-  // Re-sync with backend /auth/me on mount to guarantee up-to-date observer allocation
+  // Re-sync observer allocation from server, props, and local storage
   useEffect(() => {
+    const syncObserverFromCache = () => {
+      try {
+        const stored = getStoredUser();
+        const lastAssigned =
+          JSON.parse(localStorage.getItem('anvaya_last_assigned_observer') || 'null') ||
+          JSON.parse(localStorage.getItem('anvaya_global_assigned_observer') || 'null');
+        const byId = userProfile?.id
+          ? JSON.parse(localStorage.getItem(`anvaya_assigned_observer_${userProfile.id}`) || 'null')
+          : null;
+        const byEmail = userProfile?.email
+          ? JSON.parse(localStorage.getItem(`anvaya_assigned_observer_${userProfile.email}`) || 'null')
+          : null;
+
+        const candidate =
+          userProfile?.assignedObserver ||
+          userProfile?.assigned_observer ||
+          byId ||
+          byEmail ||
+          stored?.assigned_observer ||
+          stored?.assignedObserver ||
+          lastAssigned;
+
+        if (candidate) {
+          setLiveAssignedObserver(candidate);
+        }
+      } catch {}
+    };
+
+    syncObserverFromCache();
+
     authApi.getMe()
       .then((me: any) => {
         if (me && (me.assigned_observer || me.assignedObserver)) {
@@ -89,13 +136,6 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
         }
       })
       .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    const obs = userProfile?.assignedObserver || userProfile?.assigned_observer;
-    if (obs !== undefined) {
-      setLiveAssignedObserver(obs);
-    }
   }, [userProfile]);
 
   useEffect(() => {
@@ -104,8 +144,24 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
         setLiveAssignedObserver(e.detail.observer);
       }
     };
+
+    const handleStorageUpdate = () => {
+      try {
+        const lastAssigned =
+          JSON.parse(localStorage.getItem('anvaya_last_assigned_observer') || 'null') ||
+          JSON.parse(localStorage.getItem('anvaya_global_assigned_observer') || 'null');
+        if (lastAssigned) {
+          setLiveAssignedObserver(lastAssigned);
+        }
+      } catch {}
+    };
+
     window.addEventListener('anvaya_observer_assigned', handleObserverUpdate);
-    return () => window.removeEventListener('anvaya_observer_assigned', handleObserverUpdate);
+    window.addEventListener('storage', handleStorageUpdate);
+    return () => {
+      window.removeEventListener('anvaya_observer_assigned', handleObserverUpdate);
+      window.removeEventListener('storage', handleStorageUpdate);
+    };
   }, []);
 
   useEffect(() => {

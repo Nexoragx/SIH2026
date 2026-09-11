@@ -401,23 +401,37 @@ export const AdminPanel: React.FC = () => {
       );
 
       try {
-        const citizenProfiles = JSON.parse(localStorage.getItem('anvaya_citizen_profiles') || '{}');
-        if (citizenProfiles[assignModalUser.id]) {
-          citizenProfiles[assignModalUser.id].assignedObserver = observerObj;
-          localStorage.setItem('anvaya_citizen_profiles', JSON.stringify(citizenProfiles));
+        // Save direct ID/email keys
+        localStorage.setItem(`anvaya_assigned_observer_${assignModalUser.id}`, JSON.stringify(observerObj));
+        if (assignModalUser.email) {
+          localStorage.setItem(`anvaya_assigned_observer_${assignModalUser.email}`, JSON.stringify(observerObj));
         }
 
+        // Save last & global observer so switching back to user dashboard immediately reflects
+        localStorage.setItem('anvaya_last_assigned_observer', JSON.stringify(observerObj));
+        localStorage.setItem('anvaya_global_assigned_observer', JSON.stringify(observerObj));
+
+        // Update citizen profiles registry
+        const citizenProfiles = JSON.parse(localStorage.getItem('anvaya_citizen_profiles') || '{}');
+        citizenProfiles[assignModalUser.id] = {
+          ...(citizenProfiles[assignModalUser.id] || {}),
+          assignedObserver: observerObj,
+          assigned_observer: observerObj,
+        };
+        localStorage.setItem('anvaya_citizen_profiles', JSON.stringify(citizenProfiles));
+
+        // Update current local user if matching or if survivor
         const curr = authApi.getCurrentLocalUser();
-        if (curr && (curr.id === assignModalUser.id || curr.email === assignModalUser.email)) {
+        if (curr) {
           const updatedUser = { ...curr, assigned_observer: observerObj, assignedObserver: observerObj };
           authApi.saveLocalSession(updatedUser);
         }
 
+        // Update stored profile
         const storedProfile = JSON.parse(localStorage.getItem('anvaya_user_profile') || '{}');
-        if (storedProfile && (storedProfile.id === assignModalUser.id || storedProfile.email === assignModalUser.email)) {
-          storedProfile.assignedObserver = observerObj;
-          localStorage.setItem('anvaya_user_profile', JSON.stringify(storedProfile));
-        }
+        storedProfile.assignedObserver = observerObj;
+        storedProfile.assigned_observer = observerObj;
+        localStorage.setItem('anvaya_user_profile', JSON.stringify(storedProfile));
       } catch {}
 
       if (typeof window !== 'undefined') {
@@ -426,6 +440,7 @@ export const AdminPanel: React.FC = () => {
             detail: { userId: assignModalUser.id, observer: observerObj },
           })
         );
+        window.dispatchEvent(new Event('storage'));
       }
 
       setAssignmentNotice(`✅ Successfully assigned ${chosenObserver.name} to ${assignModalUser.full_name}`);
@@ -444,28 +459,35 @@ export const AdminPanel: React.FC = () => {
 
       setUsersList((prev) =>
         prev.map((u) =>
-          u.id === user.id ? { ...u, assigned_observer: null } : u
+          u.id === user.id
+            ? { ...u, assigned_observer: null }
+            : u
         )
       );
 
       try {
+        localStorage.removeItem(`anvaya_assigned_observer_${user.id}`);
+        if (user.email) localStorage.removeItem(`anvaya_assigned_observer_${user.email}`);
+        localStorage.removeItem('anvaya_last_assigned_observer');
+        localStorage.removeItem('anvaya_global_assigned_observer');
+
         const citizenProfiles = JSON.parse(localStorage.getItem('anvaya_citizen_profiles') || '{}');
         if (citizenProfiles[user.id]) {
           citizenProfiles[user.id].assignedObserver = null;
+          citizenProfiles[user.id].assigned_observer = null;
           localStorage.setItem('anvaya_citizen_profiles', JSON.stringify(citizenProfiles));
         }
 
         const curr = authApi.getCurrentLocalUser();
-        if (curr && (curr.id === user.id || curr.email === user.email)) {
+        if (curr) {
           const updatedUser = { ...curr, assigned_observer: null, assignedObserver: null };
           authApi.saveLocalSession(updatedUser);
         }
 
         const storedProfile = JSON.parse(localStorage.getItem('anvaya_user_profile') || '{}');
-        if (storedProfile && (storedProfile.id === user.id || storedProfile.email === user.email)) {
-          storedProfile.assignedObserver = null;
-          localStorage.setItem('anvaya_user_profile', JSON.stringify(storedProfile));
-        }
+        storedProfile.assignedObserver = null;
+        storedProfile.assigned_observer = null;
+        localStorage.setItem('anvaya_user_profile', JSON.stringify(storedProfile));
       } catch {}
 
       if (typeof window !== 'undefined') {
@@ -474,11 +496,14 @@ export const AdminPanel: React.FC = () => {
             detail: { userId: user.id, observer: null },
           })
         );
+        window.dispatchEvent(new Event('storage'));
       }
 
-      setAssignmentNotice(`Observer unassigned from ${user.full_name}. Status updated to Pending Allocation.`);
+      setAssignmentNotice(`Observer unassigned from ${user.full_name}`);
       setTimeout(() => setAssignmentNotice(null), 4000);
-    } catch {}
+    } catch {
+      alert('Error unassigning observer.');
+    }
   };
 
   // Instant client-side search & severity filtering across loaded reports

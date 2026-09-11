@@ -94,6 +94,7 @@ def get_current_profile(current_user: dict = Depends(get_current_user)):
     """
     Returns profile information of the currently authenticated user.
     """
+    assigned = current_user.get("assigned_observer") or current_user.get("assignedObserver")
     return {
         "id": current_user.get("id"),
         "email": current_user.get("email"),
@@ -102,7 +103,8 @@ def get_current_profile(current_user: dict = Depends(get_current_user)):
         "phone": current_user.get("phone"),
         "district": current_user.get("district"),
         "state": current_user.get("state"),
-        "assigned_observer": current_user.get("assigned_observer"),
+        "assigned_observer": assigned,
+        "assignedObserver": assigned,
         "oauth_provider": current_user.get("oauth_provider"),
         "created_at": current_user.get("created_at")
     }
