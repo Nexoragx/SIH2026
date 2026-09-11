@@ -40,12 +40,12 @@ interface VictimDashboardProps {
   onOpenEmergency: () => void;
   onOpenSchedule: () => void;
   onOpenCommunityWall?: () => void;
-  onOpenCourtReport?: () => void;
   onOpenTherapeutic?: () => void;
   onOpenUssdSimulator?: () => void;
   currentLang?: string;
   initialSubTab?: 'overview' | 'exercises' | 'scale' | 'community';
   targetExercise?: 'breathing' | 'grounding' | 'journal' | 'muscle' | 'sounds' | 'emdr';
+  userProfile?: any;
 }
 
 export const VictimDashboard: React.FC<VictimDashboardProps> = ({
@@ -55,20 +55,44 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
   onOpenEmergency,
   onOpenSchedule,
   onOpenCommunityWall,
-  onOpenCourtReport,
   onOpenTherapeutic,
   onOpenUssdSimulator,
   currentLang = 'en',
   initialSubTab = 'overview',
   targetExercise,
+  userProfile,
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<'overview' | 'exercises' | 'scale' | 'community'>(initialSubTab);
+  const [currentSelectedExercise, setCurrentSelectedExercise] = useState<string | undefined>(targetExercise);
+  const [liveAssignedObserver, setLiveAssignedObserver] = useState<any>(() => {
+    return userProfile?.assignedObserver || getStoredUser()?.assigned_observer || getStoredUser()?.assignedObserver || null;
+  });
+
+  useEffect(() => {
+    if (userProfile?.assignedObserver) {
+      setLiveAssignedObserver(userProfile.assignedObserver);
+    }
+  }, [userProfile]);
+
+  useEffect(() => {
+    const handleObserverUpdate = (e: any) => {
+      if (e.detail?.observer !== undefined) {
+        setLiveAssignedObserver(e.detail.observer);
+      }
+    };
+    window.addEventListener('anvaya_observer_assigned', handleObserverUpdate);
+    return () => window.removeEventListener('anvaya_observer_assigned', handleObserverUpdate);
+  }, []);
 
   useEffect(() => {
     if (initialSubTab) {
       setActiveSubTab(initialSubTab);
     }
   }, [initialSubTab]);
+
+  useEffect(() => {
+    setCurrentSelectedExercise(targetExercise);
+  }, [targetExercise]);
   const [isDoctorDirectoryOpen, setIsDoctorDirectoryOpen] = useState<boolean>(false);
 
   const [scheduleData, setScheduleData] = useState<{
@@ -387,7 +411,10 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
 
         <button
           type="button"
-          onClick={() => setActiveSubTab('exercises')}
+          onClick={() => {
+            setActiveSubTab('exercises');
+            setCurrentSelectedExercise(undefined);
+          }}
           className={`flex-1 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-extrabold transition-all flex items-center justify-center gap-2 cursor-pointer min-h-[44px] ${
             activeSubTab === 'exercises'
               ? 'bg-gradient-to-r from-teal-600 to-emerald-600 text-white shadow-md shadow-teal-500/20'
@@ -481,9 +508,12 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
           </div>
 
           {/* Direct Feature Launchers (Frosted Glass Pastel Tiles) */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div
-              onClick={() => setActiveSubTab('exercises')}
+              onClick={() => {
+                setActiveSubTab('exercises');
+                setCurrentSelectedExercise(undefined);
+              }}
               className="p-4 rounded-2xl pastel-teal hover:shadow-md transition-all cursor-pointer flex items-center gap-3.5 group"
             >
               <div className="w-11 h-11 rounded-2xl bg-teal-100 text-teal-800 flex items-center justify-center text-2xl flex-shrink-0 group-hover:scale-105 transition">
@@ -513,62 +543,92 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
                 <p className="text-[11px] text-violet-800 font-medium">Multimodal 0-100 Decomposition</p>
               </div>
             </div>
-
-            <div
-              onClick={onOpenCourtReport}
-              className="p-4 rounded-2xl pastel-sky hover:shadow-md transition-all cursor-pointer flex items-center gap-3.5 group"
-            >
-              <div className="w-11 h-11 rounded-2xl bg-sky-100 text-sky-800 flex items-center justify-center text-2xl flex-shrink-0 group-hover:scale-105 transition">
-                ⚖️
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-black text-sky-950 truncate">Court & Legal Aid</h4>
-                  <ChevronRight className="w-3.5 h-3.5 text-sky-700 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition" />
-                </div>
-                <p className="text-[11px] text-sky-800 font-medium">Statutory Relief Document</p>
-              </div>
-            </div>
           </div>
 
-          {/* Assigned Counsellor Support Card */}
-          <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-md">
-            <div className="flex items-center gap-3.5">
-              <div className="w-11 h-11 rounded-2xl bg-indigo-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0 shadow-xs">
-                AJ
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-black text-white">Dr. Anita Joshi</span>
-                  <span className="text-[10px] text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded-full font-bold border border-emerald-800">
-                    ● Assigned Observer
-                  </span>
+          {/* Dynamic Assigned Health Observer / Counsellor Support Card */}
+          {liveAssignedObserver ? (
+            <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-md">
+              <div className="flex items-center gap-3.5">
+                <div className="w-11 h-11 rounded-2xl bg-indigo-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0 shadow-xs">
+                  {liveAssignedObserver.name
+                    ? liveAssignedObserver.name
+                        .split(' ')
+                        .map((n: string) => n[0])
+                        .join('')
+                        .slice(0, 2)
+                        .toUpperCase()
+                    : 'OB'}
                 </div>
-                <p className="text-[11px] text-slate-300 font-medium mt-0.5">
-                  District Mental Health Unit • Available for direct encrypted 1:1 chat
-                </p>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-black text-white">{liveAssignedObserver.name}</span>
+                    <span className="text-[10px] text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded-full font-bold border border-emerald-800">
+                      ● {liveAssignedObserver.role || 'Assigned Observer'}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-300 font-medium mt-0.5">
+                    {liveAssignedObserver.hospital || 'District Nodal Mental Health Unit'} • Direct encrypted 1:1 care channel
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={() => setIsDoctorDirectoryOpen(true)}
+                  className="flex-1 sm:flex-initial px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition cursor-pointer shadow-xs flex items-center justify-center gap-1.5 border border-indigo-400/30"
+                >
+                  <Stethoscope className="w-3.5 h-3.5 text-indigo-200" />
+                  <span>Doctors Directory</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={onOpenChat}
+                  className="flex-1 sm:flex-initial px-4 py-2 rounded-xl bg-white text-slate-900 hover:bg-slate-100 font-bold text-xs transition cursor-pointer shadow-xs flex items-center justify-center gap-1.5"
+                >
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  <span>Message Observer</span>
+                </button>
               </div>
             </div>
+          ) : (
+            <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-amber-950 via-slate-900 to-amber-950 text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-md border border-amber-500/30">
+              <div className="flex items-center gap-3.5">
+                <div className="w-11 h-11 rounded-2xl bg-amber-500/20 text-amber-300 border border-amber-400/40 flex items-center justify-center font-bold text-lg flex-shrink-0 shadow-xs">
+                  ⏳
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-black text-amber-300">Observer Allocation in Progress</span>
+                    <span className="text-[10px] text-amber-300 bg-amber-900/60 px-2 py-0.5 rounded-full font-bold border border-amber-600">
+                      Pending Admin Allocation
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-300 font-medium mt-0.5">
+                    The District Mental Health Cell is allocating a dedicated health observer to your profile.
+                  </p>
+                </div>
+              </div>
 
-            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-              <button
-                type="button"
-                onClick={() => setIsDoctorDirectoryOpen(true)}
-                className="flex-1 sm:flex-initial px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition cursor-pointer shadow-xs flex items-center justify-center gap-1.5 border border-indigo-400/30"
-              >
-                <Stethoscope className="w-3.5 h-3.5 text-indigo-200" />
-                <span>1:1 Doctors & Observers</span>
-              </button>
-              <button
-                type="button"
-                onClick={onOpenChat}
-                className="flex-1 sm:flex-initial px-4 py-2 rounded-xl bg-white text-slate-900 hover:bg-slate-100 font-bold text-xs transition cursor-pointer shadow-xs flex items-center justify-center gap-1.5"
-              >
-                <MessageSquare className="w-3.5 h-3.5" />
-                <span>Message Doctor</span>
-              </button>
+              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={() => setIsDoctorDirectoryOpen(true)}
+                  className="flex-1 sm:flex-initial px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs transition cursor-pointer shadow-xs flex items-center justify-center gap-1.5"
+                >
+                  <Stethoscope className="w-3.5 h-3.5 text-amber-100" />
+                  <span>Browse Observers</span>
+                </button>
+                <a
+                  href="tel:14566"
+                  className="flex-1 sm:flex-initial px-4 py-2 rounded-xl bg-white text-slate-900 hover:bg-slate-100 font-bold text-xs transition cursor-pointer shadow-xs flex items-center justify-center gap-1.5"
+                >
+                  <PhoneCall className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Call 14566 Toll-Free</span>
+                </a>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Wellbeing Status & Next Check-in (2-Column Grid) */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -682,103 +742,7 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
             </div>
           </div>
 
-          {/* Statutory Compensation Tracker (Rule 12(4) SC/ST PoA Rules) */}
-          <div className="anvaya-card p-6 sm:p-7 space-y-4 border border-emerald-200/80 bg-gradient-to-br from-white via-emerald-50/20 to-white">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-base font-black text-slate-900">
-                    Statutory Relief & Compensation Tracker
-                  </h3>
-                  <span className="text-[10px] font-extrabold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-200">
-                    Rule 12(4) PoA Rules
-                  </span>
-                </div>
-                <p className="text-xs text-slate-600 font-medium mt-0.5">
-                  Mandatory Direct Benefit Transfer (DBT) schedule under Central Scheme. Total Entitlement: <strong>₹5,00,000</strong>
-                </p>
-              </div>
-              <div className="inline-flex items-center gap-1.5 text-xs font-extrabold text-emerald-800 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200 self-start">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Statutory SLA Compliant</span>
-              </div>
-            </div>
 
-            {/* 3 Milestone Stages */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 pt-1">
-              {/* Stage 1 */}
-              <div className="p-3.5 rounded-2xl bg-white border-2 border-emerald-300 shadow-2xs space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
-                    Stage 1 (25%)
-                  </span>
-                  <span className="text-xs font-black text-emerald-700">₹1,25,000</span>
-                </div>
-                <h4 className="text-xs font-black text-slate-900">FIR Registration</h4>
-                <p className="text-[11px] text-slate-600 font-medium">
-                  Disbursed via PFMS DBT to SBI A/c •••• 4091. Processed in 4 days (Limit: 7d).
-                </p>
-                <div className="text-[10px] font-mono font-bold text-emerald-800 bg-emerald-50/80 px-2 py-1 rounded">
-                  Ref: DBT-MH-2026-98124
-                </div>
-              </div>
-
-              {/* Stage 2 */}
-              <div className="p-3.5 rounded-2xl bg-white border-2 border-amber-300 shadow-2xs space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-amber-700 bg-amber-50 px-2 py-0.5 rounded">
-                    Stage 2 (50%)
-                  </span>
-                  <span className="text-xs font-black text-amber-700">₹2,50,000</span>
-                </div>
-                <h4 className="text-xs font-black text-slate-900">Special Court Chargesheet</h4>
-                <p className="text-[11px] text-slate-600 font-medium">
-                  Chargesheet submitted by DySP. Pending DM verification sanction.
-                </p>
-                <div className="text-[10px] font-mono font-bold text-amber-800 bg-amber-50/80 px-2 py-1 rounded">
-                  SLA: Day 12 of 21 (In Progress)
-                </div>
-              </div>
-
-              {/* Stage 3 */}
-              <div className="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-2 opacity-80">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
-                    Stage 3 (25%)
-                  </span>
-                  <span className="text-xs font-black text-slate-500">₹1,25,000</span>
-                </div>
-                <h4 className="text-xs font-black text-slate-900">Final Conviction Order</h4>
-                <p className="text-[11px] text-slate-500 font-medium">
-                  Payable upon trial conviction / judgment by Special SC/ST Court bench.
-                </p>
-                <div className="text-[10px] font-mono font-bold text-slate-500 bg-slate-50 px-2 py-1 rounded">
-                  Status: Pre-Trial Stage
-                </div>
-              </div>
-            </div>
-
-            {/* USSD and Low-tech inclusion alert banner */}
-            <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
-              <div className="flex items-center gap-2">
-                <span className="text-lg">📱</span>
-                <div>
-                  <span className="font-bold text-slate-900">Non-Smartphone Rural Access: </span>
-                  <span className="text-slate-600 font-medium">You or your family can also track compensation or request emergency callbacks by dialing </span>
-                  <code className="font-mono font-black text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded">*14566#</code>
-                </div>
-              </div>
-              {onOpenUssdSimulator && (
-                <button
-                  type="button"
-                  onClick={onOpenUssdSimulator}
-                  className="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-black active:scale-95 text-white font-bold text-[11px] whitespace-nowrap transition cursor-pointer flex-shrink-0"
-                >
-                  Test *14566# Simulator
-                </button>
-              )}
-            </div>
-          </div>
 
           {/* Immediate Support Channels (Frosted Glass Pastel Cards) */}
           <div className="space-y-3">
@@ -896,7 +860,7 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
             currentLang={currentLang}
             resultData={latestAssessment}
             onOpenCounsellorChat={onOpenChat}
-            initialActivity={targetExercise}
+            initialActivity={currentSelectedExercise}
           />
         </div>
       )}

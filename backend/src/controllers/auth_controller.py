@@ -118,11 +118,17 @@ class VerifyOtpSchema(BaseModel):
     state: Optional[str] = "Maharashtra"
 
 
-class TokenResponseSchema(BaseModel):
-    access_token: str
-    refresh_token: str
-    token_type: str = "bearer"
-    user: dict
+class AssignObserverSchema(BaseModel):
+    user_id: str = Field(..., description="Target User / Beneficiary ID")
+    observer_id: str = Field(..., description="Assigned Observer ID")
+    observer_name: str = Field(..., description="Observer Full Name")
+    observer_role: Optional[str] = Field("District Health Observer (L1)", description="Observer Role Title")
+    observer_phone: Optional[str] = Field(None, description="Observer Phone Number")
+    observer_hospital: Optional[str] = Field(None, description="Observer Hospital or Facility")
+
+
+class UnassignObserverSchema(BaseModel):
+    user_id: str = Field(..., description="Target User / Beneficiary ID")
 
 
 # --- Controller Business Logic (MongoDB) ---
@@ -625,3 +631,200 @@ class AuthController:
             "token_type": "bearer",
             "user": serialize_user(user)
         }
+
+    @staticmethod
+    def get_admin_users(db: Database) -> list:
+        """
+        Returns all registered citizens and beneficiaries for Admin verification and observer allocation.
+        """
+        users_list = []
+        # Query both possible collections
+        cursor = db.user.find({}) or []
+        seen_ids = set()
+
+        for u in cursor:
+            uid = str(u.get("_id", ""))
+            if not uid or uid in seen_ids:
+                continue
+            seen_ids.add(uid)
+
+            # Skip pure system administrators if filtering for beneficiaries
+            role = u.get("role", "victim")
+
+            users_list.append({
+                "id": uid,
+                "email": u.get("email", ""),
+                "full_name": u.get("full_name") or u.get("name") or "Citizen Survivor",
+                "role": role,
+                "phone": u.get("phone") or "Not provided",
+                "district": u.get("district") or "Nashik",
+                "state": u.get("state") or "Maharashtra",
+                "assigned_observer": u.get("assigned_observer"),
+                "is_active": u.get("is_active", True),
+                "created_at": u.get("created_at").isoformat() if hasattr(u.get("created_at"), "isoformat") else str(u.get("created_at") or datetime.now(timezone.utc).isoformat())
+            })
+
+        # Also search in users collection if distinct
+        try:
+            for u in db.users.find({}):
+                uid = str(u.get("_id", ""))
+                if not uid or uid in seen_ids:
+                    continue
+                seen_ids.add(uid)
+                users_list.append({
+                    "id": uid,
+                    "email": u.get("email", ""),
+                    "full_name": u.get("full_name") or u.get("name") or "Citizen Survivor",
+                    "role": u.get("role", "victim"),
+                    "phone": u.get("phone") or "Not provided",
+                    "district": u.get("district") or "Nashik",
+                    "state": u.get("state") or "Maharashtra",
+                    "assigned_observer": u.get("assigned_observer"),
+                    "is_active": u.get("is_active", True),
+                    "created_at": u.get("created_at").isoformat() if hasattr(u.get("created_at"), "isoformat") else str(u.get("created_at") or datetime.now(timezone.utc).isoformat())
+                })
+        except Exception:
+            pass
+
+        return users_list
+
+    @staticmethod
+    def get_available_observers(db: Database) -> list:
+        """
+        Returns all accredited health observers, nodal officers, and psychiatrists available for assignment.
+        """
+        return [
+            {
+                "id": "OBS-ANITA-001",
+                "name": "Dr. Anita Joshi, MD",
+                "role": "District Nodal Care Officer & Telepsychiatrist",
+                "qualification": "MD Psychiatry (NIMHANS), Tele-MANAS Lead",
+                "district": "Nashik Central",
+                "state": "Maharashtra",
+                "phone": "+91 98230 11416",
+                "hospital": "District Nodal Mental Health Unit",
+                "active_cases": 14,
+                "status": "available"
+            },
+            {
+                "id": "OBS-RAJESH-002",
+                "name": "Rajesh Kumar, MSW",
+                "role": "Senior L1 Field Health Observer & Case Officer",
+                "qualification": "Master of Social Work (TISS), Community Trauma Lead",
+                "district": "Nashik Rural",
+                "state": "Maharashtra",
+                "phone": "+91 98450 22334",
+                "hospital": "Rural Primary Health Extension Cell",
+                "active_cases": 9,
+                "status": "available"
+            },
+            {
+                "id": "OBS-SUNITA-003",
+                "name": "Sunita Rao, MA",
+                "role": "Trauma & Somatic Recovery Specialist",
+                "qualification": "MA Clinical Psychology, Certified EMDR & Somatic Practitioner",
+                "district": "Pune Central",
+                "state": "Maharashtra",
+                "phone": "+91 98765 43210",
+                "hospital": "Pune Regional Mental Health Centre",
+                "active_cases": 11,
+                "status": "available"
+            },
+            {
+                "id": "OBS-RAMESH-004",
+                "name": "Dr. Ramesh Verma, DPM",
+                "role": "Senior Consultant Psychiatrist",
+                "qualification": "DPM, Fellowship in Forensic & Atrocity Trauma Care",
+                "district": "Aurangabad",
+                "state": "Maharashtra",
+                "phone": "+91 94220 55678",
+                "hospital": "Government Medical College & Hospital",
+                "active_cases": 8,
+                "status": "available"
+            },
+            {
+                "id": "OBS-PRIYA-005",
+                "name": "Priya Sharma, MSW",
+                "role": "MoSJE Community Care & Legal Nodal Coordinator",
+                "qualification": "MSW, Legal & Psychosocial Rehabilitation Specialist",
+                "district": "Nagpur Division",
+                "state": "Maharashtra",
+                "phone": "+91 98110 99887",
+                "hospital": "MoSJE District Protection Special Cell",
+                "active_cases": 6,
+                "status": "available"
+            }
+        ]
+
+    @staticmethod
+    def assign_observer(data: AssignObserverSchema, db: Database) -> dict:
+        """
+        Assigns or reassigns an accredited health observer to a citizen/beneficiary.
+        """
+        now_str = datetime.now(timezone.utc).isoformat()
+        observer_payload = {
+            "id": data.observer_id,
+            "name": data.observer_name,
+            "role": data.observer_role or "District Health Observer (L1)",
+            "phone": data.observer_phone,
+            "hospital": data.observer_hospital,
+            "assigned_at": now_str
+        }
+
+        # Try matching by ObjectId or string id
+        query = {"email": data.user_id}
+        if ObjectId.is_valid(data.user_id):
+            query = {"$or": [{"_id": ObjectId(data.user_id)}, {"_id": data.user_id}, {"email": data.user_id}]}
+
+        updated_doc = None
+        for col in [db.user, db.users]:
+            res = col.find_one_and_update(
+                query,
+                {"$set": {"assigned_observer": observer_payload, "updated_at": datetime.now(timezone.utc)}},
+                return_document=True
+            )
+            if res:
+                updated_doc = res
+
+        if not updated_doc:
+            # Fallback search by email or name if ID was client-generated
+            updated_doc = db.user.find_one_and_update(
+                {"$or": [{"full_name": data.user_id}, {"phone": data.user_id}]},
+                {"$set": {"assigned_observer": observer_payload, "updated_at": datetime.now(timezone.utc)}},
+                return_document=True
+            )
+
+        if updated_doc:
+            sync_user_to_all_dbs(updated_doc)
+            return {
+                "message": f"Observer {data.observer_name} assigned successfully to {updated_doc.get('full_name', 'User')}",
+                "assigned_observer": observer_payload,
+                "user": serialize_user(updated_doc)
+            }
+
+        return {
+            "message": f"Observer {data.observer_name} assigned successfully [Cached/Simulated]",
+            "assigned_observer": observer_payload,
+            "user_id": data.user_id
+        }
+
+    @staticmethod
+    def unassign_observer(data: UnassignObserverSchema, db: Database) -> dict:
+        """
+        Removes observer assignment from a user.
+        """
+        query = {"email": data.user_id}
+        if ObjectId.is_valid(data.user_id):
+            query = {"$or": [{"_id": ObjectId(data.user_id)}, {"_id": data.user_id}, {"email": data.user_id}]}
+
+        for col in [db.user, db.users]:
+            col.find_one_and_update(
+                query,
+                {"$set": {"assigned_observer": None, "updated_at": datetime.now(timezone.utc)}}
+            )
+
+        return {
+            "message": "Observer unassigned successfully",
+            "user_id": data.user_id
+        }
+

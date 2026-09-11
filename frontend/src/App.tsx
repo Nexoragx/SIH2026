@@ -23,7 +23,6 @@ import { IvrSimulatorModal } from './components/victim/IvrSimulatorModal';
 import { DoctorDirectoryModal } from './components/victim/DoctorDirectoryModal';
 
 import { CommunityWall } from './components/victim/CommunityWall';
-import { CourtReportModal } from './components/victim/CourtReportModal';
 import { PsychiatristPortal } from './components/portals/PsychiatristPortal';
 import { NgoPortal } from './components/portals/NgoPortal';
 import { PersonalizedActivities } from './components/victim/PersonalizedActivities';
@@ -82,7 +81,6 @@ export const App: React.FC = () => {
   const [isObserverChatOpen, setIsObserverChatOpen] = useState<boolean>(false);
   const [isDoctorDirectoryOpen, setIsDoctorDirectoryOpen] = useState<boolean>(false);
   const [isCommunityWallOpen, setIsCommunityWallOpen] = useState<boolean>(false);
-  const [isCourtReportOpen, setIsCourtReportOpen] = useState<boolean>(false);
   const [isTherapeuticOpen, setIsTherapeuticOpen] = useState<boolean>(false);
   const [isUssdModalOpen, setIsUssdModalOpen] = useState<boolean>(false);
   const [voiceCheckinDone, setVoiceCheckinDone] = useState<boolean>(false);
@@ -104,6 +102,7 @@ export const App: React.FC = () => {
 
   const [isGuestMode, setIsGuestMode] = useState<boolean>(false);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState<boolean>(false);
+  const [isCrisisChatbotTriggered, setIsCrisisChatbotTriggered] = useState<boolean>(false);
   const [isIvrModalOpen, setIsIvrModalOpen] = useState<boolean>(false);
   const [cachedResponses, setCachedResponses] = useState<AssessmentResponse[]>([]);
 
@@ -128,6 +127,8 @@ export const App: React.FC = () => {
     setVictimSubTab('exercises');
     if (exerciseType && ['breathing', 'grounding', 'journal', 'muscle', 'sounds', 'emdr'].includes(exerciseType)) {
       setTargetExercise(exerciseType as any);
+    } else {
+      setTargetExercise(undefined);
     }
     setIsChatbotOpen(false);
   };
@@ -230,6 +231,7 @@ export const App: React.FC = () => {
         state: user.state || prev.state,
         caseCategory: user.caseCategory || prev.caseCategory,
         language: user.language || prev.language,
+        assignedObserver: user.assigned_observer || user.assignedObserver || null,
       }));
       setVictimStep('dashboard');
       handleTabChange('victim');
@@ -247,8 +249,17 @@ export const App: React.FC = () => {
   };
 
   const handleSwitchPersona = (_role: 'citizen' | 'observer' | 'psychiatrist' | 'ngo' | 'admin') => {
-    setAuthModalMode('login');
-    setIsAuthModalOpen(true);
+    setVictimStep('dashboard');
+  };
+
+  const handleStartQuestionnaire = () => {
+    setVictimStep('questionnaire');
+    setActiveTab('victim');
+  };
+
+  const handleReturnToDashboard = () => {
+    setVictimStep('dashboard');
+    setActiveTab('victim');
   };
 
   const handleLogout = async () => {
@@ -277,6 +288,7 @@ export const App: React.FC = () => {
       livingSituation: 'family',
       contactPreference: 'call',
       isProxy: false,
+      assignedObserver: null,
     };
     try {
       const stored = getStoredUser();
@@ -290,11 +302,42 @@ export const App: React.FC = () => {
           state: stored.state || defaultProfile.state,
           caseCategory: stored.caseCategory || defaultProfile.caseCategory,
           language: stored.language || defaultProfile.language,
+          assignedObserver: stored.assigned_observer || stored.assignedObserver || null,
         };
       }
     } catch {}
     return defaultProfile;
   });
+
+  // Synchronize userProfile whenever currentUser updates (e.g. login, session restore, profile edit)
+  useEffect(() => {
+    if (currentUser) {
+      setUserProfile((prev) => ({
+        ...prev,
+        id: currentUser.id || currentUser.user_id || prev.id,
+        name: currentUser.full_name || currentUser.name || prev.name,
+        phone: currentUser.phone || prev.phone,
+        district: currentUser.district || prev.district,
+        state: currentUser.state || prev.state,
+        caseCategory: currentUser.caseCategory || prev.caseCategory,
+        language: currentUser.language || prev.language,
+        assignedObserver: currentUser.assigned_observer || currentUser.assignedObserver || prev.assignedObserver,
+      }));
+    }
+  }, [currentUser]);
+
+  // Listen for real-time observer assignment events from Admin Panel
+  useEffect(() => {
+    const handleObserverAssigned = (e: any) => {
+      const assigned = e.detail?.observer;
+      setUserProfile((prev) => ({
+        ...prev,
+        assignedObserver: assigned,
+      }));
+    };
+    window.addEventListener('anvaya_observer_assigned', handleObserverAssigned);
+    return () => window.removeEventListener('anvaya_observer_assigned', handleObserverAssigned);
+  }, []);
 
   // Synced 1:1 Messages between Victim and Observer
   const [observerChatMessages, setObserverChatMessages] = useState<ChatMessage[]>([
@@ -779,12 +822,12 @@ export const App: React.FC = () => {
                     onOpenEmergency={() => setIsCrisisOpen(true)}
                     onOpenSchedule={() => setIsScheduleModalOpen(true)}
                     onOpenCommunityWall={() => setIsCommunityWallOpen(true)}
-                    onOpenCourtReport={() => setIsCourtReportOpen(true)}
                     onOpenTherapeutic={() => setIsTherapeuticOpen(true)}
                     onOpenUssdSimulator={() => setIsUssdModalOpen(true)}
                     currentLang={currentLang}
                     initialSubTab={victimSubTab}
                     targetExercise={targetExercise}
+                    userProfile={userProfile}
                   />
                 )}
 
@@ -892,11 +935,15 @@ export const App: React.FC = () => {
       {/* AI Saathi Companion Chatbot */}
       <VictimChatbot
         isOpen={isChatbotOpen}
-        onClose={() => setIsChatbotOpen(false)}
+        onClose={() => {
+          setIsChatbotOpen(false);
+          setIsCrisisChatbotTriggered(false);
+        }}
         currentLang={currentLang}
         distressLevel={resultData.riskLevel}
         onTriggerCrisis={() => setIsCrisisOpen(true)}
         onNavigateToExercises={handleNavigateToExercises}
+        isCrisisAutoTriggered={isCrisisChatbotTriggered}
       />
 
       {/* 1:1 Live Health Observer Chat Portal */}
@@ -924,6 +971,11 @@ export const App: React.FC = () => {
         onClose={() => setIsCrisisOpen(false)}
         currentLang={currentLang}
         userProfile={userProfile}
+        onOpenChatbot={() => {
+          setIsCrisisOpen(false);
+          setIsCrisisChatbotTriggered(true);
+          setIsChatbotOpen(true);
+        }}
       />
 
       {/* Firebase & MongoDB Authentication Modal (Login & Register) */}
@@ -969,14 +1021,6 @@ export const App: React.FC = () => {
         isOpen={isCommunityWallOpen}
         onClose={() => setIsCommunityWallOpen(false)}
         currentLang={currentLang}
-      />
-
-      {/* Official Legal Aid & Court Documentation Modal */}
-      <CourtReportModal
-        isOpen={isCourtReportOpen}
-        onClose={() => setIsCourtReportOpen(false)}
-        resultData={resultData}
-        userProfile={userProfile}
       />
 
       {/* Calming Colorful Report Popup Box for Citizen / Survivor */}

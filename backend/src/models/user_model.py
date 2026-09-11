@@ -31,6 +31,7 @@ class User(BaseModel):
     state: Optional[str] = None
     oauth_provider: str = "local"
     oauth_id: Optional[str] = None
+    assigned_observer: Optional[dict] = None
     is_active: bool = True
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

@@ -556,20 +556,20 @@ class InterviewController:
             user_id = str(current_user.get("id"))
             email = current_user.get("email")
             username = current_user.get("username")
-            user_queries = [{"victim_id": user_id}]
+            user_queries = [{"victim_id": user_id}, {"user_id": user_id}]
             if email:
-                user_queries.append({"victim_id": email})
+                user_queries.extend([{"victim_id": email}, {"email": email}])
             if username:
                 user_queries.append({"victim_id": username})
-            if current_user.get("role") == "victim" or (email and "survivor" in email):
+            # Only include demo ID if user explicitly is demo survivor account
+            if email and "survivor@anvaya.in" in email.lower():
                 user_queries.append({"victim_id": "USR-26094"})
             
             cursor = db.interview_reports.find({"$or": user_queries}).sort("created_at", DESCENDING)
             reports = list(cursor)
-
-        # Fallback to stored database reports if user has no personal reports yet
-        if not reports:
-            cursor = db.interview_reports.find({}).sort("created_at", DESCENDING).limit(10)
+        else:
+            # Fallback for unauthenticated guest/demo mode only
+            cursor = db.interview_reports.find({}).sort("created_at", DESCENDING).limit(5)
             reports = list(cursor)
 
         formatted_history = []

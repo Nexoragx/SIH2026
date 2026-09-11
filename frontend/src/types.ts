@@ -22,6 +22,14 @@ export interface UserProfile {
   contactPreference: 'call' | 'whatsapp' | 'sms' | 'app';
   isProxy: boolean;
   proxyRelation?: string;
+  assignedObserver?: {
+    id: string;
+    name: string;
+    role: string;
+    phone?: string;
+    hospital?: string;
+    assignedAt?: string;
+  } | null;
 }
 
 export interface QuestionnaireTileOption {

@@ -22,7 +22,16 @@ import {
   FileText,
   Ambulance,
   RefreshCw,
-  User
+  User,
+  UserCheck,
+  UserPlus,
+  Phone,
+  MapPin,
+  Mail,
+  Stethoscope,
+  BadgeCheck,
+  X,
+  Check,
 } from 'lucide-react';
 import {
   BarChart,
@@ -36,7 +45,7 @@ import {
   Line,
 } from 'recharts';
 import { assessmentApi } from '../../api/assessmentApi';
-import { adminReportsApi, AdminReportSummary, AssessmentBackendResponse } from '../../api';
+import { adminReportsApi, AdminReportSummary, AssessmentBackendResponse, authApi, AdminUserItem, AvailableObserver } from '../../api';
 import { BASELINE_ASSESSMENT_REPORTS } from '../../data/baselineReports';
 import { ReportDetailModal } from './ReportDetailModal';
 
@@ -96,7 +105,17 @@ export const resolvePatientName = (rep: any): string => {
 
 export const AdminPanel: React.FC = () => {
   const [selectedTier, setSelectedTier] = useState<'L1' | 'L2' | 'L3' | 'L4'>('L4');
-  const [activeTab, setActiveTab] = useState<'overview' | 'reports' | 'assessments' | 'sla' | 'court' | 'model'>('reports');
+  const [activeTab, setActiveTab] = useState<'users' | 'reports' | 'overview' | 'assessments' | 'sla' | 'court' | 'model'>('users');
+
+  // Beneficiaries & Observer Allocation state
+  const [usersList, setUsersList] = useState<AdminUserItem[]>([]);
+  const [availableObservers, setAvailableObservers] = useState<AvailableObserver[]>([]);
+  const [usersLoading, setUsersLoading] = useState<boolean>(false);
+  const [userSearchFilter, setUserSearchFilter] = useState<string>('');
+  const [userAllocationFilter, setUserAllocationFilter] = useState<'ALL' | 'UNASSIGNED' | 'ASSIGNED'>('ALL');
+  const [assignModalUser, setAssignModalUser] = useState<AdminUserItem | null>(null);
+  const [selectedObserverId, setSelectedObserverId] = useState<string>('OBS-ANITA-001');
+  const [assignmentNotice, setAssignmentNotice] = useState<string | null>(null);
 
   // Reports state - initialized with baseline reports so admin is never blank
   const [reports, setReports] = useState<any[]>(BASELINE_ASSESSMENT_REPORTS);
@@ -223,6 +242,230 @@ export const AdminPanel: React.FC = () => {
     }
   };
 
+  const loadUsersAndObservers = async () => {
+    setUsersLoading(true);
+    try {
+      const [users, observers] = await Promise.all([
+        authApi.getAdminUsers(),
+        authApi.getAvailableObservers(),
+      ]);
+
+      let combinedUsers = [...users];
+
+      try {
+        const localProfiles = JSON.parse(localStorage.getItem('anvaya_citizen_profiles') || '{}');
+        Object.keys(localProfiles).forEach((k) => {
+          const lp = localProfiles[k];
+          if (lp && !combinedUsers.some((u) => u.id === lp.id || (lp.email && u.email === lp.email))) {
+            combinedUsers.unshift({
+              id: lp.id || `USR-${k}`,
+              email: lp.email || `${lp.name?.toLowerCase().replace(/\s+/g, '_') || 'survivor'}@anvaya.gov.in`,
+              full_name: lp.name || 'Citizen Survivor',
+              role: 'victim',
+              phone: lp.phone || '+91 98230 44021',
+              district: lp.district || 'Nashik',
+              state: lp.state || 'Maharashtra',
+              assigned_observer: lp.assignedObserver || null,
+              created_at: new Date().toISOString(),
+            });
+          }
+        });
+
+        const curr = authApi.getCurrentLocalUser();
+        if (curr && curr.role === 'victim' && !combinedUsers.some((u) => u.id === curr.id || u.email === curr.email)) {
+          combinedUsers.unshift({
+            id: curr.id,
+            email: curr.email,
+            full_name: curr.full_name,
+            role: 'victim',
+            phone: (curr as any).phone || '+91 98230 44021',
+            district: curr.district || 'Nashik',
+            state: curr.state || 'Maharashtra',
+            assigned_observer: (curr as any).assigned_observer || (curr as any).assignedObserver || null,
+            created_at: new Date().toISOString(),
+          });
+        }
+      } catch {}
+
+      if (combinedUsers.length === 0) {
+        combinedUsers = [
+          {
+            id: 'USR-26094-NEW',
+            email: 'sunita_devi@anvaya.in',
+            full_name: 'Sunita Devi (New Registrant)',
+            role: 'victim',
+            phone: '+91 98230 44021',
+            district: 'Nashik Rural',
+            state: 'Maharashtra',
+            assigned_observer: null,
+            created_at: 'Just now (New User)',
+          },
+          {
+            id: 'USR-26095-MH',
+            email: 'kavita_bai@anvaya.in',
+            full_name: 'Kavita Bai (Survivor)',
+            role: 'victim',
+            phone: '+91 94230 88712',
+            district: 'Nashik Central',
+            state: 'Maharashtra',
+            assigned_observer: {
+              id: 'OBS-ANITA-001',
+              name: 'Dr. Anita Joshi, MD',
+              role: 'District Nodal Care Officer & Telepsychiatrist',
+              phone: '+91 98230 11416',
+              hospital: 'District Nodal Mental Health Unit',
+            },
+            created_at: '10 Sep 2026',
+          },
+          {
+            id: 'USR-26096-UP',
+            email: 'anil_kamble@anvaya.in',
+            full_name: 'Anil Kamble',
+            role: 'victim',
+            phone: '+91 98110 55432',
+            district: 'Pune Rural',
+            state: 'Maharashtra',
+            assigned_observer: null,
+            created_at: '09 Sep 2026',
+          },
+          {
+            id: 'USR-26097-RJ',
+            email: 'pooja_valmiki@anvaya.in',
+            full_name: 'Pooja Valmiki',
+            role: 'victim',
+            phone: '+91 97220 33219',
+            district: 'Nagpur Division',
+            state: 'Maharashtra',
+            assigned_observer: {
+              id: 'OBS-PRIYA-005',
+              name: 'Priya Sharma, MSW',
+              role: 'MoSJE Community Care Coordinator',
+              phone: '+91 98110 99887',
+              hospital: 'MoSJE District Protection Special Cell',
+            },
+            created_at: '08 Sep 2026',
+          },
+        ];
+      }
+
+      setUsersList(combinedUsers);
+      setAvailableObservers(observers);
+    } catch {
+    } finally {
+      setUsersLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadUsersAndObservers();
+  }, []);
+
+  const handleConfirmAssignment = async () => {
+    if (!assignModalUser || !selectedObserverId) return;
+    const chosenObserver = availableObservers.find((o) => o.id === selectedObserverId);
+    if (!chosenObserver) return;
+
+    try {
+      await authApi.assignObserver(assignModalUser.id, chosenObserver);
+
+      const observerObj = {
+        id: chosenObserver.id,
+        name: chosenObserver.name,
+        role: chosenObserver.role,
+        phone: chosenObserver.phone,
+        hospital: chosenObserver.hospital,
+        assignedAt: new Date().toISOString(),
+      };
+
+      setUsersList((prev) =>
+        prev.map((u) =>
+          u.id === assignModalUser.id
+            ? { ...u, assigned_observer: observerObj }
+            : u
+        )
+      );
+
+      try {
+        const citizenProfiles = JSON.parse(localStorage.getItem('anvaya_citizen_profiles') || '{}');
+        if (citizenProfiles[assignModalUser.id]) {
+          citizenProfiles[assignModalUser.id].assignedObserver = observerObj;
+          localStorage.setItem('anvaya_citizen_profiles', JSON.stringify(citizenProfiles));
+        }
+
+        const curr = authApi.getCurrentLocalUser();
+        if (curr && (curr.id === assignModalUser.id || curr.email === assignModalUser.email)) {
+          const updatedUser = { ...curr, assigned_observer: observerObj, assignedObserver: observerObj };
+          authApi.saveLocalSession(updatedUser);
+        }
+
+        const storedProfile = JSON.parse(localStorage.getItem('anvaya_user_profile') || '{}');
+        if (storedProfile && (storedProfile.id === assignModalUser.id || storedProfile.email === assignModalUser.email)) {
+          storedProfile.assignedObserver = observerObj;
+          localStorage.setItem('anvaya_user_profile', JSON.stringify(storedProfile));
+        }
+      } catch {}
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('anvaya_observer_assigned', {
+            detail: { userId: assignModalUser.id, observer: observerObj },
+          })
+        );
+      }
+
+      setAssignmentNotice(`✅ Successfully assigned ${chosenObserver.name} to ${assignModalUser.full_name}`);
+      setTimeout(() => setAssignmentNotice(null), 5000);
+      setAssignModalUser(null);
+    } catch {
+      alert('Error assigning observer. Please try again.');
+    }
+  };
+
+  const handleUnassignObserver = async (user: AdminUserItem) => {
+    if (!confirm(`Are you sure you want to unassign the observer from ${user.full_name}?`)) return;
+
+    try {
+      await authApi.unassignObserver(user.id);
+
+      setUsersList((prev) =>
+        prev.map((u) =>
+          u.id === user.id ? { ...u, assigned_observer: null } : u
+        )
+      );
+
+      try {
+        const citizenProfiles = JSON.parse(localStorage.getItem('anvaya_citizen_profiles') || '{}');
+        if (citizenProfiles[user.id]) {
+          citizenProfiles[user.id].assignedObserver = null;
+          localStorage.setItem('anvaya_citizen_profiles', JSON.stringify(citizenProfiles));
+        }
+
+        const curr = authApi.getCurrentLocalUser();
+        if (curr && (curr.id === user.id || curr.email === user.email)) {
+          const updatedUser = { ...curr, assigned_observer: null, assignedObserver: null };
+          authApi.saveLocalSession(updatedUser);
+        }
+
+        const storedProfile = JSON.parse(localStorage.getItem('anvaya_user_profile') || '{}');
+        if (storedProfile && (storedProfile.id === user.id || storedProfile.email === user.email)) {
+          storedProfile.assignedObserver = null;
+          localStorage.setItem('anvaya_user_profile', JSON.stringify(storedProfile));
+        }
+      } catch {}
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('anvaya_observer_assigned', {
+            detail: { userId: user.id, observer: null },
+          })
+        );
+      }
+
+      setAssignmentNotice(`Observer unassigned from ${user.full_name}. Status updated to Pending Allocation.`);
+      setTimeout(() => setAssignmentNotice(null), 4000);
+    } catch {}
+  };
+
   // Instant client-side search & severity filtering across loaded reports
   const displayedReports = reports.filter((rep) => {
     if (severityFilter !== 'ALL' && (rep.severity_level || '').toUpperCase() !== severityFilter.toUpperCase()) {
@@ -347,6 +590,7 @@ export const AdminPanel: React.FC = () => {
       {/* Admin Sub-Tabs */}
       <div className="flex border-b border-slate-200 gap-4 text-xs font-black overflow-x-auto no-scrollbar">
         {[
+          { id: 'users', label: '👥 Beneficiaries & Observer Allocation' },
           { id: 'reports', label: 'Detailed Reports & ML Diagnostics' },
           { id: 'overview', label: 'State Overview & Heatmap' },
           { id: 'assessments', label: 'Saved Assessment Reports' },
@@ -368,6 +612,430 @@ export const AdminPanel: React.FC = () => {
           </button>
         ))}
       </div>
+
+      {/* Tab: Beneficiaries & Observer Allocation */}
+      {activeTab === 'users' && (
+        <div className="space-y-6 animate-fadeIn">
+          {/* Real-time Notice Alert Banner */}
+          {assignmentNotice && (
+            <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-bold flex items-center justify-between shadow-xs animate-fadeIn">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+                <span>{assignmentNotice}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAssignmentNotice(null)}
+                className="p-1 rounded-lg hover:bg-emerald-100 text-emerald-700 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          {/* Allocation Header & Macro Counters */}
+          <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200 shadow-xs space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
+                    <Users className="w-5 h-5 text-indigo-600" />
+                    <span>Registered Beneficiaries & Health Observer Allocation</span>
+                  </h3>
+                  <span className="text-[10px] font-black uppercase text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full">
+                    Live Caseload Management
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">
+                  Verify newly registered citizens, review distress status, and assign or reassign accredited health observers & nodal officers.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 self-start sm:self-auto">
+                <button
+                  type="button"
+                  onClick={loadUsersAndObservers}
+                  className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-xl flex items-center gap-1.5 transition cursor-pointer"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${usersLoading ? 'animate-spin' : ''}`} />
+                  <span>Refresh Registry</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Metric Counters Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="p-3.5 rounded-2xl bg-indigo-50/70 border border-indigo-200">
+                <span className="text-[10px] uppercase font-black tracking-wider text-indigo-800 block">
+                  Total Beneficiaries
+                </span>
+                <span className="text-2xl font-black text-indigo-950 font-mono mt-0.5 block">
+                  {usersList.length}
+                </span>
+                <span className="text-[11px] text-indigo-700 font-medium">Registered Citizens</span>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200">
+                <span className="text-[10px] uppercase font-black tracking-wider text-amber-800 block">
+                  Pending Observer
+                </span>
+                <span className="text-2xl font-black text-amber-900 font-mono mt-0.5 block">
+                  {usersList.filter((u) => !u.assigned_observer).length}
+                </span>
+                <span className="text-[11px] text-amber-700 font-bold">Needs Allocation</span>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-emerald-50/80 border border-emerald-200">
+                <span className="text-[10px] uppercase font-black tracking-wider text-emerald-800 block">
+                  Observer Assigned
+                </span>
+                <span className="text-2xl font-black text-emerald-900 font-mono mt-0.5 block">
+                  {usersList.filter((u) => !!u.assigned_observer).length}
+                </span>
+                <span className="text-[11px] text-emerald-700 font-bold">Active 1:1 Coverage</span>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-teal-50/80 border border-teal-200">
+                <span className="text-[10px] uppercase font-black tracking-wider text-teal-800 block">
+                  Accredited Observers
+                </span>
+                <span className="text-2xl font-black text-teal-950 font-mono mt-0.5 block">
+                  {availableObservers.length}
+                </span>
+                <span className="text-[11px] text-teal-700 font-medium">Trained Care Officers</span>
+              </div>
+            </div>
+
+            {/* Filter & Search Controls */}
+            <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
+              <div className="relative flex-1 w-full">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Search beneficiaries by name, email, phone, or district..."
+                  value={userSearchFilter}
+                  onChange={(e) => setUserSearchFilter(e.target.value)}
+                  className="w-full pl-9.5 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-hidden focus:border-indigo-500 focus:bg-white transition"
+                />
+              </div>
+
+              <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto">
+                {(['ALL', 'UNASSIGNED', 'ASSIGNED'] as const).map((filterOpt) => (
+                  <button
+                    key={filterOpt}
+                    type="button"
+                    onClick={() => setUserAllocationFilter(filterOpt)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition cursor-pointer flex-shrink-0 ${
+                      userAllocationFilter === filterOpt
+                        ? 'bg-indigo-600 text-white shadow-xs'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-black'
+                    }`}
+                  >
+                    {filterOpt === 'ALL'
+                      ? `All (${usersList.length})`
+                      : filterOpt === 'UNASSIGNED'
+                      ? `⚠️ Unassigned (${usersList.filter((u) => !u.assigned_observer).length})`
+                      : `✅ Assigned (${usersList.filter((u) => !!u.assigned_observer).length})`}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Beneficiaries Table */}
+            <div className="overflow-x-auto pt-2">
+              {usersLoading && usersList.length === 0 ? (
+                <div className="py-12 flex flex-col items-center justify-center gap-2 text-slate-500">
+                  <RefreshCw className="w-6 h-6 animate-spin text-indigo-600" />
+                  <span className="text-xs font-bold">Querying beneficiary database...</span>
+                </div>
+              ) : (
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-slate-500 font-extrabold uppercase text-[10px] tracking-wider bg-slate-50/60">
+                      <th className="py-3 px-3.5 rounded-l-xl">Beneficiary & ID</th>
+                      <th className="py-3 px-3">Location</th>
+                      <th className="py-3 px-3">Contact</th>
+                      <th className="py-3 px-3">Assigned Observer Status</th>
+                      <th className="py-3 px-3.5 text-right rounded-r-xl">Allocation Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 font-medium">
+                    {usersList
+                      .filter((u) => {
+                        if (userAllocationFilter === 'UNASSIGNED' && u.assigned_observer) return false;
+                        if (userAllocationFilter === 'ASSIGNED' && !u.assigned_observer) return false;
+                        if (!userSearchFilter.trim()) return true;
+                        const q = userSearchFilter.toLowerCase();
+                        return (
+                          u.full_name?.toLowerCase().includes(q) ||
+                          u.email?.toLowerCase().includes(q) ||
+                          u.phone?.toLowerCase().includes(q) ||
+                          u.district?.toLowerCase().includes(q) ||
+                          u.id?.toLowerCase().includes(q)
+                        );
+                      })
+                      .map((user) => {
+                        const isAssigned = !!user.assigned_observer;
+                        return (
+                          <tr key={user.id} className="hover:bg-indigo-50/30 transition">
+                            <td className="py-3.5 px-3.5">
+                              <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-2xl bg-indigo-100 text-indigo-800 font-extrabold flex items-center justify-center text-xs flex-shrink-0 shadow-2xs">
+                                  {user.full_name
+                                    .split(' ')
+                                    .map((n) => n[0])
+                                    .join('')
+                                    .slice(0, 2)
+                                    .toUpperCase() || 'US'}
+                                </div>
+                                <div>
+                                  <div className="font-extrabold text-slate-900 text-xs sm:text-sm">
+                                    {user.full_name}
+                                  </div>
+                                  <span className="text-[10px] font-mono text-slate-500">
+                                    {user.id}
+                                  </span>
+                                </div>
+                              </div>
+                            </td>
+
+                            <td className="py-3.5 px-3">
+                              <div className="flex items-center gap-1.5 text-slate-800 font-bold">
+                                <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                                <span>{user.district || 'Nashik'}</span>
+                              </div>
+                              <span className="text-[10px] text-slate-500 block">
+                                {user.state || 'Maharashtra'}
+                              </span>
+                            </td>
+
+                            <td className="py-3.5 px-3">
+                              <div className="flex items-center gap-1.5 text-slate-700">
+                                <Phone className="w-3.5 h-3.5 text-slate-400" />
+                                <span className="font-mono text-xs">{user.phone || 'Not provided'}</span>
+                              </div>
+                              <span className="text-[10px] text-slate-500 block truncate max-w-[150px]">
+                                {user.email}
+                              </span>
+                            </td>
+
+                            <td className="py-3.5 px-3">
+                              {isAssigned && user.assigned_observer ? (
+                                <div className="p-2 rounded-xl bg-emerald-50 border border-emerald-200/90 max-w-xs">
+                                  <div className="flex items-center gap-1.5 text-emerald-950 font-black text-xs">
+                                    <BadgeCheck className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                                    <span className="truncate">{user.assigned_observer.name}</span>
+                                  </div>
+                                  <div className="text-[10px] text-emerald-800 font-semibold mt-0.5 truncate">
+                                    {user.assigned_observer.role}
+                                  </div>
+                                  <div className="text-[10px] text-slate-500 font-mono mt-0.5">
+                                    📞 {user.assigned_observer.phone || '+91 98230 11416'}
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 font-black text-[11px] animate-pulse">
+                                  <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+                                  <span>Unassigned • Needs Observer</span>
+                                </div>
+                              )}
+                            </td>
+
+                            <td className="py-3.5 px-3.5 text-right">
+                              {isAssigned ? (
+                                <div className="flex items-center justify-end gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setAssignModalUser(user);
+                                      setSelectedObserverId(user.assigned_observer?.id || 'OBS-ANITA-001');
+                                    }}
+                                    className="px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 text-xs font-extrabold transition cursor-pointer flex items-center gap-1 shadow-2xs"
+                                    title="Change Assigned Observer"
+                                  >
+                                    <RefreshCw className="w-3 h-3 text-indigo-600" />
+                                    <span>Change</span>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleUnassignObserver(user)}
+                                    className="p-1.5 rounded-xl bg-slate-100 hover:bg-rose-100 text-slate-500 hover:text-rose-700 transition cursor-pointer"
+                                    title="Unassign Observer"
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setAssignModalUser(user);
+                                    setSelectedObserverId('OBS-ANITA-001');
+                                  }}
+                                  className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-xs font-black transition cursor-pointer shadow-md shadow-indigo-600/20 flex items-center gap-1.5 inline-flex"
+                                >
+                                  <UserPlus className="w-3.5 h-3.5" />
+                                  <span>Assign Observer</span>
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Assign / Change Observer Modal */}
+      {assignModalUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-md animate-fadeIn">
+          <div className="anvaya-card rounded-3xl max-w-2xl w-full p-5 sm:p-7 shadow-2xl border-2 border-indigo-200 bg-white space-y-5 max-h-[92vh] overflow-y-auto animate-tile-come-up relative">
+            {/* Close Button */}
+            <button
+              type="button"
+              onClick={() => setAssignModalUser(null)}
+              className="absolute top-5 right-5 p-2 rounded-full hover:bg-slate-100 text-slate-500 hover:text-black transition cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Modal Header */}
+            <div className="flex items-center gap-3.5 pr-8">
+              <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center flex-shrink-0 shadow-md shadow-indigo-600/20">
+                <UserCheck className="w-6 h-6" />
+              </div>
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-full border border-indigo-200">
+                  Observer Allocation Portal
+                </span>
+                <h3 className="text-lg sm:text-xl font-black text-slate-950 mt-0.5">
+                  Assign Observer for {assignModalUser.full_name}
+                </h3>
+              </div>
+            </div>
+
+            {/* Target Beneficiary Details Card */}
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs">
+              <div>
+                <span className="text-[10px] text-slate-500 uppercase font-bold block">Beneficiary ID</span>
+                <span className="font-mono font-bold text-slate-900">{assignModalUser.id}</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-500 uppercase font-bold block">District / State</span>
+                <span className="font-bold text-slate-900">{assignModalUser.district}, {assignModalUser.state}</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-500 uppercase font-bold block">Contact Phone</span>
+                <span className="font-mono font-bold text-slate-900">{assignModalUser.phone || 'Not given'}</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-500 uppercase font-bold block">Current Observer</span>
+                <span className="font-bold text-indigo-700">
+                  {assignModalUser.assigned_observer?.name || 'None (Unassigned)'}
+                </span>
+              </div>
+            </div>
+
+            {/* Select Observer Section */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-black uppercase tracking-wider text-slate-700">
+                  Select Accredited Health Observer / Psychiatrist:
+                </label>
+                <span className="text-[11px] text-slate-500 font-bold">
+                  {availableObservers.length} Observers Available
+                </span>
+              </div>
+
+              <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
+                {availableObservers.map((obs) => {
+                  const isSelected = selectedObserverId === obs.id;
+                  return (
+                    <div
+                      key={obs.id}
+                      onClick={() => setSelectedObserverId(obs.id)}
+                      className={`p-3.5 rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                        isSelected
+                          ? 'border-indigo-600 bg-indigo-50/60 shadow-xs'
+                          : 'border-slate-200 hover:border-indigo-300 hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs flex-shrink-0 ${
+                            isSelected
+                              ? 'bg-indigo-600 text-white'
+                              : 'bg-slate-200 text-slate-700'
+                          }`}
+                        >
+                          {obs.name
+                            .split(' ')
+                            .map((n) => n[0])
+                            .join('')
+                            .slice(0, 2)}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-xs font-black text-slate-950">{obs.name}</h4>
+                            <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.2 rounded-md border border-emerald-200">
+                              ● Available
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-600 font-medium">{obs.role}</p>
+                          <p className="text-[10px] text-slate-500">
+                            {obs.hospital} • 📞 {obs.phone}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3 flex-shrink-0 text-right">
+                        <div className="hidden sm:block">
+                          <span className="text-[10px] font-bold text-slate-500 block uppercase">Active Cases</span>
+                          <span className="text-xs font-black text-indigo-700 font-mono">{obs.active_cases}</span>
+                        </div>
+                        <div
+                          className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                            isSelected
+                              ? 'border-indigo-600 bg-indigo-600 text-white'
+                              : 'border-slate-300'
+                          }`}
+                        >
+                          {isSelected && <Check className="w-3 h-3 text-white" />}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-200">
+              <button
+                type="button"
+                onClick={() => setAssignModalUser(null)}
+                className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs hover:bg-slate-100 transition cursor-pointer"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={handleConfirmAssignment}
+                className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs transition shadow-md shadow-indigo-600/20 cursor-pointer flex items-center gap-1.5"
+              >
+                <Check className="w-4 h-4" />
+                <span>Confirm Observer Allocation</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Tab: Detailed Reports & ML Diagnostics */}
       {activeTab === 'reports' && (

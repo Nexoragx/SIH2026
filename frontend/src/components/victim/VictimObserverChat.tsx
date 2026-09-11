@@ -37,6 +37,8 @@ export const VictimObserverChat: React.FC<VictimObserverChatProps> = ({
     setText('');
   };
 
+  const assignedObserver = userProfile.assignedObserver;
+
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-slate-950/60 backdrop-blur-md animate-fadeIn">
       <div className="liquid-glass-panel rounded-t-3xl sm:rounded-3xl max-w-lg w-full h-[85vh] sm:h-[620px] flex flex-col shadow-2xl relative overflow-hidden bg-white">
@@ -48,13 +50,15 @@ export const VictimObserverChat: React.FC<VictimObserverChatProps> = ({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-sm font-extrabold text-slate-900">Dr. Anita Joshi</h3>
+                <h3 className="text-sm font-extrabold text-slate-900">
+                  {assignedObserver?.name || 'District Care Cell'}
+                </h3>
                 <span className="text-[10px] text-emerald-700 bg-emerald-100 font-bold px-2 py-0.2 rounded-full">
-                  ● District Observer
+                  ● {assignedObserver ? (assignedObserver.role || 'Assigned Observer') : 'Allocation in Progress'}
                 </span>
               </div>
               <p className="text-[10px] text-slate-500 font-medium">
-                Nodal Mental Health Unit, {userProfile.district || 'Nashik'}
+                {assignedObserver?.hospital || `Nodal Mental Health Unit, ${userProfile.district || 'Nashik'}`}
               </p>
             </div>
           </div>

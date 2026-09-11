@@ -11,7 +11,9 @@ from src.controllers.auth_controller import (
     DoctorLoginSchema,
     RefreshTokenSchema,
     RequestOtpSchema,
-    VerifyOtpSchema
+    VerifyOtpSchema,
+    AssignObserverSchema,
+    UnassignObserverSchema
 )
 
 router = APIRouter(prefix="/auth", tags=["Authentication & OAuth"])
@@ -100,9 +102,42 @@ def get_current_profile(current_user: dict = Depends(get_current_user)):
         "phone": current_user.get("phone"),
         "district": current_user.get("district"),
         "state": current_user.get("state"),
+        "assigned_observer": current_user.get("assigned_observer"),
         "oauth_provider": current_user.get("oauth_provider"),
         "created_at": current_user.get("created_at")
     }
+
+
+@router.get("/admin/users", summary="Admin: List all registered citizens and beneficiaries")
+def get_admin_users(db: Database = Depends(get_db)):
+    """
+    Lists all registered users/citizens for admin verification and observer assignment.
+    """
+    return AuthController.get_admin_users(db=db)
+
+
+@router.get("/admin/observers", summary="Admin: List all accredited health observers")
+def get_available_observers(db: Database = Depends(get_db)):
+    """
+    Lists all accredited observers and psychiatrists available for assignment.
+    """
+    return AuthController.get_available_observers(db=db)
+
+
+@router.put("/admin/assign-observer", summary="Admin: Assign or change health observer for a user")
+def assign_observer(data: AssignObserverSchema, db: Database = Depends(get_db)):
+    """
+    Assigns or changes an observer for a specific user.
+    """
+    return AuthController.assign_observer(data=data, db=db)
+
+
+@router.put("/admin/unassign-observer", summary="Admin: Unassign observer from a user")
+def unassign_observer(data: UnassignObserverSchema, db: Database = Depends(get_db)):
+    """
+    Removes observer assignment from a user.
+    """
+    return AuthController.unassign_observer(data=data, db=db)
 
 
 @router.get("/oauth/login", summary="Get OAuth2 login URL")
@@ -119,3 +154,4 @@ async def oauth_callback(code: str = Query(..., description="OAuth2 authorizatio
     OAuth2 callback endpoint that processes authorization code and returns JWT token pair.
     """
     return await AuthController.oauth_callback(code=code, db=db)
+

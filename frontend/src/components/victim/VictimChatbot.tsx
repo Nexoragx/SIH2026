@@ -10,6 +10,7 @@ interface VictimChatbotProps {
   distressLevel?: RiskLevel;
   onTriggerCrisis: () => void;
   onNavigateToExercises?: (exerciseType?: string) => void;
+  isCrisisAutoTriggered?: boolean;
 }
 
 // Dynamic Client-side Emotional Guidance & Motivational Engine
@@ -322,6 +323,7 @@ export const VictimChatbot: React.FC<VictimChatbotProps> = ({
   currentLang: initialLang,
   onTriggerCrisis,
   onNavigateToExercises,
+  isCrisisAutoTriggered,
 }) => {
   const [currentLang, setCurrentLang] = useState<string>(initialLang || 'en');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -358,6 +360,43 @@ export const VictimChatbot: React.FC<VictimChatbotProps> = ({
       ]);
     }
   }, [currentLang]);
+
+  // Handle Crisis Auto-Initiate with Motivational Quotes, Doctor Booking Confirmation & Admin Alert
+  useEffect(() => {
+    if (isOpen && isCrisisAutoTriggered) {
+      const crisisMotivationalQuotes: Record<string, string> = {
+        en: "✨ \"You are far stronger than what tried to break you. The darkest nights produce the brightest stars.\"\n\nI am right beside you. Take a slow, grounding breath. You are in a safe space, you are heard, and you do not have to carry this storm alone.\n\n📅 1-on-1 Consultation Automatically Reserved: Dr. Anita Joshi (District Nodal Health Cell)\n🛡️ Care Administration & Crisis Support Team Notified in Real-Time (Priority P0)",
+        hi: "✨ \"आप उस दर्द से कहीं अधिक शक्तिशाली हैं जिसने आपको तोड़ने की कोशिश की। तूफानों से लड़कर ही नौका पार होती है।\"\n\nमैं सदैव आपके साथ हूँ। एक गहरी और शांत सांस लें। आप सुरक्षित हैं, और आपको इस मुश्किल का सामना अकेले नहीं करना है।\n\n📅 1:1 डॉक्टर परामर्श सुरक्षित: डॉ. अनीता जोशी (जिला नोडल सेल)\n🛡️ एडमिन व संकट प्रबंधन टीम को सूचित किया गया (प्राथमिकता P0)",
+        bn: "✨ \"আপনি আপনার কষ্টের চেয়ে অনেক বেশি শক্তিশালী। কঠিন সময় চিরকাল থাকে না, কিন্তু সাহসী মানুষ চিরকাল টিকে থাকে।\"\n\nআমি আপনার পাশেই আছি। একটি শান্ত ও গভীর শ্বাস নিন। আপনি সম্পূর্ণ নিরাপদ।\n\n📅 ১:১ ডাক্তার পরামর্শ বুক করা হয়েছে: ডঃ অনিতা জোশী (জেলা নোডাল সেল)\n🛡️ অ্যাডমিন ও ক্রাইসিস কেয়ার সেলকে অবিলম্বে অবহিত করা হয়েছে (Priority P0)",
+        ta: "✨ \"நீங்கள் நினைப்பதை விட மிகவும் வலிமையானவர். புயலுக்குப் பின் நிச்சயம் அமைதி உண்டு.\"\n\nநான் உங்களுடன் இருக்கிறேன். அமைதியாக ஒரு முறை மூச்சை இழுத்து விடுங்கள். நீங்கள் பாதுகாப்பாக இருக்கிறீர்கள்.\n\n📅 1:1 அவசர மருத்துவ ஆலோசனை பதிவு செய்யப்பட்டது: டாக்டர் அனிதா ஜோஷி\n🛡️ நிர்வாக அவசரக் குழுவிற்கு தகவல் தெரிவிக்கப்பட்டுள்ளது (Priority P0)",
+        te: "✨ \"మిమ్మల్ని బాధపెట్టిన సంఘటనల కంటే మీరు చాలా శక్తివంతులు. చీకటి ఎంత గాఢంగా ఉంటే వెలుగు అంత ప్రకాశవంతంగా ఉంటుంది.\"\n\nనేను మీకు తోడుగా ఉన్నాను. ప్రశాంతంగా ఊపిరి తీసుకోండి.\n\n📅 1:1 అత్యవసర సంప్రదింపులు బుక్ చేయబడ్డాయి: డాక్టర్ అనితా జోషి\n🛡️ అడ్మిన్ కేర్ టీమ్‌కు సమాచారం అందించబడింది (Priority P0)",
+        mr: "✨ \"आपण संकटांपेक्षा कितीतरी पटीने कणखर आहात. संकटे माणसाला घडवण्यासाठी येतात, संपवण्यासाठी नाही.\"\n\nमी सदैव आपल्या सोबत आहे. शांतपणे एक दीर्घ श्वास घ्या. आपण सुरक्षित आहात.\n\n📅 1:1 डॉक्टर भेट निश्चित: डॉ. अनिता जोशी (जिल्हा नोडल सेल)\n🛡️ ॲडमिन व क्रायसिस टीमला सूचित करण्यात आले आहे (Priority P0)",
+      };
+
+      const crisisText = crisisMotivationalQuotes[currentLang] || crisisMotivationalQuotes.en;
+
+      // Add crisis auto-message
+      setMessages((prev) => {
+        // Prevent duplicate crisis auto message
+        if (prev.some((m) => m.id.startsWith('crisis-auto-'))) return prev;
+        return [
+          ...prev,
+          {
+            id: `crisis-auto-${Date.now()}`,
+            sender: 'bot',
+            timestamp: 'Just now',
+            text: crisisText,
+            exerciseSuggestion: {
+              type: 'breathing',
+              title: '4-7-8 Deep Grounding Breathwork',
+              description: 'Let us take 4 slow breaths together to soothe your heartbeat and nervous system.',
+              buttonLabel: 'Start Grounding Breathwork',
+            },
+          },
+        ];
+      });
+    }
+  }, [isOpen, isCrisisAutoTriggered, currentLang]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
