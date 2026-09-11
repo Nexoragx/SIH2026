@@ -141,7 +141,18 @@ export const CitizenOnboardingModal: React.FC<CitizenOnboardingModalProps> = ({
   };
 
   const handleFinish = () => {
+    const lastAssigned =
+      JSON.parse(localStorage.getItem('anvaya_last_assigned_observer') || 'null') ||
+      JSON.parse(localStorage.getItem('anvaya_global_assigned_observer') || 'null');
+    const byUid = JSON.parse(localStorage.getItem(`anvaya_assigned_observer_${googleUser.uid}`) || 'null');
+    const byEmail = googleUser.email
+      ? JSON.parse(localStorage.getItem(`anvaya_assigned_observer_${googleUser.email}`) || 'null')
+      : null;
+    const existing = JSON.parse(localStorage.getItem('anvaya_citizen_profiles') || '{}');
+    const existingProfile = existing[googleUser.uid] || {};
+    const obs = existingProfile.assignedObserver || existingProfile.assigned_observer || byUid || byEmail || lastAssigned || null;
     const finalName = useAlias ? aliasName : fullName || 'Citizen Survivor';
+
     const profile: UserProfile & { email: string; photoURL?: string } = {
       id: googleUser.uid,
       name: finalName,
@@ -156,14 +167,20 @@ export const CitizenOnboardingModal: React.FC<CitizenOnboardingModalProps> = ({
       livingSituation: 'family',
       contactPreference: 'call',
       isProxy: false,
+      assignedObserver: obs,
     };
 
     // Save profile to local storage for persistent recognition
     try {
-      const existing = JSON.parse(localStorage.getItem('anvaya_citizen_profiles') || '{}');
       existing[googleUser.uid] = profile;
       localStorage.setItem('anvaya_citizen_profiles', JSON.stringify(existing));
       localStorage.setItem('anvaya_language', selectedLang);
+      if (obs) {
+        localStorage.setItem(`anvaya_assigned_observer_${googleUser.uid}`, JSON.stringify(obs));
+        if (googleUser.email) {
+          localStorage.setItem(`anvaya_assigned_observer_${googleUser.email}`, JSON.stringify(obs));
+        }
+      }
     } catch {}
 
     onComplete(profile);

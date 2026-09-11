@@ -265,12 +265,25 @@ export const AdminPanel: React.FC = () => {
         authApi.getAvailableObservers(),
       ]);
 
-      let combinedUsers = [...users];
+      let combinedUsers = users.map((u: any) => {
+        const byId = JSON.parse(localStorage.getItem(`anvaya_assigned_observer_${u.id}`) || 'null');
+        const byEmail = u.email ? JSON.parse(localStorage.getItem(`anvaya_assigned_observer_${u.email}`) || 'null') : null;
+        return {
+          ...u,
+          assigned_observer: u.assigned_observer || u.assignedObserver || byId || byEmail || null,
+        };
+      });
 
       try {
         const localProfiles = JSON.parse(localStorage.getItem('anvaya_citizen_profiles') || '{}');
         Object.keys(localProfiles).forEach((k) => {
           const lp = localProfiles[k];
+          const byId = JSON.parse(localStorage.getItem(`anvaya_assigned_observer_${lp.id}`) || 'null');
+          const byEmail = lp.email ? JSON.parse(localStorage.getItem(`anvaya_assigned_observer_${lp.email}`) || 'null') : null;
+          const byKey = JSON.parse(localStorage.getItem(`anvaya_assigned_observer_${k}`) || 'null');
+          const lastAssigned = JSON.parse(localStorage.getItem('anvaya_last_assigned_observer') || 'null');
+          const obs = lp.assignedObserver || lp.assigned_observer || byId || byEmail || byKey || lastAssigned || null;
+
           if (lp && !combinedUsers.some((u) => u.id === lp.id || (lp.email && u.email === lp.email))) {
             combinedUsers.unshift({
               id: lp.id || `USR-${k}`,
@@ -280,23 +293,25 @@ export const AdminPanel: React.FC = () => {
               phone: lp.phone || '+91 98230 44021',
               district: lp.district || 'Nashik',
               state: lp.state || 'Maharashtra',
-              assigned_observer: lp.assignedObserver || null,
+              assigned_observer: obs,
               created_at: new Date().toISOString(),
             });
           }
         });
 
         const curr = authApi.getCurrentLocalUser();
-        if (curr && curr.role === 'victim' && !combinedUsers.some((u) => u.id === curr.id || u.email === curr.email)) {
+        if (curr && (curr.role === 'victim' || curr.role === 'citizen' || curr.role === 'survivor') && !combinedUsers.some((u) => u.id === curr.id || u.email === curr.email)) {
+          const byId = JSON.parse(localStorage.getItem(`anvaya_assigned_observer_${curr.id}`) || 'null');
+          const byEmail = curr.email ? JSON.parse(localStorage.getItem(`anvaya_assigned_observer_${curr.email}`) || 'null') : null;
           combinedUsers.unshift({
             id: curr.id,
             email: curr.email,
-            full_name: curr.full_name,
+            full_name: curr.full_name || (curr as any).name || 'Citizen Survivor',
             role: 'victim',
             phone: (curr as any).phone || '+91 98230 44021',
             district: curr.district || 'Nashik',
             state: curr.state || 'Maharashtra',
-            assigned_observer: (curr as any).assigned_observer || (curr as any).assignedObserver || null,
+            assigned_observer: (curr as any).assigned_observer || (curr as any).assignedObserver || byId || byEmail || null,
             created_at: new Date().toISOString(),
           });
         }
@@ -1402,6 +1417,7 @@ export const AdminPanel: React.FC = () => {
                     <tr className="border-b border-slate-200 text-slate-500 uppercase text-[10px]">
                       <th className="py-3 font-bold">Patient / Survivor</th>
                       <th className="py-3 font-bold">Session Reference</th>
+                      <th className="py-3 font-bold">Assigned Observer</th>
                       <th className="py-3 font-bold">Touchpoint & Lang</th>
                       <th className="py-3 font-bold">Distress Score</th>
                       <th className="py-3 font-bold">Severity Level</th>
@@ -1417,6 +1433,12 @@ export const AdminPanel: React.FC = () => {
                       const isCrisis = rep.alert_triggered || sev === 'CRITICAL';
                       const dateStr = rep.created_at ? new Date(rep.created_at).toLocaleDateString() : 'Today';
                       const patientName = resolvePatientName(rep);
+                      const repUserId = rep.victim_id || rep.patient_id || rep.user_id;
+                      const assignedObs =
+                        rep.assigned_observer ||
+                        rep.assignedObserver ||
+                        (repUserId ? usersList.find((u) => u.id === repUserId || u.email === repUserId)?.assigned_observer : null) ||
+                        (patientName ? usersList.find((u) => u.full_name?.toLowerCase() === patientName.toLowerCase())?.assigned_observer : null);
 
                       return (
                         <tr
@@ -1442,6 +1464,40 @@ export const AdminPanel: React.FC = () => {
                               <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 group-hover:scale-150 transition"></span>
                               <span>{rep.session_id || 'SES-DEMO'}</span>
                             </div>
+                          </td>
+                          <td className="py-3.5" onClick={(e) => e.stopPropagation()}>
+                            {assignedObs ? (
+                              <div className="flex items-center gap-1.5 text-emerald-950 font-bold text-[11px] bg-emerald-50 border border-emerald-200/80 px-2 py-1 rounded-xl max-w-[170px]">
+                                <BadgeCheck className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                                <div className="min-w-0">
+                                  <p className="truncate font-extrabold text-emerald-950 leading-tight">{assignedObs.name}</p>
+                                  <p className="text-[9px] text-emerald-700 truncate">{assignedObs.role || 'Health Observer'}</p>
+                                </div>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const matchedUser = usersList.find((u) => u.id === repUserId || u.full_name?.toLowerCase() === patientName.toLowerCase()) || {
+                                    id: repUserId || `USR-${rep.session_id?.slice(-5) || 'NEW'}`,
+                                    full_name: patientName,
+                                    email: `${patientName.toLowerCase().replace(/\s+/g, '_')}@anvaya.in`,
+                                    role: 'victim',
+                                    phone: '+91 98230 11416',
+                                    district: rep.district || 'Nashik',
+                                    state: rep.state || 'Maharashtra',
+                                    assigned_observer: null,
+                                    created_at: 'Assessment Report',
+                                  };
+                                  setAssignModalUser(matchedUser);
+                                  setSelectedObserverId('OBS-ANITA-001');
+                                }}
+                                className="px-2.5 py-1 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-[10px] font-extrabold transition cursor-pointer flex items-center gap-1 shadow-2xs"
+                              >
+                                <UserPlus className="w-3 h-3 text-amber-600" />
+                                <span>Assign Observer</span>
+                              </button>
+                            )}
                           </td>
                           <td className="py-3.5 text-slate-600 font-medium">
                             {(rep.touchpoint_type || 'web_portal').replace('_', ' ')} • {(rep.detected_language || 'en').toUpperCase()}

@@ -85,10 +85,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         // 1. Check if citizen profile already exists in persistent storage
         try {
           const storedProfiles = JSON.parse(localStorage.getItem('anvaya_citizen_profiles') || '{}');
+          const lastAssigned =
+            JSON.parse(localStorage.getItem('anvaya_last_assigned_observer') || 'null') ||
+            JSON.parse(localStorage.getItem('anvaya_global_assigned_observer') || 'null');
+          const byUid = JSON.parse(localStorage.getItem(`anvaya_assigned_observer_${user.uid}`) || 'null');
+          const byEmail = user.email
+            ? JSON.parse(localStorage.getItem(`anvaya_assigned_observer_${user.email}`) || 'null')
+            : null;
+
           if (storedProfiles[user.uid]) {
             const profile = storedProfiles[user.uid];
+            const obs = profile.assignedObserver || profile.assigned_observer || byUid || byEmail || lastAssigned || null;
             const userObj = {
-              id: profile.id || `CITIZEN-${user.uid.slice(-6).toUpperCase()}`,
+              id: profile.id || user.uid || `CITIZEN-${user.uid.slice(-6).toUpperCase()}`,
               full_name: profile.name || user.displayName || 'Citizen Survivor',
               email: user.email || 'citizen@anvaya.gov.in',
               role: 'victim',
@@ -99,6 +108,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               language: profile.language || currentLang || 'en',
               caseCategory: profile.caseCategory || 'caste_violence',
               caseNumber: profile.caseNumber || '',
+              assigned_observer: obs,
+              assignedObserver: obs,
             };
             const idToken = await user.getIdToken().catch(() => undefined);
             authApi.saveLocalSession(userObj, idToken);
@@ -143,6 +154,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setShowOnboardingWizard(false);
     setOnboardingGoogleUser(null);
 
+    const lastAssigned =
+      JSON.parse(localStorage.getItem('anvaya_last_assigned_observer') || 'null') ||
+      JSON.parse(localStorage.getItem('anvaya_global_assigned_observer') || 'null');
+    const byId = JSON.parse(localStorage.getItem(`anvaya_assigned_observer_${profile.id}`) || 'null');
+    const byEmail = profile.email
+      ? JSON.parse(localStorage.getItem(`anvaya_assigned_observer_${profile.email}`) || 'null')
+      : null;
+    const obs = profile.assignedObserver || (profile as any).assigned_observer || byId || byEmail || lastAssigned || null;
+
     const userObj = {
       id: profile.id,
       full_name: profile.name,
@@ -155,6 +175,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       language: profile.language,
       caseCategory: profile.caseCategory,
       caseNumber: profile.caseNumber,
+      assigned_observer: obs,
+      assignedObserver: obs,
     };
 
     authApi.saveLocalSession(userObj);

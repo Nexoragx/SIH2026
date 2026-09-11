@@ -76,12 +76,26 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
       const byEmail = userProfile?.email
         ? JSON.parse(localStorage.getItem(`anvaya_assigned_observer_${userProfile.email}`) || 'null')
         : null;
+      const byStoredId = stored?.id
+        ? JSON.parse(localStorage.getItem(`anvaya_assigned_observer_${stored.id}`) || 'null')
+        : null;
+      const byStoredEmail = stored?.email
+        ? JSON.parse(localStorage.getItem(`anvaya_assigned_observer_${stored.email}`) || 'null')
+        : null;
+
+      const citizenProfiles = JSON.parse(localStorage.getItem('anvaya_citizen_profiles') || '{}');
+      const fromCitizenProfiles =
+        (userProfile?.id ? citizenProfiles[userProfile.id]?.assignedObserver || citizenProfiles[userProfile.id]?.assigned_observer : null) ||
+        (stored?.id ? citizenProfiles[stored.id]?.assignedObserver || citizenProfiles[stored.id]?.assigned_observer : null);
 
       return (
         userProfile?.assignedObserver ||
         userProfile?.assigned_observer ||
         byId ||
         byEmail ||
+        byStoredId ||
+        byStoredEmail ||
+        fromCitizenProfiles ||
         stored?.assigned_observer ||
         stored?.assignedObserver ||
         lastAssigned ||
@@ -106,12 +120,26 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
         const byEmail = userProfile?.email
           ? JSON.parse(localStorage.getItem(`anvaya_assigned_observer_${userProfile.email}`) || 'null')
           : null;
+        const byStoredId = stored?.id
+          ? JSON.parse(localStorage.getItem(`anvaya_assigned_observer_${stored.id}`) || 'null')
+          : null;
+        const byStoredEmail = stored?.email
+          ? JSON.parse(localStorage.getItem(`anvaya_assigned_observer_${stored.email}`) || 'null')
+          : null;
+
+        const citizenProfiles = JSON.parse(localStorage.getItem('anvaya_citizen_profiles') || '{}');
+        const fromCitizenProfiles =
+          (userProfile?.id ? citizenProfiles[userProfile.id]?.assignedObserver || citizenProfiles[userProfile.id]?.assigned_observer : null) ||
+          (stored?.id ? citizenProfiles[stored.id]?.assignedObserver || citizenProfiles[stored.id]?.assigned_observer : null);
 
         const candidate =
           userProfile?.assignedObserver ||
           userProfile?.assigned_observer ||
           byId ||
           byEmail ||
+          byStoredId ||
+          byStoredEmail ||
+          fromCitizenProfiles ||
           stored?.assigned_observer ||
           stored?.assignedObserver ||
           lastAssigned;
