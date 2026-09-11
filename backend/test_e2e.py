@@ -288,7 +288,51 @@ def run_tests():
     assert case_note_res.json()["success"] is True
     print(f"✅ 17b. Caseload clinical notes and slot updated in database for Case #{target_case['id']}")
 
-    print("\n🎉 ALL 18 INTEGRATION TESTS PASSED SUCCESSFULLY! 🎉")
+    # Test 18: Real-time Hope Wall (GET, POST, LIKE)
+    hw_get = client.get("/api/v1/support/hope-wall")
+    assert hw_get.status_code == 200
+    assert len(hw_get.json()["posts"]) >= 1
+
+    hw_post = client.post("/api/v1/support/hope-wall", json={
+        "author": "Kavita Bai",
+        "district": "Nashik",
+        "message": "Every sunrise after the storm is a victory. Stay strong sisters!"
+    })
+    assert hw_post.status_code == 200
+    hw_post_id = hw_post.json()["post"]["id"]
+    assert hw_post.json()["post"]["author"] == "Kavita Bai"
+
+    hw_like = client.post(f"/api/v1/support/hope-wall/{hw_post_id}/like")
+    assert hw_like.status_code == 200
+    assert hw_like.json()["likes"] >= 2
+    print(f"✅ 18. Hope Wall real-time posting & liking verified (Post #{hw_post_id})")
+
+    # Test 19: Notifications & Admin Broadcast
+    admin_login_res = client.post("/api/v1/auth/admin/login", json={"username": "admin123", "password": "123456"})
+    admin_tok = admin_login_res.json()["access_token"]
+
+    broadcast_res = client.post("/api/v1/support/admin/notifications/send",
+        headers={"Authorization": f"Bearer {admin_tok}"},
+        json={
+            "title": "Daily Resilience Quote 🌸",
+            "message": "You are stronger than yesterday!",
+            "category": "QUOTE",
+            "action_url": "/victim?tab=exercises",
+            "action_label": "Start Grounding"
+        }
+    )
+    assert broadcast_res.status_code == 200
+    notif_id = broadcast_res.json()["notification"]["id"]
+
+    notifs_list = client.get("/api/v1/support/notifications")
+    assert notifs_list.status_code == 200
+    assert notifs_list.json()["unread_count"] >= 1
+
+    mark_read = client.post(f"/api/v1/support/notifications/{notif_id}/read")
+    assert mark_read.status_code == 200
+    print(f"✅ 19. Admin quote broadcast & notification center verified (Notif #{notif_id})")
+
+    print("\n🎉 ALL 20 INTEGRATION TESTS PASSED SUCCESSFULLY! 🎉")
 
 if __name__ == "__main__":
     run_tests()

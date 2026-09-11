@@ -72,48 +72,24 @@ function generateDynamicGuidance(
     const idx = Math.abs(hashString(query)) % list.length;
     return {
       text: list[idx],
-      exerciseSuggestion: {
-        type: 'breathing',
-        title: '4-7-8 Pranayama Breathwork',
-        description: 'Center your inner courage and steady your heartbeat with guided breath pacing.',
-        buttonLabel: 'Start 4-7-8 Breathing',
-      },
     };
   }
 
-  // 2. Anxiety / Panic / Somatic Dread
+  // 2. Severe Panic / Acute Hyperventilation (Specific exercise recommendation)
   if (
-    q.includes('anxi') ||
-    q.includes('panic') ||
-    q.includes('fear') ||
-    q.includes('scared') ||
-    q.includes('heart') ||
-    q.includes('breath') ||
-    q.includes('घबराहट') ||
-    q.includes('डर') ||
-    q.includes('অস্থির') ||
-    q.includes('பயம்') ||
-    q.includes('భయం')
+    q.includes('panic attack') ||
+    q.includes("can't breathe") ||
+    q.includes('cant breathe') ||
+    q.includes('hyperventilat') ||
+    q.includes('head spinning') ||
+    q.includes('घबराहट का दौरा')
   ) {
     const replies: Record<string, string[]> = {
       en: [
-        "I hear the anxiety in your words, and it is okay to feel this way. 'You don't have to control your thoughts; you just have to stop letting them control you.' Let's steady your heartbeat together right now.",
-        "Your body is responding to fear, but remember: right in this second, you are safe with me. Soften your shoulders and let your feet press into the floor. This feeling will pass.",
+        "I hear the intense anxiety right now. Let's anchor your nervous system immediately. Look around your room and find 5 things you can see.",
       ],
       hi: [
-        "मैं आपकी घबराहट को समझ सकता हूँ। 'चिंता से कल की मुश्किल दूर नहीं होती, बल्कि आज का सुकून चला जाता है।' गहरी सांस लें, आप सुरक्षित हैं।",
-      ],
-      bn: [
-        "আপনার অস্থিরতা আমি বুঝতে পারছি। 'অস্থির মনকে শান্ত করার চাবিকাঠি হলো দীর্ঘ শ্বাস।' নিজেকে একা ভাববেন না, আমি আপনার পাশে আছি।",
-      ],
-      ta: [
-        "உங்கள் பதற்றத்தை நான் உணர்கிறேன். 'அமைதி உங்கள் உள்ளத்தில் இருந்து தொடங்குகிறது.' ஆழ்ந்து மூச்சை உள்ளிழுங்கள், எல்லாம் சரியாகும்.",
-      ],
-      te: [
-        "మీ ఆందోళనను నేను అర్థం చేసుకోగలను. 'ప్రతి కష్ట సమయం కూడా దాటిపోతుంది.' నెమ్మదిగా శ్వాస తీసుకోండి, మీరు ఒంటరిగా లేరు.",
-      ],
-      mr: [
-        "आपली अस्वस्थता मी समजू शकतो. 'कोणतेही संकट कायमस्वरूपी नसते.' सावकाश दीर्घ श्वास घ्या. आपण सुरक्षित आहात.",
+        "घबराहट के इस पल में अपनी दोनों हथेलियों को महसूस करें। आइए 5-4-3-2-1 ग्राउंडिंग तकनीक से मन को शांत करें।",
       ],
     };
     const list = replies[l] || replies.en;
@@ -131,35 +107,18 @@ function generateDynamicGuidance(
 
   // 3. Sleep / Insomnia / Nightmares
   if (
-    q.includes('sleep') ||
+    q.includes('sleep sound') ||
     q.includes('insomnia') ||
     q.includes('nightmare') ||
-    q.includes('neend') ||
-    q.includes('नींद') ||
-    q.includes('ঘুম') ||
-    q.includes('தூக்கம்') ||
-    q.includes('నిద్ర') ||
-    q.includes('झोप')
+    q.includes('नींद नहीं आ रही') ||
+    q.includes('ঘুম হচ্ছে না')
   ) {
     const replies: Record<string, string[]> = {
       en: [
         "Restless nights can make the world feel so heavy. 'Sleep is the best meditation.' Let go of the day's burden; whatever is unresolved will wait until sunrise. Allow your mind and body to rest now.",
-        "I hear how tired your spirit feels. Lay your head down, unclench your teeth, and let the gentle sounds of rain ease you into deep, restorative sleep.",
       ],
       hi: [
-        "अनिद्रा से मन और शरीर दोनों थक जाते हैं। 'विश्राम कोई विलासिता नहीं, बल्कि जीवन की आवश्यकता है।' आज की सारी चिंताओं को यहीं छोड़ दीजिए और शांति से सोइए।",
-      ],
-      bn: [
-        "ঘুম না হওয়া অত্যন্ত ক্লান্তিকর। 'শান্তি আপনার মনের ভেতরেই আছে।' সব দুশ্চিন্তা দূরে রেখে চোখ বন্ধ করুন।",
-      ],
-      ta: [
-        "தூக்கமின்மை உடலையும் மனதையும் பாதிக்கும். 'நல்ல தூக்கமே சிறந்த மருந்து.' உங்கள் சுமைகளை இறக்கி வைத்துவிட்டு இளைப்பாறுங்கள்.",
-      ],
-      te: [
-        "నిద్ర లేకపోవడం చాలా అలసట కలిగిస్తుంది. మీ మనస్సును ప్రశాంతంగా ఉంచుకోండి, మంచి నిద్రలోకి జారుకోండి.",
-      ],
-      mr: [
-        "शांत झोप न लागणे खूप त्रासदायक असते. 'विश्रांती हा शरीराचा हक्क आहे.' सर्व चिंता बाजूला ठेवून शांत झोप घ्या.",
+        "अनिद्रा से मन और शरीर दोनों थक जाते हैं। आज की सारी चिंताओं को यहीं छोड़ दीजिए और शांति से सोइए।",
       ],
     };
     const list = replies[l] || replies.en;
@@ -175,45 +134,15 @@ function generateDynamicGuidance(
     };
   }
 
-  // 4. Anger / Injustice / Violation of dignity
+  // 4. Anger / Injustice (Explicit Journaling request)
   if (
-    q.includes('anger') ||
-    q.includes('angry') ||
-    q.includes('unfair') ||
-    q.includes('injustice') ||
-    q.includes('hate') ||
-    q.includes('revenge') ||
-    q.includes('गुस्सा') ||
-    q.includes('अन्याय') ||
-    q.includes('राग') ||
-    q.includes('கோபம்') ||
-    q.includes('కోపం')
+    q.includes('write journal') ||
+    q.includes('worry journal') ||
+    q.includes('dissolving journal') ||
+    q.includes('vent thoughts')
   ) {
-    const replies: Record<string, string[]> = {
-      en: [
-        "Your anger is valid and completely justified. Injustice hurts to the core. But don't let their cruelty burn your inner peace. Channel this fire safely into our private Dissolving Journal and let it wash away.",
-        "You have every right to feel outraged. 'Holding onto anger is like drinking poison and expecting the other person to die.' Let us protect your precious spirit. You deserve healing and justice.",
-      ],
-      hi: [
-        "अन्याय पर गुस्सा आना स्वाभाविक और उचित है। लेकिन दूसरों के गलत व्यवहार की आग में अपनी शांति मत जलने दीजिए। अपने विचारों को डिसॉल्विंग जर्नल में लिखकर मन हल्का करें।",
-      ],
-      bn: [
-        "অন্যায়ের বিরুদ্ধে রাগ হওয়া স্বাভাবিক। তবে সেই রাগ যেন আপনার নিজের শান্তি নষ্ট না করে। ডিলভ জার্নালে লিখে মন হালকা করুন।",
-      ],
-      ta: [
-        "அநீதியைக் கண்டு கோபம் வருவது நியாயமானது. ஆனால் அந்த கோபம் உங்கள் மன அமைதியை அழிக்க விடாதீர்கள். ஜர்னலில் எழுதி மனதை ஆற்றுங்கள்.",
-      ],
-      te: [
-        "అన్యాయం జరిగినప్పుడు కోపం రావడం సహజం. మీ బాధను, కోపాన్ని జర్నల్ లో రాసి మనస్సును తేలిక చేసుకోండి.",
-      ],
-      mr: [
-        "अन्यायाविरुद्ध राग येणे स्वाभाविक आहे. परंतु संतापाने स्वतःला त्रास करून घेऊ नका. मन मोकळे करा.",
-      ],
-    };
-    const list = replies[l] || replies.en;
-    const idx = Math.abs(hashString(query)) % list.length;
     return {
-      text: list[idx],
+      text: "Pour out your anger, hurt, and unspoken words into a private sanctuary that dissolves them safely.",
       exerciseSuggestion: {
         type: 'journal',
         title: 'Dissolving Worry & Trauma Journal',
@@ -225,18 +154,13 @@ function generateDynamicGuidance(
 
   // 5. Physical tension / Stiff muscles / Pain
   if (
-    q.includes('tense') ||
-    q.includes('tight') ||
-    q.includes('muscle') ||
-    q.includes('stiff') ||
-    q.includes('shoulder') ||
-    q.includes('body') ||
-    q.includes('दर्द') ||
-    q.includes('তাণ') ||
-    q.includes('வலி')
+    q.includes('muscle relaxation') ||
+    q.includes('stiff shoulders') ||
+    q.includes('clenched jaw') ||
+    q.includes('body tense')
   ) {
     return {
-      text: "Trauma and emotional distress often store themselves directly in our physical muscles—tight jaws, clenched shoulders, and shallow breathing. Let's consciously release that physical weight together.",
+      text: "Trauma and emotional distress often store themselves directly in our physical muscles. Let's consciously release that physical weight together.",
       exerciseSuggestion: {
         type: 'muscle',
         title: 'Progressive Muscle Relaxation',
@@ -251,6 +175,8 @@ function generateDynamicGuidance(
     q.includes('exercise') ||
     q.includes('activit') ||
     q.includes('meditat') ||
+    q.includes('breathing exercise') ||
+    q.includes('start breathing') ||
     q.includes('calm me') ||
     q.includes('guide me') ||
     q.includes('कसरत') ||
@@ -267,7 +193,7 @@ function generateDynamicGuidance(
     };
   }
 
-  // 7. General Compassionate & Motivating Response
+  // 7. General Compassionate & Motivating Response (No exercise attachment by default!)
   const generalReplies: Record<string, string[]> = {
     en: [
       "I hear how heavy things feel right now, and I want you to know you don't have to carry this alone. 'Even the darkest night will pass and the sun will rise.' Take a slow, gentle breath—I am right here with you.",
@@ -299,12 +225,6 @@ function generateDynamicGuidance(
   const idx = Math.abs(hashString(query)) % list.length;
   return {
     text: list[idx],
-    exerciseSuggestion: {
-      type: 'breathing',
-      title: '4-7-8 Pranayama Breathwork',
-      description: 'Take 60 seconds with our rhythmic breathing pacer to ease somatic stress and center your mind.',
-      buttonLabel: 'Try Breathwork Pacer',
-    },
   };
 }
 
@@ -334,12 +254,12 @@ export const VictimChatbot: React.FC<VictimChatbotProps> = ({
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   const welcomeMessages: { [key: string]: string } = {
-    en: "Namaste. I am ANVAYA Saathi, your caring, confidential companion. How are you feeling today? I am here to listen without judgment, motivate your spirit, and guide you through calming healing exercises.",
-    hi: "नमस्ते। मैं अन्वय साथी (ANVAYA Saathi) हूँ, आपका गोपनीय और स्नेही सहायक। आज आपका मन कैसा है? मैं आपकी बात सुनने, हौसला बढ़ाने और शांतिदायक एक्सरसाइज कराने के लिए यहाँ हूँ।",
+    en: "Namaste. I am ANVAYA Saathi, your caring, confidential companion. How are you feeling today? I am here to listen without judgment, motivate your spirit, and support you at every step.",
+    hi: "नमस्ते। मैं अन्वय साथी (ANVAYA Saathi) हूँ, आपका गोपनीय और स्नेही सहायक। आज आपका मन कैसा है? मैं आपकी बात सुनने और हौसला बढ़ाने के लिए सदैव यहाँ हूँ।",
     bn: "নমস্কার। আমি অন্বয় সাথী (ANVAYA Saathi), আপনার গোপনীয় এবং সহানুভূতিশীল সাথী। আজ আপনার কেমন লাগছে? আমি আপনার পাশে আছি এবং আপনাকে সাহায্য করতে প্রস্তুত।",
-    ta: "வணக்கம். நான் அன்வயா சாதி (ANVAYA Saathi), உங்கள் ரகசிய மற்றும் அக்கறையான துணை. இன்று உங்கள் உணர்வு எப்படி இருக்கிறது? நான் கேட்க மற்றும் அமைதியான பயிற்சிகளை வழிநடத்த தயாராக உள்ளேன்.",
+    ta: "வணக்கம். நான் அன்வயா சாதி (ANVAYA Saathi), உங்கள் ரகசிய மற்றும் அக்கறையான துணை. இன்று உங்கள் உணர்வு எப்படி இருக்கிறது? நான் உங்களுக்கு உதவ எப்போதும் தயாராக உள்ளேன்.",
     te: "నమస్కారం. నేను అన్వయ సాథి (ANVAYA Saathi), మీ గోప్యమైన మరియు శ్రద్ధగల సహచరిని. ఈ రోజు మీకు ఎలా అనిపిస్తుంది? నేను వినడానికి, ధైర్యం చెప్పడానికి సిద్ధంగా ఉన్నాను.",
-    mr: "नमस्ते. मी अन्वय साथी (ANVAYA Saathi) आहे, आपला काळजीवाहू आणि विश्वासू सोबती. आज आपल्याला कसे वाटत आहे? मी धीर देण्यासाठी व मदत करण्यासाठी येथे आहे.",
+    mr: "नमस्ते. मी अन्वय साथी (ANVAYA Saathi) आहे, आपला काळजीवाहू आणि विश्वासू सोबती. आज आपल्याला कसे वाटत आहे? मी धीर देण्यासाठी येथे आहे.",
   };
 
   useEffect(() => {
@@ -350,12 +270,6 @@ export const VictimChatbot: React.FC<VictimChatbotProps> = ({
           sender: 'bot',
           timestamp: 'Just now',
           text: welcomeMessages[currentLang] || welcomeMessages.en,
-          exerciseSuggestion: {
-            type: 'breathing',
-            title: '4-7-8 Pranayama Breathwork',
-            description: 'Begin with 1 minute of guided breath pacing to center your peace right now.',
-            buttonLabel: 'Start 4-7-8 Breathing',
-          },
         },
       ]);
     }

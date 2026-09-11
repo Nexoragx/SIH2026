@@ -50,6 +50,27 @@ export interface CheckinScheduleResponse {
   can_start_early: boolean;
 }
 
+export interface HopeWallPost {
+  id: string;
+  author: string;
+  district: string;
+  category: string;
+  message: string;
+  likes: number;
+  created_at: string;
+}
+
+export interface NotificationItem {
+  id: string;
+  title: string;
+  message: string;
+  category: 'QUOTE' | 'CHECKIN' | 'ALERT' | 'ANNOUNCEMENT' | 'OBSERVER_UPDATE';
+  action_url?: string;
+  action_label?: string;
+  is_read: boolean;
+  created_at: string;
+}
+
 export const supportApi = {
   /**
    * Fetch verified support helplines & resources
@@ -122,4 +143,57 @@ export const supportApi = {
     const query = status ? `?status=${encodeURIComponent(status)}` : '';
     return apiRequest<{ alerts: any[]; total: number }>(`/alerts${query}`);
   },
+
+  /**
+   * Hope Wall APIs
+   */
+  async getHopeWallPosts(): Promise<{ posts: HopeWallPost[]; total: number }> {
+    return apiRequest<{ posts: HopeWallPost[]; total: number }>('/support/hope-wall');
+  },
+
+  async createHopeWallPost(payload: {
+    message: string;
+    author?: string;
+    district?: string;
+    category?: string;
+  }): Promise<{ success: boolean; post: HopeWallPost }> {
+    return apiRequest<{ success: boolean; post: HopeWallPost }>('/support/hope-wall', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async likeHopeWallPost(postId: string): Promise<{ success: boolean; id: string; likes: number }> {
+    return apiRequest<{ success: boolean; id: string; likes: number }>(`/support/hope-wall/${encodeURIComponent(postId)}/like`, {
+      method: 'POST',
+    });
+  },
+
+  /**
+   * Notifications APIs
+   */
+  async getNotifications(): Promise<{ notifications: NotificationItem[]; unread_count: number }> {
+    return apiRequest<{ notifications: NotificationItem[]; unread_count: number }>('/support/notifications');
+  },
+
+  async markNotificationRead(notificationId: string): Promise<{ success: boolean }> {
+    return apiRequest<{ success: boolean }>(`/support/notifications/${encodeURIComponent(notificationId)}/read`, {
+      method: 'POST',
+    });
+  },
+
+  async adminBroadcastNotification(payload: {
+    title: string;
+    message: string;
+    category?: string;
+    target_user_id?: string;
+    action_url?: string;
+    action_label?: string;
+  }): Promise<{ success: boolean; notification: any }> {
+    return apiRequest<{ success: boolean; notification: any }>('/support/admin/notifications/send', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
 };
+

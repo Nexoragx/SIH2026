@@ -334,6 +334,12 @@ export const App: React.FC = () => {
         ...prev,
         assignedObserver: assigned,
       }));
+      setCurrentUser((prev: any) => {
+        if (!prev) return prev;
+        const updated = { ...prev, assigned_observer: assigned, assignedObserver: assigned };
+        authApi.saveLocalSession(updated);
+        return updated;
+      });
     };
     window.addEventListener('anvaya_observer_assigned', handleObserverAssigned);
     return () => window.removeEventListener('anvaya_observer_assigned', handleObserverAssigned);
@@ -1021,6 +1027,7 @@ export const App: React.FC = () => {
         isOpen={isCommunityWallOpen}
         onClose={() => setIsCommunityWallOpen(false)}
         currentLang={currentLang}
+        currentUser={currentUser}
       />
 
       {/* Calming Colorful Report Popup Box for Citizen / Survivor */}

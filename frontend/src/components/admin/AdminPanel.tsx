@@ -32,6 +32,10 @@ import {
   BadgeCheck,
   X,
   Check,
+  Send,
+  Bell,
+  Quote,
+  Megaphone
 } from 'lucide-react';
 import {
   BarChart,
@@ -46,6 +50,7 @@ import {
 } from 'recharts';
 import { assessmentApi } from '../../api/assessmentApi';
 import { adminReportsApi, AdminReportSummary, AssessmentBackendResponse, authApi, AdminUserItem, AvailableObserver } from '../../api';
+import { supportApi } from '../../api/supportApi';
 import { BASELINE_ASSESSMENT_REPORTS } from '../../data/baselineReports';
 import { ReportDetailModal } from './ReportDetailModal';
 
@@ -116,6 +121,16 @@ export const AdminPanel: React.FC = () => {
   const [assignModalUser, setAssignModalUser] = useState<AdminUserItem | null>(null);
   const [selectedObserverId, setSelectedObserverId] = useState<string>('OBS-ANITA-001');
   const [assignmentNotice, setAssignmentNotice] = useState<string | null>(null);
+
+  // Broadcast Notification & Quote State
+  const [isBroadcastModalOpen, setIsBroadcastModalOpen] = useState<boolean>(false);
+  const [broadcastTitle, setBroadcastTitle] = useState<string>('Daily Resilience Quote 🌸');
+  const [broadcastMessage, setBroadcastMessage] = useState<string>('“You have survived 100% of your hardest days so far. Take one breath at a time, we stand with you.”');
+  const [broadcastCategory, setBroadcastCategory] = useState<'QUOTE' | 'CHECKIN' | 'ANNOUNCEMENT' | 'ALERT'>('QUOTE');
+  const [broadcastTargetUser, setBroadcastTargetUser] = useState<string>('ALL');
+  const [broadcastActionUrl, setBroadcastActionUrl] = useState<string>('/victim?tab=exercises');
+  const [broadcastActionLabel, setBroadcastActionLabel] = useState<string>('Start Grounding');
+  const [broadcastSubmitting, setBroadcastSubmitting] = useState<boolean>(false);
 
   // Reports state - initialized with baseline reports so admin is never blank
   const [reports, setReports] = useState<any[]>(BASELINE_ASSESSMENT_REPORTS);
@@ -654,6 +669,15 @@ export const AdminPanel: React.FC = () => {
               <div className="flex items-center gap-2 self-start sm:self-auto">
                 <button
                   type="button"
+                  onClick={() => setIsBroadcastModalOpen(true)}
+                  className="px-3.5 py-2 bg-gradient-to-r from-pink-600 via-rose-600 to-indigo-600 hover:opacity-95 text-white text-xs font-black rounded-xl flex items-center gap-1.5 shadow-sm shadow-pink-500/20 transition cursor-pointer"
+                >
+                  <Megaphone className="w-3.5 h-3.5 text-white" />
+                  <span>Broadcast Quotes & Alerts</span>
+                </button>
+
+                <button
+                  type="button"
                   onClick={loadUsersAndObservers}
                   className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-xl flex items-center gap-1.5 transition cursor-pointer"
                 >
@@ -1031,6 +1055,200 @@ export const AdminPanel: React.FC = () => {
               >
                 <Check className="w-4 h-4" />
                 <span>Confirm Observer Allocation</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Admin Broadcast Notification & Quotes Modal */}
+      {isBroadcastModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 relative overflow-hidden animate-scaleUp space-y-4">
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-pink-500 to-indigo-600 text-white flex items-center justify-center shadow-md shadow-pink-500/20">
+                  <Megaphone className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900">Broadcast Notification or Quote</h3>
+                  <p className="text-xs text-slate-500 font-medium">
+                    Send real-time resilience quotes or check-in notifications to citizen dashboards
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsBroadcastModalOpen(false)}
+                className="p-2 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-700 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Form */}
+            <div className="space-y-3.5">
+              {/* Category selector */}
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">
+                  Message Category
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                  {[
+                    { id: 'QUOTE', label: '🌸 Resilience Quote' },
+                    { id: 'CHECKIN', label: '📋 Check-in Due' },
+                    { id: 'ANNOUNCEMENT', label: '📢 Support Notice' },
+                    { id: 'ALERT', label: '⚠️ Urgent Alert' },
+                  ].map((cat) => (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => setBroadcastCategory(cat.id as any)}
+                      className={`py-2 px-1 text-center text-xs font-bold rounded-xl border transition cursor-pointer ${
+                        broadcastCategory === cat.id
+                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
+                          : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                      }`}
+                    >
+                      {cat.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Title input */}
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">
+                  Notification Title
+                </label>
+                <input
+                  type="text"
+                  value={broadcastTitle}
+                  onChange={(e) => setBroadcastTitle(e.target.value)}
+                  placeholder="e.g. Daily Resilience Quote 🌸"
+                  className="w-full px-3.5 py-2.5 text-xs font-bold rounded-xl border border-slate-200 bg-slate-50 text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
+                />
+              </div>
+
+              {/* Message text area */}
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">
+                  Message / Quote Content
+                </label>
+                <textarea
+                  rows={3}
+                  value={broadcastMessage}
+                  onChange={(e) => setBroadcastMessage(e.target.value)}
+                  placeholder="Write an encouraging quote, reminder, or directive..."
+                  className="w-full px-3.5 py-2.5 text-xs font-medium rounded-xl border border-slate-200 bg-slate-50 text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white resize-none"
+                />
+              </div>
+
+              {/* Target recipient */}
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">
+                  Target Beneficiary
+                </label>
+                <select
+                  value={broadcastTargetUser}
+                  onChange={(e) => setBroadcastTargetUser(e.target.value)}
+                  className="w-full px-3.5 py-2.5 text-xs font-bold rounded-xl border border-slate-200 bg-slate-50 text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                >
+                  <option value="ALL">🌐 Broadcast to All Citizens (Public Feed)</option>
+                  {usersList.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      👤 {u.full_name} ({u.email || u.district})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Quick Presets */}
+              <div>
+                <span className="text-[10px] font-bold text-slate-400 block mb-1 uppercase tracking-wider">
+                  Quick Quote Presets
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBroadcastCategory('QUOTE');
+                      setBroadcastTitle('Courage & Strength 🌸');
+                      setBroadcastMessage('“Courage doesn’t always roar. Sometimes courage is the quiet voice at the end of the day saying, ‘I will try again tomorrow.’”');
+                      setBroadcastActionLabel('Start Grounding');
+                      setBroadcastActionUrl('/victim?tab=exercises');
+                    }}
+                    className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-pink-50 text-pink-800 border border-pink-200 hover:bg-pink-100 transition cursor-pointer"
+                  >
+                    🌸 Resilience Quote
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBroadcastCategory('CHECKIN');
+                      setBroadcastTitle('Scheduled 7-Day Health Check-in 📋');
+                      setBroadcastMessage('Your weekly adaptive check-in is due today. Take 2 minutes so your assigned health observer can safeguard your mental well-being.');
+                      setBroadcastActionLabel('Begin 2-Min Check-in');
+                      setBroadcastActionUrl('/victim?tab=assessment');
+                    }}
+                    className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-800 border border-indigo-200 hover:bg-indigo-100 transition cursor-pointer"
+                  >
+                    📋 Check-in Prompt
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBroadcastCategory('ANNOUNCEMENT');
+                      setBroadcastTitle('Legal & Psychological Support Cell Active 🛡️');
+                      setBroadcastMessage('District Nodal Unit is available 24x7. Access legal aid counselors and emergency helplines directly from your dashboard.');
+                      setBroadcastActionLabel('View Helplines');
+                      setBroadcastActionUrl('/victim?tab=helplines');
+                    }}
+                    className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100 transition cursor-pointer"
+                  >
+                    🛡️ Support Cell Notice
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setIsBroadcastModalOpen(false)}
+                className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs hover:bg-slate-50 transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={!broadcastTitle.trim() || !broadcastMessage.trim() || broadcastSubmitting}
+                onClick={async () => {
+                  setBroadcastSubmitting(true);
+                  try {
+                    await supportApi.adminBroadcastNotification({
+                      title: broadcastTitle.trim(),
+                      message: broadcastMessage.trim(),
+                      category: broadcastCategory,
+                      target_user_id: broadcastTargetUser === 'ALL' ? undefined : broadcastTargetUser,
+                      action_label: broadcastActionLabel,
+                      action_url: broadcastActionUrl,
+                    });
+                    setAssignmentNotice(`Broadcast notification successfully sent: "${broadcastTitle}"`);
+                    setIsBroadcastModalOpen(false);
+                    setTimeout(() => setAssignmentNotice(null), 5000);
+                  } catch (e) {
+                    console.error('Failed to broadcast notification:', e);
+                  } finally {
+                    setBroadcastSubmitting(false);
+                  }
+                }}
+                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-pink-600 via-rose-600 to-indigo-600 hover:opacity-95 text-white font-black text-xs shadow-md shadow-pink-500/20 transition cursor-pointer flex items-center gap-1.5"
+              >
+                <Send className="w-3.5 h-3.5" />
+                <span>{broadcastSubmitting ? 'Sending...' : 'Broadcast to Users'}</span>
               </button>
             </div>
           </div>

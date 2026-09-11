@@ -1,110 +1,127 @@
-import React, { useState } from 'react';
-import { Heart, Sparkles, MessageCircle, Send, ShieldCheck, UserCheck, X } from 'lucide-react';
-
-interface CommunityMessage {
-  id: string;
-  author: string;
-  district: string;
-  category: string;
-  message: string;
-  likes: number;
-  timeAgo: string;
-}
+import React, { useState, useEffect } from 'react';
+import { Heart, Sparkles, MessageCircle, Send, ShieldCheck, UserCheck, X, RefreshCw, User, ShieldAlert } from 'lucide-react';
+import { supportApi, HopeWallPost } from '../../api/supportApi';
 
 interface CommunityWallProps {
   isOpen?: boolean;
   onClose?: () => void;
   currentLang?: string;
+  currentUser?: { name?: string; username?: string; role?: string } | null;
 }
 
 export const CommunityWall: React.FC<CommunityWallProps> = ({
   isOpen,
   onClose,
   currentLang = 'en',
+  currentUser,
 }) => {
-  const [messages, setMessages] = useState<CommunityMessage[]>([
-    {
-      id: 'cw-1',
-      author: 'A Brave Sister',
-      district: 'Nashik, Maharashtra',
-      category: 'Atrocity Survivor',
-      message: 'When the incident happened, I thought my life was over. Today, after 4 months of support from our health observer and legal team, I can smile again. Please stay strong.',
-      likes: 42,
-      timeAgo: 'Yesterday',
-    },
-    {
-      id: 'cw-2',
-      author: 'Fellow Fighter',
-      district: 'Hathras, UP',
-      category: 'Survivor of Violence',
-      message: 'Take it one breath at a time. The 4-7-8 breathing exercise in this app helped me through my worst panic attacks before court dates. You are not alone.',
-      likes: 29,
-      timeAgo: '2 days ago',
-    },
-    {
-      id: 'cw-3',
-      author: 'Community Member',
-      district: 'Dharmapuri, Tamil Nadu',
-      category: 'Witness & Survivor',
-      message: 'The truth will bring you justice and dignity. Speak with your assigned doctor when you feel overwhelmed. We are walking this path together.',
-      likes: 38,
-      timeAgo: '3 days ago',
-    },
-    {
-      id: 'cw-4',
-      author: 'Resilient Voice',
-      district: 'Gaya, Bihar',
-      category: 'Atrocity Complainant',
-      message: 'To anyone reading this today: you survived the hardest day of your life. Every sunrise after that is proof of your strength.',
-      likes: 54,
-      timeAgo: '4 days ago',
-    },
-  ]);
-
+  const [messages, setMessages] = useState<HopeWallPost[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
   const [newMessage, setNewMessage] = useState<string>('');
+  const [authorName, setAuthorName] = useState<string>(currentUser?.name || currentUser?.username || '');
+  const [isAnonymous, setIsAnonymous] = useState<boolean>(false);
   const [likedIds, setLikedIds] = useState<{ [key: string]: boolean }>({});
   const [showSuccessToast, setShowSuccessToast] = useState<boolean>(false);
+  const [submitting, setSubmitting] = useState<boolean>(false);
+
+  const fetchPosts = async () => {
+    try {
+      setLoading(true);
+      const res = await supportApi.getHopeWallPosts();
+      if (res && res.posts) {
+        setMessages(res.posts);
+      }
+    } catch (err) {
+      console.error('Failed to load hope wall posts:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPosts();
+  }, []);
+
+  useEffect(() => {
+    if (currentUser?.name || currentUser?.username) {
+      setAuthorName(currentUser.name || currentUser.username || '');
+    }
+  }, [currentUser]);
 
   if (isOpen === false) return null;
 
-  const handleLike = (id: string) => {
-    setLikedIds((prev) => {
-      const isCurrentlyLiked = prev[id];
-      const updated = { ...prev, [id]: !isCurrentlyLiked };
+  const handleLike = async (id: string) => {
+    // Optimistic UI update
+    setLikedIds((prev) => ({ ...prev, [id]: !prev[id] }));
+    setMessages((msgs) =>
+      msgs.map((m) => {
+        if (m.id === id) {
+          const currentlyLiked = likedIds[id];
+          return {
+            ...m,
+            likes: currentlyLiked ? Math.max(0, m.likes - 1) : m.likes + 1,
+          };
+        }
+        return m;
+      })
+    );
 
-      setMessages((msgs) =>
-        msgs.map((m) => {
-          if (m.id === id) {
-            return {
-              ...m,
-              likes: isCurrentlyLiked ? m.likes - 1 : m.likes + 1,
-            };
-          }
-          return m;
-        })
-      );
-      return updated;
-    });
+    try {
+      const res = await supportApi.likeHopeWallPost(id);
+      if (res && res.likes !== undefined) {
+        setMessages((msgs) =>
+          msgs.map((m) => (m.id === id ? { ...m, likes: res.likes } : m))
+        );
+      }
+    } catch (err) {
+      console.error('Failed to like post:', err);
+    }
   };
 
-  const handlePostMessage = (e: React.FormEvent) => {
+  const handlePostMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim()) return;
+    if (!newMessage.trim() || submitting) return;
 
-    const newPost: CommunityMessage = {
-      id: `cw-${Date.now()}`,
-      author: 'Anonymous Survivor',
-      district: 'Confidential District, India',
-      category: 'Survivor Community',
-      message: newMessage.trim(),
-      likes: 1,
-      timeAgo: 'Just now',
-    };
+    const chosenAuthor = isAnonymous
+      ? 'Anonymous Survivor'
+      : authorName.trim() || currentUser?.name || currentUser?.username || 'Community Member';
 
-    setMessages([newPost, ...messages]);
-    setNewMessage('');
-    setShowSuccessToast(true);
-    setTimeout(() => setShowSuccessToast(false), 4000);
+    setSubmitting(true);
+    try {
+      const res = await supportApi.createHopeWallPost({
+        message: newMessage.trim(),
+        author: chosenAuthor,
+        district: 'Survivor Community, India',
+        category: 'Survivor of Violence',
+      });
+
+      if (res && res.post) {
+        setMessages((prev) => [res.post, ...prev]);
+        setNewMessage('');
+        setShowSuccessToast(true);
+        setTimeout(() => setShowSuccessToast(false), 4500);
+      }
+    } catch (err) {
+      console.error('Failed to post message:', err);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const formatTime = (dateStr: string) => {
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return 'Recently';
+      const now = new Date();
+      const diffMs = now.getTime() - d.getTime();
+      const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+      if (diffHours < 1) return 'Just now';
+      if (diffHours < 24) return `${diffHours}h ago`;
+      const diffDays = Math.floor(diffHours / 24);
+      return `${diffDays}d ago`;
+    } catch {
+      return 'Recently';
+    }
   };
 
   const content = (
@@ -121,103 +138,154 @@ export const CommunityWall: React.FC<CommunityWallProps> = ({
               <Sparkles className="w-4 h-4 text-rose-500" />
             </h3>
             <p className="text-xs text-slate-600 font-medium">
-              Anonymous messages of courage and solidarity from fellow survivors across India
+              Real-time messages of courage and solidarity from survivors across India
             </p>
           </div>
         </div>
 
-        {onClose && (
+        <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={onClose}
-            className="p-2 rounded-full hover:bg-slate-200 text-slate-500 hover:text-slate-900 transition cursor-pointer"
+            onClick={fetchPosts}
+            title="Refresh feed"
+            className="p-2 rounded-xl bg-white/80 hover:bg-white text-slate-600 hover:text-slate-900 border border-slate-200 transition cursor-pointer shadow-2xs"
           >
-            <X className="w-5 h-5" />
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-indigo-600' : ''}`} />
           </button>
-        )}
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-2 rounded-full hover:bg-slate-200 text-slate-500 hover:text-slate-900 transition cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Message Feed */}
-      <div className="flex-1 p-5 overflow-y-auto space-y-4 max-h-[600px]">
+      <div className="flex-1 p-5 overflow-y-auto space-y-4 max-h-[500px]">
         {showSuccessToast && (
           <div className="p-3.5 pastel-emerald rounded-2xl text-xs font-bold flex items-center gap-2 animate-fadeIn shadow-2xs">
             <ShieldCheck className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-            <span>Your message of hope was posted anonymously to inspire other survivors.</span>
+            <span>Your message of hope was posted to the real-time community wall.</span>
           </div>
         )}
 
-        {messages.map((item, idx) => {
-          const isLiked = likedIds[item.id];
-          const pastelBgs = ['pastel-rose', 'pastel-indigo', 'pastel-teal', 'pastel-amber'];
-          const cardStyle = pastelBgs[idx % pastelBgs.length];
+        {loading && messages.length === 0 ? (
+          <div className="py-12 flex flex-col items-center justify-center text-slate-400 gap-2">
+            <RefreshCw className="w-6 h-6 animate-spin text-rose-500" />
+            <p className="text-xs font-bold">Connecting to Hope Wall live feed...</p>
+          </div>
+        ) : messages.length === 0 ? (
+          <div className="py-12 text-center text-slate-400">
+            <Heart className="w-8 h-8 mx-auto text-rose-300 mb-2" />
+            <p className="text-xs font-bold">Be the first to share an encouraging thought today.</p>
+          </div>
+        ) : (
+          messages.map((item, idx) => {
+            const isLiked = likedIds[item.id];
+            const pastelBgs = ['pastel-rose', 'pastel-indigo', 'pastel-teal', 'pastel-amber'];
+            const cardStyle = pastelBgs[idx % pastelBgs.length];
 
-          return (
-            <div
-              key={item.id}
-              className={`p-4 sm:p-5 rounded-2xl ${cardStyle} shadow-2xs hover:shadow-md transition space-y-3`}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-white/90 shadow-2xs flex items-center justify-center font-extrabold text-slate-800 text-xs">
-                    {item.author[0]}
+            return (
+              <div
+                key={item.id}
+                className={`p-4 sm:p-5 rounded-2xl ${cardStyle} shadow-2xs hover:shadow-md transition space-y-3`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-white/90 shadow-2xs flex items-center justify-center font-extrabold text-slate-800 text-xs">
+                      {item.author ? item.author[0].toUpperCase() : 'S'}
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-black text-slate-900">{item.author}</h4>
+                      <p className="text-[10px] text-slate-500 font-medium">
+                        {item.district} • {formatTime(item.created_at)}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="text-xs font-black text-slate-900">{item.author}</h4>
-                    <p className="text-[10px] text-slate-500 font-medium">
-                      {item.district} • {item.timeAgo}
-                    </p>
-                  </div>
+                  <span className="text-[10px] font-extrabold text-indigo-900 bg-white/80 border border-indigo-200 px-2.5 py-0.5 rounded-full shadow-2xs">
+                    {item.category}
+                  </span>
                 </div>
-                <span className="text-[10px] font-extrabold text-indigo-900 bg-white/80 border border-indigo-200 px-2.5 py-0.5 rounded-full shadow-2xs">
-                  {item.category}
-                </span>
-              </div>
 
-              <p className="text-xs sm:text-sm text-slate-800 leading-relaxed font-medium">
-                "{item.message}"
-              </p>
+                <p className="text-xs sm:text-sm text-slate-800 leading-relaxed font-medium">
+                  "{item.message}"
+                </p>
 
-              <div className="flex items-center justify-between pt-2 border-t border-black/5 text-xs">
-                <button
-                  type="button"
-                  onClick={() => handleLike(item.id)}
-                  className={`flex items-center gap-1.5 px-3 py-1 rounded-xl transition cursor-pointer font-bold text-[11px] ${
-                    isLiked
-                      ? 'text-rose-700 bg-white border border-rose-300 shadow-2xs'
-                      : 'text-slate-700 hover:bg-white/60'
-                  }`}
-                >
-                  <Heart className={`w-3.5 h-3.5 ${isLiked ? 'fill-rose-600 text-rose-600' : ''}`} />
-                  <span>{item.likes} Encouragements</span>
-                </button>
-                <span className="text-[10px] text-slate-500 font-semibold">100% Anonymous & Moderated</span>
+                <div className="flex items-center justify-between pt-2 border-t border-black/5 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => handleLike(item.id)}
+                    className={`flex items-center gap-1.5 px-3 py-1 rounded-xl transition cursor-pointer font-bold text-[11px] ${
+                      isLiked
+                        ? 'text-rose-700 bg-white border border-rose-300 shadow-2xs'
+                        : 'text-slate-700 hover:bg-white/60'
+                    }`}
+                  >
+                    <Heart className={`w-3.5 h-3.5 ${isLiked ? 'fill-rose-600 text-rose-600' : ''}`} />
+                    <span>{item.likes} Encouragements</span>
+                  </button>
+                  <span className="text-[10px] text-slate-500 font-semibold">Real-time Verified Wall</span>
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })
+        )}
       </div>
 
-      {/* Post Message Input Bar */}
-      <div className="p-4 border-t border-indigo-100/60 bg-white/90">
+      {/* Post Message Input Bar with Author Selector */}
+      <div className="p-4 border-t border-indigo-100/60 bg-white/95 space-y-2.5">
+        <div className="flex items-center justify-between text-xs px-1">
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-bold text-slate-600">Posting as:</span>
+            {isAnonymous ? (
+              <span className="text-[11px] font-black text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+                Anonymous Survivor
+              </span>
+            ) : (
+              <input
+                type="text"
+                value={authorName}
+                onChange={(e) => setAuthorName(e.target.value)}
+                placeholder="Your Name (e.g. Priya S.)"
+                className="px-2.5 py-1 text-xs font-bold rounded-lg border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-500 max-w-[180px]"
+              />
+            )}
+          </div>
+
+          <label className="flex items-center gap-1.5 cursor-pointer select-none text-[11px] font-bold text-slate-600 hover:text-slate-900">
+            <input
+              type="checkbox"
+              checked={isAnonymous}
+              onChange={(e) => setIsAnonymous(e.target.checked)}
+              className="rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+            />
+            <span>Post Anonymously</span>
+          </label>
+        </div>
+
         <form onSubmit={handlePostMessage} className="flex gap-2">
           <input
             type="text"
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
-            placeholder="Leave a short, supportive message of hope for other survivors..."
+            placeholder="Write a supportive thought, quote or encouragement for others..."
             className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50/80 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white font-medium"
           />
           <button
             type="submit"
-            disabled={!newMessage.trim()}
+            disabled={!newMessage.trim() || submitting}
             className={`px-5 py-2.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition ${
-              newMessage.trim()
+              newMessage.trim() && !submitting
                 ? 'bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 text-white cursor-pointer shadow-md shadow-rose-500/20'
                 : 'bg-slate-200 text-slate-400 cursor-not-allowed'
             }`}
           >
             <Send className="w-3.5 h-3.5" />
-            <span>Post</span>
+            <span>{submitting ? 'Posting...' : 'Post'}</span>
           </button>
         </form>
       </div>

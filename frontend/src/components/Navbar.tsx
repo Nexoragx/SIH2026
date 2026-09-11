@@ -19,10 +19,18 @@ import {
   X,
   ChevronRight,
   ChevronDown,
-  Check
+  Check,
+  Bell,
+  Download,
+  Smartphone,
+  Laptop,
+  CheckCircle2,
+  Calendar,
+  Quote
 } from 'lucide-react';
 import { translations } from '../utils/translations';
 import { systemApi } from '../api';
+import { supportApi, NotificationItem } from '../api/supportApi';
 
 export type NavTab = 'victim' | 'observer' | 'analytics' | 'resources' | 'psychiatrist' | 'ngo' | 'admin';
 
@@ -59,9 +67,15 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [isOnline, setIsOnline] = useState<boolean>(backendOnline ?? false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
   const [isAccessibilityOpen, setIsAccessibilityOpen] = useState<boolean>(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState<boolean>(false);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [unreadCount, setUnreadCount] = useState<number>(0);
+  const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<any>(null);
+  const [isInstallModalOpen, setIsInstallModalOpen] = useState<boolean>(false);
   const [fontScale, setFontScale] = useState<'normal' | 'large' | 'xlarge'>('normal');
   const [highContrast, setHighContrast] = useState<boolean>(false);
   const accessibilityRef = useRef<HTMLDivElement>(null);
+  const notificationRef = useRef<HTMLDivElement>(null);
 
   // Lock body scroll when mobile menu is open
   useEffect(() => {
@@ -81,11 +95,15 @@ export const Navbar: React.FC<NavbarProps> = ({
       if (e.key === 'Escape') {
         setIsMobileMenuOpen(false);
         setIsAccessibilityOpen(false);
+        setIsNotificationsOpen(false);
       }
     };
     const handleClickOutside = (e: MouseEvent) => {
       if (accessibilityRef.current && !accessibilityRef.current.contains(e.target as Node)) {
         setIsAccessibilityOpen(false);
+      }
+      if (notificationRef.current && !notificationRef.current.contains(e.target as Node)) {
+        setIsNotificationsOpen(false);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -95,6 +113,59 @@ export const Navbar: React.FC<NavbarProps> = ({
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
+
+  // PWA BeforeInstallPrompt listener
+  useEffect(() => {
+    const handleBeforeInstall = (e: any) => {
+      e.preventDefault();
+      setDeferredInstallPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+  }, []);
+
+  // Fetch Notifications
+  const loadNotifications = async () => {
+    try {
+      const res = await supportApi.getNotifications();
+      if (res && res.notifications) {
+        setNotifications(res.notifications);
+        setUnreadCount(res.unread_count);
+      }
+    } catch {
+      // ignore silently if offline
+    }
+  };
+
+  useEffect(() => {
+    loadNotifications();
+    const interval = setInterval(loadNotifications, 20000);
+    return () => clearInterval(interval);
+  }, [currentUser]);
+
+  const handleMarkAsRead = async (notifId: string) => {
+    try {
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === notifId ? { ...n, is_read: true } : n))
+      );
+      setUnreadCount((prev) => Math.max(0, prev - 1));
+      await supportApi.markNotificationRead(notifId);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleInstallApp = async () => {
+    if (deferredInstallPrompt) {
+      deferredInstallPrompt.prompt();
+      const choice = await deferredInstallPrompt.userChoice;
+      if (choice.outcome === 'accepted') {
+        setDeferredInstallPrompt(null);
+      }
+    } else {
+      setIsInstallModalOpen(true);
+    }
+  };
 
   // Backend status check
   useEffect(() => {
@@ -310,6 +381,140 @@ export const Navbar: React.FC<NavbarProps> = ({
                     </option>
                   ))}
                 </select>
+              </div>
+
+              {/* Download / Install App Button (Desktop) */}
+              <button
+                type="button"
+                onClick={handleInstallApp}
+                className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-indigo-200/90 bg-gradient-to-r from-indigo-50/80 to-purple-50/80 hover:from-indigo-100 hover:to-purple-100 text-indigo-800 text-xs font-bold transition shadow-2xs cursor-pointer group"
+                title="Download / Install Anvaya Chrome App"
+              >
+                <Download className="w-3.5 h-3.5 text-indigo-600 group-hover:-translate-y-0.5 transition-transform" />
+                <span>Download App</span>
+              </button>
+
+              {/* Notification Bell with Badge & Popover (Desktop) */}
+              <div className="relative" ref={notificationRef}>
+                <button
+                  type="button"
+                  onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
+                  className={`relative flex items-center justify-center min-w-[38px] h-9 px-2 rounded-xl border text-xs font-bold transition cursor-pointer shadow-2xs ${
+                    isNotificationsOpen
+                      ? 'bg-indigo-50 border-indigo-300 text-indigo-700'
+                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                  }`}
+                  title="Notifications & Resilience Quotes"
+                  aria-label="Notifications"
+                >
+                  <Bell className="w-4 h-4 text-slate-700" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-rose-500 text-white rounded-full text-[10px] font-black flex items-center justify-center px-1 shadow-xs border-2 border-white animate-pulse">
+                      {unreadCount}
+                    </span>
+                  )}
+                </button>
+
+                {/* Notifications Dropdown Panel */}
+                {isNotificationsOpen && (
+                  <div className="absolute right-0 mt-2 w-80 sm:w-96 p-0 rounded-2xl bg-white border border-slate-200 shadow-2xl z-50 animate-fadeIn overflow-hidden">
+                    <div className="p-3.5 bg-gradient-to-r from-indigo-50 via-purple-50 to-rose-50 border-b border-indigo-100/60 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-xs">
+                          <Bell className="w-3.5 h-3.5" />
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-black text-slate-900">Notifications & Daily Quotes</h4>
+                          <p className="text-[10px] text-slate-500 font-semibold">{unreadCount} unread updates</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setIsNotificationsOpen(false)}
+                        className="text-slate-400 hover:text-slate-700 text-xs font-bold p-1 rounded-md"
+                      >
+                        ✕
+                      </button>
+                    </div>
+
+                    <div className="max-h-[380px] overflow-y-auto divide-y divide-slate-100">
+                      {notifications.length === 0 ? (
+                        <div className="py-8 text-center text-slate-400 text-xs font-medium">
+                          No notifications right now.
+                        </div>
+                      ) : (
+                        notifications.map((notif) => {
+                          const isQuote = notif.category === 'QUOTE';
+                          const isCheckin = notif.category === 'CHECKIN';
+                          const isAlert = notif.category === 'ALERT';
+
+                          return (
+                            <div
+                              key={notif.id}
+                              className={`p-3.5 transition flex flex-col gap-1.5 ${
+                                notif.is_read ? 'bg-white' : 'bg-indigo-50/40 hover:bg-indigo-50/60'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md tracking-wider">
+                                  {isQuote && <span className="text-pink-700 bg-pink-100 px-1.5 py-0.5 rounded">Resilience Quote 🌸</span>}
+                                  {isCheckin && <span className="text-indigo-700 bg-indigo-100 px-1.5 py-0.5 rounded">Health Check-in 📋</span>}
+                                  {isAlert && <span className="text-rose-700 bg-rose-100 px-1.5 py-0.5 rounded">Safety Alert ⚠️</span>}
+                                  {!isQuote && !isCheckin && !isAlert && (
+                                    <span className="text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded">Support Update 📢</span>
+                                  )}
+                                </span>
+                                <span className="text-[10px] text-slate-400 font-medium">
+                                  {!notif.is_read && <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 inline-block mr-1"></span>}
+                                </span>
+                              </div>
+
+                              <h5 className="text-xs font-bold text-slate-900 leading-snug">{notif.title}</h5>
+                              <p className="text-[11px] text-slate-600 leading-relaxed font-medium">
+                                {notif.message}
+                              </p>
+
+                              <div className="flex items-center justify-between pt-1 mt-1 border-t border-slate-100/80">
+                                {notif.action_label && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      handleMarkAsRead(notif.id);
+                                      setIsNotificationsOpen(false);
+                                      if (notif.action_url?.includes('tab=exercises')) {
+                                        onTabChange('victim');
+                                      } else if (notif.action_url?.includes('tab=assessment')) {
+                                        onTabChange('victim');
+                                      } else if (notif.action_url?.includes('tab=helplines')) {
+                                        onTabChange('victim');
+                                      } else {
+                                        onTabChange('victim');
+                                      }
+                                    }}
+                                    className="text-[10px] font-extrabold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 cursor-pointer bg-indigo-50 px-2 py-1 rounded-md"
+                                  >
+                                    <span>{notif.action_label}</span>
+                                    <ChevronRight className="w-3 h-3" />
+                                  </button>
+                                )}
+
+                                {!notif.is_read && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleMarkAsRead(notif.id)}
+                                    className="text-[10px] text-slate-400 hover:text-slate-700 font-bold ml-auto cursor-pointer"
+                                  >
+                                    Mark as read
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Accessibility Menu Toggle (Desktop) */}
@@ -646,7 +851,32 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </div>
                 )}
 
-                {/* 3. Helplines & Emergency (for victims/guests) */}
+                {/* 3. Download App / PWA Button in Mobile */}
+                <div className="space-y-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsMobileMenuOpen(false);
+                      handleInstallApp();
+                    }}
+                    className="w-full p-3 rounded-2xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white flex items-center justify-between text-xs font-black shadow-md shadow-indigo-500/20 transition cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-xl bg-white/20 flex items-center justify-center">
+                        <Download className="w-4 h-4 text-white" />
+                      </div>
+                      <div className="text-left">
+                        <div className="text-xs font-black">Download Anvaya App</div>
+                        <div className="text-[10px] text-white/80 font-medium">Install Chrome / Android App</div>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-black bg-white text-indigo-900 px-2 py-0.5 rounded-full">
+                      Install
+                    </span>
+                  </button>
+                </div>
+
+                {/* 4. Helplines & Emergency (for victims/guests) */}
                 {!isPsychiatrist && (
                   <div className="space-y-1.5">
                     <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-1">
@@ -688,7 +918,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </div>
                 )}
 
-                {/* 4. Language Selector */}
+                {/* 5. Language Selector */}
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 px-1">
                     <Globe className="w-3 h-3 text-indigo-600" />
@@ -715,7 +945,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </div>
                 </div>
 
-                {/* 5. Accessibility Controls */}
+                {/* 6. Accessibility Controls */}
                 <div className="space-y-2 p-3 bg-slate-50 rounded-2xl border border-slate-200/80">
                   <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
                     Accessibility Controls
@@ -781,6 +1011,89 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>,
           document.body
         )}
+
+      {/* PWA Install Modal */}
+      {isInstallModalOpen &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div className="fixed inset-0 z-[10001] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fadeIn">
+            <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 relative overflow-hidden animate-scaleUp">
+              <button
+                type="button"
+                onClick={() => setIsInstallModalOpen(false)}
+                className="absolute top-4 right-4 p-2 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-700 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="flex flex-col items-center text-center space-y-4">
+                <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+                  <Heart className="w-9 h-9 fill-white text-white" />
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-black text-slate-900">Install Anvaya Chrome App</h3>
+                  <p className="text-xs text-slate-500 font-medium mt-1">
+                    Get 1-click home screen access, fast offline crisis safeguarding, and private check-ins.
+                  </p>
+                </div>
+
+                <div className="w-full bg-slate-50 rounded-2xl p-4 border border-slate-200 text-left space-y-3">
+                  <div className="flex items-start gap-3 text-xs">
+                    <div className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
+                      1
+                    </div>
+                    <div>
+                      <span className="font-bold text-slate-900">Chrome Desktop / Mac:</span>
+                      <p className="text-slate-600 font-medium text-[11px]">
+                        Click the <span className="font-bold text-indigo-700">Install icon (⊕ or ⬇)</span> in your Chrome address bar or Menu (⋮) → <span className="font-bold text-slate-800">"Save and share" → "Install Anvaya"</span>.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3 text-xs">
+                    <div className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
+                      2
+                    </div>
+                    <div>
+                      <span className="font-bold text-slate-900">Android / Mobile Chrome:</span>
+                      <p className="text-slate-600 font-medium text-[11px]">
+                        Tap Chrome Menu (⋮) → <span className="font-bold text-slate-800">"Add to Home screen"</span> or <span className="font-bold text-slate-800">"Install app"</span>.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {deferredInstallPrompt && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      deferredInstallPrompt.prompt();
+                      const res = await deferredInstallPrompt.userChoice;
+                      if (res.outcome === 'accepted') {
+                        setIsInstallModalOpen(false);
+                      }
+                    }}
+                    className="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-pink-600 text-white font-black text-xs shadow-md shadow-indigo-500/20 hover:opacity-95 transition cursor-pointer flex items-center justify-center gap-2"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>Install "Anvaya" Directly Now</span>
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setIsInstallModalOpen(false)}
+                  className="text-xs font-bold text-slate-500 hover:text-slate-800 cursor-pointer pt-1"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
     </>
   );
 };
+

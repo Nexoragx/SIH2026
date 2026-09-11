@@ -209,8 +209,10 @@ class AuthController:
                 "email": user_doc["email"],
                 "full_name": user_doc["full_name"],
                 "role": user_doc["role"],
-                "district": user_doc["district"],
-                "state": user_doc["state"]
+                "phone": user_doc.get("phone"),
+                "district": user_doc.get("district"),
+                "state": user_doc.get("state"),
+                "assigned_observer": user_doc.get("assigned_observer") or None
             }
         }
 
@@ -352,8 +354,10 @@ class AuthController:
                 "email": user["email"],
                 "full_name": user.get("full_name", ""),
                 "role": user.get("role", "victim"),
+                "phone": user.get("phone"),
                 "district": user.get("district"),
-                "state": user.get("state")
+                "state": user.get("state"),
+                "assigned_observer": user.get("assigned_observer") or user.get("assignedObserver") or None
             }
         }
 
@@ -771,28 +775,54 @@ class AuthController:
             "assigned_at": now_str
         }
 
-        # Try matching by ObjectId or string id
-        query = {"email": data.user_id}
+        # Build resilient query clauses matching by ObjectId, string ID, email, username or phone
+        query_clauses = [
+            {"email": data.user_id},
+            {"id": data.user_id},
+            {"_id": data.user_id},
+            {"username": data.user_id},
+            {"phone": data.user_id}
+        ]
         if ObjectId.is_valid(data.user_id):
-            query = {"$or": [{"_id": ObjectId(data.user_id)}, {"_id": data.user_id}, {"email": data.user_id}]}
+            query_clauses.append({"_id": ObjectId(data.user_id)})
+
+        query = {"$or": query_clauses}
 
         updated_doc = None
         for col in [db.user, db.users]:
-            res = col.find_one_and_update(
-                query,
-                {"$set": {"assigned_observer": observer_payload, "updated_at": datetime.now(timezone.utc)}},
-                return_document=True
-            )
-            if res:
-                updated_doc = res
+            try:
+                res = col.find_one_and_update(
+                    query,
+                    {"$set": {
+                        "assigned_observer": observer_payload,
+                        "assignedObserver": observer_payload,
+                        "updated_at": datetime.now(timezone.utc)
+                    }},
+                    return_document=True
+                )
+                if res:
+                    updated_doc = res
+            except Exception:
+                pass
 
         if not updated_doc:
             # Fallback search by email or name if ID was client-generated
-            updated_doc = db.user.find_one_and_update(
-                {"$or": [{"full_name": data.user_id}, {"phone": data.user_id}]},
-                {"$set": {"assigned_observer": observer_payload, "updated_at": datetime.now(timezone.utc)}},
-                return_document=True
-            )
+            for col in [db.user, db.users]:
+                try:
+                    res = col.find_one_and_update(
+                        {"$or": [{"full_name": data.user_id}, {"phone": data.user_id}, {"email": {"$regex": data.user_id, "$options": "i"}}]},
+                        {"$set": {
+                            "assigned_observer": observer_payload,
+                            "assignedObserver": observer_payload,
+                            "updated_at": datetime.now(timezone.utc)
+                        }},
+                        return_document=True
+                    )
+                    if res:
+                        updated_doc = res
+                        break
+                except Exception:
+                    pass
 
         if updated_doc:
             sync_user_to_all_dbs(updated_doc)
@@ -803,7 +833,7 @@ class AuthController:
             }
 
         return {
-            "message": f"Observer {data.observer_name} assigned successfully [Cached/Simulated]",
+            "message": f"Observer {data.observer_name} assigned successfully [Simulated]",
             "assigned_observer": observer_payload,
             "user_id": data.user_id
         }
@@ -813,15 +843,30 @@ class AuthController:
         """
         Removes observer assignment from a user.
         """
-        query = {"email": data.user_id}
+        query_clauses = [
+            {"email": data.user_id},
+            {"id": data.user_id},
+            {"_id": data.user_id},
+            {"username": data.user_id},
+            {"phone": data.user_id}
+        ]
         if ObjectId.is_valid(data.user_id):
-            query = {"$or": [{"_id": ObjectId(data.user_id)}, {"_id": data.user_id}, {"email": data.user_id}]}
+            query_clauses.append({"_id": ObjectId(data.user_id)})
+
+        query = {"$or": query_clauses}
 
         for col in [db.user, db.users]:
-            col.find_one_and_update(
-                query,
-                {"$set": {"assigned_observer": None, "updated_at": datetime.now(timezone.utc)}}
-            )
+            try:
+                col.find_one_and_update(
+                    query,
+                    {"$set": {
+                        "assigned_observer": None,
+                        "assignedObserver": None,
+                        "updated_at": datetime.now(timezone.utc)
+                    }}
+                )
+            except Exception:
+                pass
 
         return {
             "message": "Observer unassigned successfully",

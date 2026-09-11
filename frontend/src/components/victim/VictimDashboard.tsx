@@ -65,12 +65,36 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
   const [activeSubTab, setActiveSubTab] = useState<'overview' | 'exercises' | 'scale' | 'community'>(initialSubTab);
   const [currentSelectedExercise, setCurrentSelectedExercise] = useState<string | undefined>(targetExercise);
   const [liveAssignedObserver, setLiveAssignedObserver] = useState<any>(() => {
-    return userProfile?.assignedObserver || getStoredUser()?.assigned_observer || getStoredUser()?.assignedObserver || null;
+    const stored = getStoredUser();
+    return (
+      userProfile?.assignedObserver ||
+      userProfile?.assigned_observer ||
+      stored?.assigned_observer ||
+      stored?.assignedObserver ||
+      null
+    );
   });
 
+  // Re-sync with backend /auth/me on mount to guarantee up-to-date observer allocation
   useEffect(() => {
-    if (userProfile?.assignedObserver) {
-      setLiveAssignedObserver(userProfile.assignedObserver);
+    authApi.getMe()
+      .then((me: any) => {
+        if (me && (me.assigned_observer || me.assignedObserver)) {
+          const obs = me.assigned_observer || me.assignedObserver;
+          setLiveAssignedObserver(obs);
+          const localUser = getStoredUser();
+          if (localUser) {
+            authApi.saveLocalSession({ ...localUser, assigned_observer: obs, assignedObserver: obs });
+          }
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const obs = userProfile?.assignedObserver || userProfile?.assigned_observer;
+    if (obs !== undefined) {
+      setLiveAssignedObserver(obs);
     }
   }, [userProfile]);
 
@@ -1021,7 +1045,7 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
             </div>
           </div>
 
-          <CommunityWall currentLang={currentLang} />
+          <CommunityWall currentLang={currentLang} currentUser={userProfile || getStoredUser()} />
         </div>
       )}
 

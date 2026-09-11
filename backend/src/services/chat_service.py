@@ -558,49 +558,48 @@ class ChatService:
     @classmethod
     def _detect_exercise_recommendation(cls, message: str) -> Optional[Dict[str, str]]:
         clean = message.lower()
-        if any(w in clean for w in ["breath", "breathe", "pranayam", "heart", "panic", "can't breathe", "hyperventilat", "attack"]):
+        # 1. Explicit request for breathing or severe hyperventilation / panic attack
+        if any(w in clean for w in ["breathing exercise", "start breathing", "pranayam", "pranayama", "can't breathe", "cant breathe", "hyperventilat", "panic attack", "सांस की कसरत"]):
             return {
                 "type": "breathing",
                 "title": "4-7-8 Pranayama Breathwork",
                 "description": "Slow down your heart rate and regulate your nervous system with guided rhythmic breathing.",
                 "buttonLabel": "Start 4-7-8 Breathing"
             }
-        elif any(w in clean for w in ["ground", "dizzy", "unreal", "dissociat", "spin", "lost", "where am i", "senses", "touch"]):
+        # 2. Explicit grounding request or severe dissociation
+        elif any(w in clean for w in ["grounding exercise", "sensory grounding", "5-4-3-2-1", "dissociat", "feel unreal", "head spinning"]):
             return {
                 "type": "grounding",
                 "title": "5-4-3-2-1 Sensory Grounding",
                 "description": "Engage your 5 senses to anchor your mind back to the safe present moment.",
                 "buttonLabel": "Start 5-4-3-2-1 Grounding"
             }
-        elif any(w in clean for w in ["write", "journal", "anger", "angry", "rage", "injustice", "unfair", "hate", "vent"]):
+        # 3. Explicit request to journal or vent anger
+        elif any(w in clean for w in ["open journal", "worry journal", "write thoughts", "vent anger", "dissolving journal"]):
             return {
                 "type": "journal",
                 "title": "Dissolving Worry & Trauma Journal",
                 "description": "Release heavy anger and intrusive thoughts into a private, self-dissolving sanctuary.",
                 "buttonLabel": "Open Worry Journal"
             }
-        elif any(w in clean for w in ["sleep", "insomnia", "nightmare", "music", "sound", "peace", "relax", "rain", "ocean"]):
+        # 4. Severe sleep trouble requesting calming sounds
+        elif any(w in clean for w in ["sleep soundscape", "sleep sounds", "nature sounds", "rain sound", "insomnia help", "play sounds"]):
             return {
                 "type": "sounds",
                 "title": "Calming Nature Soundscapes",
                 "description": "Immerse in soothing alpha frequencies, gentle rain, and calming acoustic harmony.",
                 "buttonLabel": "Play Calming Sounds"
             }
-        elif any(w in clean for w in ["tense", "tight", "body", "muscle", "pain", "stiff", "ache", "shoulder", "jaw"]):
+        # 5. Severe physical muscle tension
+        elif any(w in clean for w in ["muscle relaxation", "body tense", "clenched jaw", "stiff shoulders", "muscle exercise"]):
             return {
                 "type": "muscle",
                 "title": "Progressive Muscle Relaxation",
                 "description": "Gently release stored trauma and physical tension from your muscles step-by-step.",
                 "buttonLabel": "Start Muscle Relaxation"
             }
-        elif any(w in clean for w in ["motivat", "hopeless", "give up", "strength", "can't do this", "cant do this", "failed", "हौसला", "हिम्मत"]):
-            return {
-                "type": "breathing",
-                "title": "4-7-8 Pranayama Breathwork",
-                "description": "Center your inner courage and steady your heartbeat with guided breath pacing.",
-                "buttonLabel": "Center Courage With Breath"
-            }
-        elif any(w in clean for w in ["exercise", "practice", "activity", "meditat", "calm me", "help me calm", "distress", "guide me"]):
+        # 6. Direct general exercise or meditation request
+        elif any(w in clean for w in ["show me exercises", "start an exercise", "calming exercise", "guided meditation", "कसरत कराएं", "ब्यायाम"]):
             return {
                 "type": "breathing",
                 "title": "4-7-8 Pranayama Breathwork",
