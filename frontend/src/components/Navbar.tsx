@@ -26,6 +26,7 @@ import {
   Laptop,
   CheckCircle2,
   Calendar,
+  Trash2,
   Quote
 } from 'lucide-react';
 import { translations } from '../utils/translations';
@@ -64,18 +65,24 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenUssdSimulator,
 }) => {
   const t = translations[currentLang] || translations.en;
-  const [isOnline, setIsOnline] = useState<boolean>(backendOnline ?? false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
-  const [isAccessibilityOpen, setIsAccessibilityOpen] = useState<boolean>(false);
-  const [isNotificationsOpen, setIsNotificationsOpen] = useState<boolean>(false);
+  const [isLangOpen, setIsLangOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isAccessibilityOpen, setIsAccessibilityOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<any>(null);
-  const [isInstallModalOpen, setIsInstallModalOpen] = useState<boolean>(false);
+  const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
+  const [isOnline, setIsOnline] = useState<boolean>(true);
   const [fontScale, setFontScale] = useState<'normal' | 'large' | 'xlarge'>('normal');
   const [highContrast, setHighContrast] = useState<boolean>(false);
+
+  const langRef = useRef<HTMLDivElement>(null);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
   const accessibilityRef = useRef<HTMLDivElement>(null);
   const notificationRef = useRef<HTMLDivElement>(null);
+  const notificationsRef = notificationRef;
+
 
   // Lock body scroll when mobile menu is open
   useEffect(() => {
@@ -96,14 +103,21 @@ export const Navbar: React.FC<NavbarProps> = ({
         setIsMobileMenuOpen(false);
         setIsAccessibilityOpen(false);
         setIsNotificationsOpen(false);
+        setIsLangOpen(false);
       }
     };
     const handleClickOutside = (e: MouseEvent | TouchEvent) => {
       if (accessibilityRef.current && !accessibilityRef.current.contains(e.target as Node)) {
         setIsAccessibilityOpen(false);
       }
-      if (notificationRef.current && !notificationRef.current.contains(e.target as Node)) {
+      if (notificationsRef.current && !notificationsRef.current.contains(e.target as Node)) {
         setIsNotificationsOpen(false);
+      }
+      if (langRef.current && !langRef.current.contains(e.target as Node)) {
+        setIsLangOpen(false);
+      }
+      if (mobileMenuRef.current && !mobileMenuRef.current.contains(e.target as Node)) {
+        setIsMobileMenuOpen(false);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -116,9 +130,9 @@ export const Navbar: React.FC<NavbarProps> = ({
     };
   }, []);
 
-  // PWA BeforeInstallPrompt listener
+  // Catch PWA beforeinstallprompt event
   useEffect(() => {
-    const handleBeforeInstall = (e: any) => {
+    const handleBeforeInstall = (e: Event) => {
       e.preventDefault();
       setDeferredInstallPrompt(e);
     };
@@ -126,14 +140,37 @@ export const Navbar: React.FC<NavbarProps> = ({
     return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
   }, []);
 
-  // Fetch Notifications
+  // Fetch and Filter Notifications
   const loadNotifications = async () => {
     try {
+      const clearedSet = new Set<string>(
+        JSON.parse(localStorage.getItem('anvaya_cleared_notifications') || '[]')
+      );
+      const readSet = new Set<string>(
+        JSON.parse(localStorage.getItem('anvaya_read_notifications') || '[]')
+      );
+
       const res = await supportApi.getNotifications();
-      if (res && res.notifications) {
-        setNotifications(res.notifications);
-        setUnreadCount(res.unread_count);
-      }
+      let rawNotifs: NotificationItem[] = res?.notifications || [];
+
+      // Check for locally broadcast notifications
+      try {
+        const latestLocal = localStorage.getItem('anvaya_latest_broadcast');
+        if (latestLocal) {
+          const parsed = JSON.parse(latestLocal);
+          if (parsed && parsed.id && !rawNotifs.some((n) => n.id === parsed.id)) {
+            rawNotifs.unshift(parsed);
+          }
+        }
+      } catch {}
+
+      // Filter out cleared notifications and apply local read overrides
+      const filtered = rawNotifs
+        .filter((n) => !clearedSet.has(n.id))
+        .map((n) => (readSet.has(n.id) ? { ...n, is_read: true } : n));
+
+      setNotifications(filtered);
+      setUnreadCount(filtered.filter((n) => !n.is_read).length);
     } catch {
       // ignore silently if offline
     }
@@ -141,12 +178,37 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   useEffect(() => {
     loadNotifications();
-    const interval = setInterval(loadNotifications, 20000);
-    return () => clearInterval(interval);
+    const interval = setInterval(loadNotifications, 15000);
+
+    const handleBroadcastReceived = (e: any) => {
+      const newNotif = e?.detail;
+      if (newNotif && newNotif.title) {
+        setNotifications((prev) => {
+          if (prev.some((n) => n.id === newNotif.id)) return prev;
+          return [newNotif, ...prev];
+        });
+        setUnreadCount((prev) => prev + 1);
+      }
+    };
+
+    window.addEventListener('anvaya_broadcast_sent', handleBroadcastReceived);
+    window.addEventListener('storage', loadNotifications);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('anvaya_broadcast_sent', handleBroadcastReceived);
+      window.removeEventListener('storage', loadNotifications);
+    };
   }, [currentUser]);
 
   const handleMarkAsRead = async (notifId: string) => {
     try {
+      const readSet = new Set<string>(
+        JSON.parse(localStorage.getItem('anvaya_read_notifications') || '[]')
+      );
+      readSet.add(notifId);
+      localStorage.setItem('anvaya_read_notifications', JSON.stringify(Array.from(readSet)));
+
       setNotifications((prev) =>
         prev.map((n) => (n.id === notifId ? { ...n, is_read: true } : n))
       );
@@ -159,12 +221,50 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   const handleMarkAllRead = async () => {
     try {
-      const unread = notifications.filter((n) => !n.is_read);
+      const readSet = new Set<string>(
+        JSON.parse(localStorage.getItem('anvaya_read_notifications') || '[]')
+      );
+      notifications.forEach((n) => readSet.add(n.id));
+      localStorage.setItem('anvaya_read_notifications', JSON.stringify(Array.from(readSet)));
+
       setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
       setUnreadCount(0);
-      await Promise.all(
-        unread.map((n) => supportApi.markNotificationRead(n.id).catch(() => {}))
+      await supportApi.markAllNotificationsRead();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleClearSingle = async (notifId: string) => {
+    try {
+      const clearedSet = new Set<string>(
+        JSON.parse(localStorage.getItem('anvaya_cleared_notifications') || '[]')
       );
+      clearedSet.add(notifId);
+      localStorage.setItem('anvaya_cleared_notifications', JSON.stringify(Array.from(clearedSet)));
+
+      setNotifications((prev) => {
+        const next = prev.filter((n) => n.id !== notifId);
+        setUnreadCount(next.filter((x) => !x.is_read).length);
+        return next;
+      });
+      await supportApi.clearNotification(notifId);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleClearAll = async () => {
+    try {
+      const clearedSet = new Set<string>(
+        JSON.parse(localStorage.getItem('anvaya_cleared_notifications') || '[]')
+      );
+      notifications.forEach((n) => clearedSet.add(n.id));
+      localStorage.setItem('anvaya_cleared_notifications', JSON.stringify(Array.from(clearedSet)));
+
+      setNotifications([]);
+      setUnreadCount(0);
+      await supportApi.clearAllNotifications();
     } catch (e) {
       console.error(e);
     }
@@ -449,7 +549,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                         </div>
                         <div>
                           <h4 className="text-xs sm:text-sm font-black text-slate-900 leading-tight">Notifications & Daily Quotes</h4>
-                          <p className="text-[10px] text-slate-500 font-semibold">{unreadCount} unread updates</p>
+                          <p className="text-[10px] text-slate-500 font-semibold">{unreadCount} unread • {notifications.length} total</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-1.5">
@@ -458,8 +558,20 @@ export const Navbar: React.FC<NavbarProps> = ({
                             type="button"
                             onClick={handleMarkAllRead}
                             className="text-[10px] font-bold text-indigo-700 hover:text-indigo-900 bg-white/90 hover:bg-white px-2 py-1 rounded-lg border border-indigo-200 transition cursor-pointer shadow-2xs"
+                            title="Mark all notifications as read"
                           >
                             Mark all read
+                          </button>
+                        )}
+                        {notifications.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={handleClearAll}
+                            className="text-[10px] font-bold text-rose-700 hover:text-rose-900 bg-white/90 hover:bg-white px-2 py-1 rounded-lg border border-rose-200 transition cursor-pointer shadow-2xs flex items-center gap-1"
+                            title="Clear all notifications"
+                          >
+                            <Trash2 className="w-3 h-3 text-rose-600" />
+                            <span>Clear all</span>
                           </button>
                         )}
                         <button
@@ -488,7 +600,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                           return (
                             <div
                               key={notif.id}
-                              className={`p-3.5 sm:p-4 transition flex flex-col gap-1.5 ${
+                              className={`p-3.5 sm:p-4 transition flex flex-col gap-1.5 group relative ${
                                 notif.is_read ? 'bg-white' : 'bg-indigo-50/40 hover:bg-indigo-50/60'
                               }`}
                             >
@@ -501,9 +613,17 @@ export const Navbar: React.FC<NavbarProps> = ({
                                     <span className="text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded">Support Update 📢</span>
                                   )}
                                 </span>
-                                <span className="text-[10px] text-slate-400 font-medium">
-                                  {!notif.is_read && <span className="w-2 h-2 rounded-full bg-indigo-600 inline-block mr-1"></span>}
-                                </span>
+                                <div className="flex items-center gap-2">
+                                  {!notif.is_read && <span className="w-2 h-2 rounded-full bg-indigo-600 inline-block"></span>}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleClearSingle(notif.id)}
+                                    className="text-slate-400 hover:text-rose-600 p-1 rounded-md hover:bg-slate-100 transition cursor-pointer"
+                                    title="Dismiss / Clear notification"
+                                  >
+                                    <X className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
                               </div>
 
                               <h5 className="text-xs sm:text-sm font-bold text-slate-900 leading-snug">{notif.title}</h5>
@@ -535,15 +655,24 @@ export const Navbar: React.FC<NavbarProps> = ({
                                   </button>
                                 )}
 
-                                {!notif.is_read && (
+                                <div className="flex items-center gap-2 ml-auto">
+                                  {!notif.is_read && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleMarkAsRead(notif.id)}
+                                      className="text-[11px] text-slate-400 hover:text-slate-700 font-bold cursor-pointer py-1 px-2 rounded-lg hover:bg-slate-100 transition"
+                                    >
+                                      Mark read
+                                    </button>
+                                  )}
                                   <button
                                     type="button"
-                                    onClick={() => handleMarkAsRead(notif.id)}
-                                    className="text-[11px] text-slate-400 hover:text-slate-700 font-bold ml-auto cursor-pointer py-1 px-2 rounded-lg hover:bg-slate-100 transition"
+                                    onClick={() => handleClearSingle(notif.id)}
+                                    className="text-[11px] text-rose-500 hover:text-rose-700 font-bold cursor-pointer py-1 px-2 rounded-lg hover:bg-rose-50 transition"
                                   >
-                                    Mark as read
+                                    Clear
                                   </button>
-                                )}
+                                </div>
                               </div>
                             </div>
                           );

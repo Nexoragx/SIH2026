@@ -897,16 +897,41 @@ export const ObserverDashboard: React.FC<ObserverDashboardProps> = () => {
               <button
                 type="button"
                 onClick={() => setShowMotivationModal(false)}
-                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50"
+                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 transition cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  setShowMotivationModal(false);
-                  setMotivationSentToast(true);
-                  setTimeout(() => setMotivationSentToast(false), 3500);
+                onClick={async () => {
+                  try {
+                    setShowMotivationModal(false);
+                    setMotivationSentToast(true);
+                    await supportApi.adminBroadcastNotification({
+                      title: `Care Message from Observer 🌸`,
+                      message: motivationText.trim(),
+                      category: 'QUOTE',
+                      target_user_id: selectedCase.id,
+                      action_label: 'Open Care Sanctuary',
+                      action_url: '/victim'
+                    });
+                    await supportApi.sendCareChatMessage({
+                      text: motivationText.trim(),
+                      sender: 'observer',
+                      user_id: selectedCase.id
+                    });
+                    window.dispatchEvent(new CustomEvent('anvaya_broadcast_sent', {
+                      detail: {
+                        title: `Care Message from Observer 🌸`,
+                        message: motivationText.trim(),
+                        category: 'QUOTE'
+                      }
+                    }));
+                  } catch (e) {
+                    console.error('Failed to send observer motivation:', e);
+                  } finally {
+                    setTimeout(() => setMotivationSentToast(false), 3500);
+                  }
                 }}
                 className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md shadow-indigo-600/20 transition flex items-center gap-1.5 cursor-pointer"
               >

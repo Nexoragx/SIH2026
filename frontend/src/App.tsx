@@ -11,7 +11,7 @@ import { VictimChatbot } from './components/victim/VictimChatbot';
 import { VictimObserverChat } from './components/victim/VictimObserverChat';
 import { UserProfile, AssessmentResponse, AssessmentResultData, RiskLevel, ChatMessage } from './types';
 import { Bot, MessageSquare, Sparkles, Stethoscope } from 'lucide-react';
-import { assessmentApi, authApi, systemApi, getStoredToken, getStoredRefreshToken, getStoredUser, setStoredUser, clearStoredAuth } from './api';
+import { assessmentApi, authApi, systemApi, supportApi, getStoredToken, getStoredRefreshToken, getStoredUser, setStoredUser, clearStoredAuth } from './api';
 import { AuthModal } from './components/auth/AuthModal';
 import { AdminLoginModal } from './components/auth/AdminLoginModal';
 import { LandingPage } from './components/landing/LandingPage';
@@ -418,26 +418,72 @@ export const App: React.FC = () => {
   }, []);
 
   // Synced 1:1 Messages between Victim and Observer
-  const [observerChatMessages, setObserverChatMessages] = useState<ChatMessage[]>([
-    {
-      id: 'm1',
-      sender: 'observer',
-      timestamp: '10:16 AM',
-      text: 'Namaste ji, I am Dr. Anita Joshi, your assigned district health observer. I am here to support you at every step.',
-    },
-    {
-      id: 'm2',
-      sender: 'victim',
-      timestamp: '10:19 AM',
-      text: 'Thank you doctor. Having sleepless nights lately and feeling tense about the court dates.',
-    },
-    {
-      id: 'm3',
-      sender: 'observer',
-      timestamp: '10:21 AM',
-      text: 'We understand completely. Our local NGO counselor Ram is also in touch with your family. Please practice the 4-7-8 breathing pacer whenever you feel overwhelmed.',
-    },
-  ]);
+  const [observerChatMessages, setObserverChatMessages] = useState<ChatMessage[]>(() => {
+    try {
+      const stored = localStorage.getItem('anvaya_observer_chat_messages');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return [
+      {
+        id: 'm1',
+        sender: 'observer',
+        timestamp: '10:16 AM',
+        text: 'Namaste ji, I am Dr. Anita Joshi, your assigned district health observer. I am here to support you at every step.',
+      },
+      {
+        id: 'm2',
+        sender: 'victim',
+        timestamp: '10:19 AM',
+        text: 'Thank you doctor. Having sleepless nights lately and feeling tense about the court dates.',
+      },
+      {
+        id: 'm3',
+        sender: 'observer',
+        timestamp: '10:21 AM',
+        text: 'We understand completely. Our local NGO counselor Ram is also in touch with your family. Please practice the 4-7-8 breathing pacer whenever you feel overwhelmed.',
+      },
+    ];
+  });
+
+  // Fetch care chat messages from backend on mount
+  useEffect(() => {
+    const fetchChatMessages = async () => {
+      try {
+        const res = await supportApi.getCareChatMessages(userProfile.id);
+        if (res && res.messages && res.messages.length > 0) {
+          setObserverChatMessages((prev) => {
+            const combined = [...prev];
+            res.messages.forEach((bm: any) => {
+              if (!combined.some((c) => c.id === bm.id)) {
+                combined.push(bm);
+              }
+            });
+            localStorage.setItem('anvaya_observer_chat_messages', JSON.stringify(combined));
+            return combined;
+          });
+        }
+      } catch {}
+    };
+    fetchChatMessages();
+
+    const handleCareMessageEvent = (e: any) => {
+      const msg = e?.detail;
+      if (msg && msg.text) {
+        setObserverChatMessages((prev) => {
+          if (prev.some((m) => m.id === msg.id)) return prev;
+          const updated = [...prev, msg];
+          localStorage.setItem('anvaya_observer_chat_messages', JSON.stringify(updated));
+          return updated;
+        });
+      }
+    };
+    window.addEventListener('anvaya_care_message_sent', handleCareMessageEvent);
+    return () => window.removeEventListener('anvaya_care_message_sent', handleCareMessageEvent);
+  }, [userProfile.id]);
+
 
   const [resultData, setResultData] = useState<AssessmentResultData>({
     sessionId: 'SES-001',
@@ -798,26 +844,60 @@ export const App: React.FC = () => {
     setCachedResponses([]);
   };
 
-  const handleSendVictimObserverMessage = (text: string) => {
+  const handleSendVictimObserverMessage = async (text: string) => {
     const newMsg: ChatMessage = {
       id: `m-${Date.now()}`,
       sender: 'victim',
       timestamp: 'Just now',
       text,
     };
-    setObserverChatMessages((prev) => [...prev, newMsg]);
+    setObserverChatMessages((prev) => {
+      const updated = [...prev, newMsg];
+      localStorage.setItem('anvaya_observer_chat_messages', JSON.stringify(updated));
+      return updated;
+    });
+    window.dispatchEvent(new CustomEvent('anvaya_care_message_sent', { detail: newMsg }));
 
-    // Simulated observer response after slight delay
-    setTimeout(() => {
+    try {
+      await supportApi.sendCareChatMessage({
+        text,
+        sender: 'victim',
+        user_id: userProfile.id,
+      });
+    } catch (e) {
+      console.error('Failed to send care message to backend:', e);
+    }
+
+    // Empathetic observer acknowledgement from assigned doctor/observer
+    setTimeout(async () => {
+      const docName = userProfile.assignedObserver?.name || 'Dr. Anita Joshi';
+      const replyText = text.toLowerCase().includes('help') || text.toLowerCase().includes('fear')
+        ? `Namaste. I hear your concern clearly. Please stay anchored—our district care cell is standing by and I will follow up directly.`
+        : `Thank you for sharing with me. I have recorded your note and will review your upcoming check-in trajectory.`;
+
       const replyMsg: ChatMessage = {
         id: `m-reply-${Date.now()}`,
         sender: 'observer',
         timestamp: 'Just now',
-        text: 'Received your message. Dr. Anita has noted this and will check in on your wellbeing.',
+        text: `${replyText} — ${docName}`,
       };
-      setObserverChatMessages((prev) => [...prev, replyMsg]);
-    }, 1500);
+      setObserverChatMessages((prev) => {
+        const updated = [...prev, replyMsg];
+        localStorage.setItem('anvaya_observer_chat_messages', JSON.stringify(updated));
+        return updated;
+      });
+      window.dispatchEvent(new CustomEvent('anvaya_care_message_sent', { detail: replyMsg }));
+
+      try {
+        await supportApi.sendCareChatMessage({
+          text: replyMsg.text,
+          sender: 'observer',
+          user_id: userProfile.id,
+        });
+      } catch {}
+    }, 1400);
   };
+
 
   return (
     <div className="min-h-screen bg-white text-slate-900 flex flex-col font-sans relative overflow-x-hidden">

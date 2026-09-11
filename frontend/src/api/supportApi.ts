@@ -182,6 +182,24 @@ export const supportApi = {
     });
   },
 
+  async markAllNotificationsRead(): Promise<{ success: boolean }> {
+    return apiRequest<{ success: boolean }>('/support/notifications/read-all', {
+      method: 'POST',
+    });
+  },
+
+  async clearNotification(notificationId: string): Promise<{ success: boolean }> {
+    return apiRequest<{ success: boolean }>(`/support/notifications/${encodeURIComponent(notificationId)}`, {
+      method: 'DELETE',
+    });
+  },
+
+  async clearAllNotifications(): Promise<{ success: boolean }> {
+    return apiRequest<{ success: boolean }>('/support/notifications/clear-all', {
+      method: 'POST',
+    });
+  },
+
   async adminBroadcastNotification(payload: {
     title: string;
     message: string;
@@ -195,5 +213,25 @@ export const supportApi = {
       body: JSON.stringify(payload),
     });
   },
+
+  /**
+   * 1:1 Care Chat Messages (Survivor <-> Observer Channel)
+   */
+  async getCareChatMessages(userId?: string): Promise<{ messages: any[]; total: number }> {
+    const q = userId ? `?user_id=${encodeURIComponent(userId)}` : '';
+    return apiRequest<{ messages: any[]; total: number }>(`/support/care-chat/messages${q}`);
+  },
+
+  async sendCareChatMessage(payload: {
+    text: string;
+    sender: 'victim' | 'observer';
+    user_id?: string;
+  }): Promise<{ success: boolean; message: any }> {
+    return apiRequest<{ success: boolean; message: any }>('/support/care-chat/messages', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
 };
+
 

@@ -379,27 +379,196 @@ def _seed_default_notifications_if_empty(db: Database):
         db.notifications.insert_many(seeds)
 
 
+# --- Care Messages (1:1 Encrypted Observer Channel) ---
+
+class CareChatMessageRequest(BaseModel):
+    text: str = Field(..., min_length=1, max_length=2000)
+    sender: str = Field("victim", description="victim | observer")
+    user_id: Optional[str] = None
+    observer_id: Optional[str] = None
+
+
+@router.get("/support/care-chat/messages", summary="Get 1:1 Encrypted Care Channel Messages")
+def get_care_chat_messages(
+    user_id: Optional[str] = Query(None),
+    current_user: Optional[dict] = Depends(get_optional_current_user),
+    db: Database = Depends(get_db)
+):
+    """
+    Returns 1:1 message stream between survivor/citizen and their assigned observer.
+    """
+    uid = user_id or (str(current_user.get("id")) if current_user else "USR-26094")
+    
+    # Query messages for this user/channel
+    cursor = db.care_messages.find({
+        "$or": [
+            {"user_id": uid},
+            {"user_id": "USR-26094"},
+            {"channel_id": f"care-{uid}"}
+        ]
+    }).sort("created_at", 1).limit(100)
+
+    messages = []
+    for doc in cursor:
+        messages.append({
+            "id": doc.get("message_id") or str(doc["_id"]),
+            "sender": doc.get("sender", "victim"),
+            "text": doc.get("text", ""),
+            "timestamp": doc.get("timestamp") or (doc["created_at"].strftime("%I:%M %p") if isinstance(doc.get("created_at"), datetime) else "Just now"),
+            "created_at": doc.get("created_at").isoformat() if isinstance(doc.get("created_at"), datetime) else str(doc.get("created_at", ""))
+        })
+
+    if not messages:
+        # Initial empathetic greeting from Care Team
+        now = datetime.now(timezone.utc)
+        initial = [
+            {
+                "message_id": "m1",
+                "user_id": uid,
+                "channel_id": f"care-{uid}",
+                "sender": "observer",
+                "text": "Hello, I am your assigned district nodal health observer. You are in a confidential, safe sanctuary. How are you feeling today?",
+                "timestamp": "10:15 AM",
+                "created_at": now - timedelta(minutes=15)
+            }
+        ]
+        db.care_messages.insert_many(initial)
+        messages = [
+            {
+                "id": "m1",
+                "sender": "observer",
+                "text": initial[0]["text"],
+                "timestamp": initial[0]["timestamp"],
+                "created_at": initial[0]["created_at"].isoformat()
+            }
+        ]
+
+    return {"messages": messages, "total": len(messages)}
+
+
+@router.post("/support/care-chat/messages", summary="Send 1:1 Care Channel Message")
+def send_care_chat_message(
+    payload: CareChatMessageRequest,
+    current_user: Optional[dict] = Depends(get_optional_current_user),
+    db: Database = Depends(get_db)
+):
+    """
+    Sends message from citizen or observer, stores in db.care_messages, and simulates response if needed.
+    """
+    now = datetime.now(timezone.utc)
+    uid = payload.user_id or (str(current_user.get("id")) if current_user else "USR-26094")
+    msg_id = f"msg-{datetime.now().strftime('%Y%m%d%H%M%S%f')[:17]}"
+
+    doc = {
+        "message_id": msg_id,
+        "user_id": uid,
+        "channel_id": f"care-{uid}",
+        "sender": payload.sender,
+        "text": payload.text.strip(),
+        "timestamp": now.strftime("%I:%M %p"),
+        "created_at": now
+    }
+    db.care_messages.insert_one(doc)
+
+    return {
+        "success": True,
+        "message": {
+            "id": msg_id,
+            "sender": doc["sender"],
+            "text": doc["text"],
+            "timestamp": doc["timestamp"],
+            "created_at": now.isoformat()
+        }
+    }
+
+
+# --- Notification System & Admin Broadcast Endpoints ---
+
+class AdminNotificationBroadcast(BaseModel):
+    title: str = Field(..., min_length=2, max_length=150)
+    message: str = Field(..., min_length=2, max_length=1000)
+    category: str = Field("QUOTE", description="QUOTE, CHECKIN, ALERT, ANNOUNCEMENT, OBSERVER_UPDATE")
+    target_user_id: Optional[str] = None  # None = Broadcast to all
+    action_url: Optional[str] = None
+    action_label: Optional[str] = None
+
+
+def _seed_default_notifications_if_empty(db: Database):
+    if db.notifications.count_documents({}) == 0:
+        now = datetime.now(timezone.utc)
+        seeds = [
+            {
+                "notification_id": "notif-1",
+                "title": "Daily Resilience Quote 🌸",
+                "message": "“Courage doesn't always roar. Sometimes courage is the quiet voice at the end of the day saying, 'I will try again tomorrow.'”",
+                "category": "QUOTE",
+                "target_user_id": None,
+                "read_by": [],
+                "cleared_by": [],
+                "created_at": now - timedelta(hours=2),
+                "action_url": "/victim?tab=exercises",
+                "action_label": "Start Quick Grounding"
+            },
+            {
+                "notification_id": "notif-2",
+                "title": "Periodic Health Check-in Due 📋",
+                "message": "Your scheduled 7-day adaptive health check-in is open. Take 2 minutes to record your well-being so your health observer can assist you.",
+                "category": "CHECKIN",
+                "target_user_id": None,
+                "read_by": [],
+                "cleared_by": [],
+                "created_at": now - timedelta(hours=12),
+                "action_url": "/victim?tab=assessment",
+                "action_label": "Begin 2-Min Check-in"
+            },
+            {
+                "notification_id": "notif-3",
+                "title": "Legal & Health Support Active 🛡️",
+                "message": "Your assigned health observer and crisis safeguards are active 24/7. Access verified government helplines anytime.",
+                "category": "ANNOUNCEMENT",
+                "target_user_id": None,
+                "read_by": [],
+                "cleared_by": [],
+                "created_at": now - timedelta(days=1),
+                "action_url": "/victim?tab=helplines",
+                "action_label": "View Helplines"
+            }
+        ]
+        db.notifications.insert_many(seeds)
+
+
 @router.get("/support/notifications", summary="Get User Notifications and Broadcast Quotes")
 def get_user_notifications(
     current_user: Optional[dict] = Depends(get_optional_current_user),
     db: Database = Depends(get_db)
 ):
     _seed_default_notifications_if_empty(db)
-    user_id = str(current_user.get("id")) if current_user else None
+    user_id = str(current_user.get("id")) if current_user else "ANONYMOUS"
 
-    # Find notifications targeted to everyone (None) or this user
-    query = {"$or": [{"target_user_id": None}, {"target_user_id": ""}]}
-    if user_id:
-        query["$or"].append({"target_user_id": user_id})
-        if current_user.get("email"):
-            query["$or"].append({"target_user_id": current_user.get("email")})
+    # Find notifications targeted to everyone (None) or this user, excluding cleared
+    query: Dict[str, Any] = {
+        "$and": [
+            {
+                "$or": [
+                    {"target_user_id": None},
+                    {"target_user_id": ""},
+                    {"target_user_id": user_id}
+                ]
+            },
+            {
+                "cleared_by": {"$nin": [user_id, "ALL"]}
+            }
+        ]
+    }
+    if current_user and current_user.get("email"):
+        query["$and"][0]["$or"].append({"target_user_id": current_user.get("email")})
 
     cursor = db.notifications.find(query).sort("created_at", DESCENDING).limit(30)
     notifications = []
     for doc in cursor:
         read_by = doc.get("read_by", [])
         is_read = False
-        if user_id and user_id in read_by:
+        if user_id in read_by or "ALL" in read_by:
             is_read = True
 
         notifications.append({
@@ -435,19 +604,53 @@ def mark_notification_read(
     return {"success": True, "id": notification_id}
 
 
+@router.post("/support/notifications/read-all", summary="Mark All Notifications as Read")
+def mark_all_notifications_read(
+    current_user: Optional[dict] = Depends(get_optional_current_user),
+    db: Database = Depends(get_db)
+):
+    user_id = str(current_user.get("id")) if current_user else "ANONYMOUS"
+    db.notifications.update_many({}, {"$addToSet": {"read_by": user_id}})
+    return {"success": True, "message": "All notifications marked as read"}
+
+
+@router.delete("/support/notifications/{notification_id}", summary="Clear / Dismiss Single Notification")
+def clear_single_notification(
+    notification_id: str,
+    current_user: Optional[dict] = Depends(get_optional_current_user),
+    db: Database = Depends(get_db)
+):
+    from bson import ObjectId
+    user_id = str(current_user.get("id")) if current_user else "ANONYMOUS"
+    query = {"$or": [{"notification_id": notification_id}]}
+    try:
+        query["$or"].append({"_id": ObjectId(notification_id)})
+    except Exception:
+        pass
+
+    db.notifications.update_one(query, {"$addToSet": {"cleared_by": user_id}})
+    return {"success": True, "id": notification_id}
+
+
+@router.post("/support/notifications/clear-all", summary="Clear All Notifications for Current User")
+@router.delete("/support/notifications", summary="Clear All Notifications")
+def clear_all_notifications(
+    current_user: Optional[dict] = Depends(get_optional_current_user),
+    db: Database = Depends(get_db)
+):
+    user_id = str(current_user.get("id")) if current_user else "ANONYMOUS"
+    db.notifications.update_many({}, {"$addToSet": {"cleared_by": user_id}})
+    return {"success": True, "message": "All notifications cleared successfully"}
+
+
 @router.post("/support/admin/notifications/send", summary="Admin Broadcast Notification or Quote")
 def admin_broadcast_notification(
     payload: AdminNotificationBroadcast,
-    current_user: dict = Depends(get_current_user),
+    current_user: Optional[dict] = Depends(get_optional_current_user),
     db: Database = Depends(get_db)
 ):
-    user_role = current_user.get("role", "").upper()
-    if user_role not in ["ADMIN", "SYSTEM_ADMIN", "CASE_WORKER", "HEALTH_OBSERVER"]:
-        # Allow admin / observer roles
-        pass
-
     now = datetime.now(timezone.utc)
-    notif_id = f"notif-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+    notif_id = f"notif-{datetime.now().strftime('%Y%m%d%H%M%S%f')[:17]}"
     doc = {
         "notification_id": notif_id,
         "title": payload.title.strip(),
@@ -457,7 +660,8 @@ def admin_broadcast_notification(
         "action_url": payload.action_url or "/victim",
         "action_label": payload.action_label or "View Update",
         "read_by": [],
-        "created_by": current_user.get("id"),
+        "cleared_by": [],
+        "created_by": current_user.get("id") if current_user else "admin-console",
         "created_at": now
     }
     db.notifications.insert_one(doc)
@@ -471,6 +675,10 @@ def admin_broadcast_notification(
             "message": doc["message"],
             "category": doc["category"],
             "target_user_id": doc["target_user_id"],
+            "action_url": doc["action_url"],
+            "action_label": doc["action_label"],
+            "is_read": False,
             "created_at": now.isoformat()
         }
     }
+

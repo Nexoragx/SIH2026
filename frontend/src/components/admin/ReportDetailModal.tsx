@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   X,
   Shield,
@@ -37,6 +38,31 @@ export interface ReportDetailModalProps {
 }
 
 export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({ report, onClose }) => {
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+
+  // Lock background body scroll and listen for Escape key
+  useEffect(() => {
+    const origOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = origOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [onClose]);
+
+  // Ensure scroll container starts at the top
+  useEffect(() => {
+    scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'instant' });
+  }, [report]);
+
   // Dynamic patient name resolution: checks report fields, session map of logged-in submissions, or authentic patient pool
   const resolvedPatientName = (() => {
     const raw = (report.patient_name || report.victim_name || '').trim();
@@ -167,14 +193,19 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({ report, on
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-950/70 backdrop-blur-sm overflow-y-auto animate-fadeIn">
-      <div className="bg-white w-full max-w-4xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden my-auto max-h-[92vh] flex flex-col">
+  const modalContent = (
+    <div
+      className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-4 md:p-6 bg-slate-950/80 backdrop-blur-md overflow-hidden animate-fadeIn"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="bg-white w-full max-w-5xl h-[94vh] sm:h-[90vh] rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col relative z-[100000]">
         {/* Header */}
-        <div className="p-5 sm:p-6 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
+        <div className="p-4 sm:p-5 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white flex items-center justify-between border-b border-slate-800 flex-shrink-0">
           <div className="space-y-1">
             <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center border border-indigo-400/30">
+              <div className="w-10 h-10 rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center border border-indigo-400/30 shadow-lg flex-shrink-0">
                 <BarChart3 className="w-5 h-5" />
               </div>
               <div>
@@ -196,17 +227,20 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({ report, on
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition cursor-pointer"
-          >
-            <X className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer border border-slate-700"
+            >
+              <span>Esc / Close</span>
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* Scrollable Modal Body */}
-        <div className="p-5 sm:p-6 overflow-y-auto space-y-6 text-slate-900">
+        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 text-slate-900 overscroll-contain">
           {/* Top Key Indicator Banner */}
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
             <div className="p-4 rounded-2xl bg-indigo-50/80 border border-indigo-200 flex flex-col justify-between">
@@ -478,7 +512,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({ report, on
         </div>
 
         {/* Footer */}
-        <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
+        <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between flex-shrink-0">
           <span className="text-xs font-semibold text-slate-500 font-mono">
             Model: Random Forest Multimodal Classifier • SHAP TreeExplainer v1.0
           </span>
@@ -493,6 +527,9 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({ report, on
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 };
 
 export default ReportDetailModal;
+

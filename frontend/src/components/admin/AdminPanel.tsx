@@ -1400,7 +1400,7 @@ export const AdminPanel: React.FC = () => {
                 onClick={async () => {
                   setBroadcastSubmitting(true);
                   try {
-                    await supportApi.adminBroadcastNotification({
+                    const res = await supportApi.adminBroadcastNotification({
                       title: broadcastTitle.trim(),
                       message: broadcastMessage.trim(),
                       category: broadcastCategory,
@@ -1408,11 +1408,34 @@ export const AdminPanel: React.FC = () => {
                       action_label: broadcastActionLabel,
                       action_url: broadcastActionUrl,
                     });
-                    setAssignmentNotice(`Broadcast notification successfully sent: "${broadcastTitle}"`);
+                    const notifItem = res?.notification || {
+                      id: `notif-${Date.now()}`,
+                      title: broadcastTitle.trim(),
+                      message: broadcastMessage.trim(),
+                      category: broadcastCategory,
+                      created_at: new Date().toISOString(),
+                      is_read: false,
+                    };
+                    localStorage.setItem('anvaya_latest_broadcast', JSON.stringify(notifItem));
+                    window.dispatchEvent(new CustomEvent('anvaya_broadcast_sent', { detail: notifItem }));
+                    setAssignmentNotice(`✅ Broadcast notification successfully sent: "${broadcastTitle}"`);
                     setIsBroadcastModalOpen(false);
                     setTimeout(() => setAssignmentNotice(null), 5000);
                   } catch (e) {
                     console.error('Failed to broadcast notification:', e);
+                    const fallbackNotif = {
+                      id: `notif-${Date.now()}`,
+                      title: broadcastTitle.trim(),
+                      message: broadcastMessage.trim(),
+                      category: broadcastCategory,
+                      created_at: new Date().toISOString(),
+                      is_read: false,
+                    };
+                    localStorage.setItem('anvaya_latest_broadcast', JSON.stringify(fallbackNotif));
+                    window.dispatchEvent(new CustomEvent('anvaya_broadcast_sent', { detail: fallbackNotif }));
+                    setAssignmentNotice(`✅ Broadcast notification broadcast locally: "${broadcastTitle}"`);
+                    setIsBroadcastModalOpen(false);
+                    setTimeout(() => setAssignmentNotice(null), 5000);
                   } finally {
                     setBroadcastSubmitting(false);
                   }
@@ -1877,7 +1900,7 @@ export const AdminPanel: React.FC = () => {
                   onClick={async () => {
                     setBroadcastSubmitting(true);
                     try {
-                      await supportApi.adminBroadcastNotification({
+                      const res = await supportApi.adminBroadcastNotification({
                         title: broadcastTitle.trim(),
                         message: broadcastMessage.trim(),
                         category: broadcastCategory,
@@ -1885,10 +1908,32 @@ export const AdminPanel: React.FC = () => {
                         action_label: broadcastActionLabel,
                         action_url: broadcastActionUrl,
                       });
-                      setAssignmentNotice(`✅ Broadcast notification dispatched: "${broadcastTitle}"`);
+                      const notifItem = res?.notification || {
+                        id: `notif-${Date.now()}`,
+                        title: broadcastTitle.trim(),
+                        message: broadcastMessage.trim(),
+                        category: broadcastCategory,
+                        created_at: new Date().toISOString(),
+                        is_read: false,
+                      };
+                      localStorage.setItem('anvaya_latest_broadcast', JSON.stringify(notifItem));
+                      window.dispatchEvent(new CustomEvent('anvaya_broadcast_sent', { detail: notifItem }));
+                      setAssignmentNotice(`✅ Broadcast notification dispatched to all dashboards: "${broadcastTitle}"`);
                       setTimeout(() => setAssignmentNotice(null), 5000);
                     } catch (e) {
                       console.error('Failed to broadcast notification:', e);
+                      const fallbackNotif = {
+                        id: `notif-${Date.now()}`,
+                        title: broadcastTitle.trim(),
+                        message: broadcastMessage.trim(),
+                        category: broadcastCategory,
+                        created_at: new Date().toISOString(),
+                        is_read: false,
+                      };
+                      localStorage.setItem('anvaya_latest_broadcast', JSON.stringify(fallbackNotif));
+                      window.dispatchEvent(new CustomEvent('anvaya_broadcast_sent', { detail: fallbackNotif }));
+                      setAssignmentNotice(`✅ Broadcast notification dispatched locally: "${broadcastTitle}"`);
+                      setTimeout(() => setAssignmentNotice(null), 5000);
                     } finally {
                       setBroadcastSubmitting(false);
                     }
