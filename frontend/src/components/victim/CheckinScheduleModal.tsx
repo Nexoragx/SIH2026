@@ -23,9 +23,9 @@ export const CheckinScheduleModal: React.FC<CheckinScheduleModalProps> = ({
   }>({
     interval_days: 7,
     cadence_label: 'Weekly (7 days)',
-    next_due_date: 'Saturday, 12 Sep 2026',
-    days_remaining: 5,
-    completed_sessions: 3,
+    next_due_date: 'Upcoming',
+    days_remaining: 7,
+    completed_sessions: 0,
     status: 'SCHEDULED',
   });
 

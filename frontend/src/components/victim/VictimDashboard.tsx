@@ -100,17 +100,12 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
     completed_sessions: number;
     next_due_date: string;
   }>({
-    days_remaining: 5,
-    completed_sessions: 3,
-    next_due_date: 'Saturday, 12 Sep 2026',
+    days_remaining: 7,
+    completed_sessions: 0,
+    next_due_date: 'Upcoming',
   });
 
-  const [historyData, setHistoryData] = useState<any[]>([
-    { date: '25 Aug', status: 'Stable', value: 80 },
-    { date: '30 Aug', status: 'Needs attention', value: 65 },
-    { date: '04 Sep', status: 'Needs attention', value: 60 },
-    { date: '08 Sep', status: 'Stable', value: 75 },
-  ]);
+  const [historyData, setHistoryData] = useState<any[]>([]);
 
   const [wellbeingStatus, setWellbeingStatus] = useState<{
     label: string;
@@ -120,18 +115,18 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
     bgColor: string;
     borderColor: string;
   }>({
-    label: 'Stable',
-    subtext: 'Your recent check-in indicates positive emotional balance.',
-    dotColor: 'bg-emerald-500',
-    textColor: 'text-emerald-900',
-    bgColor: 'bg-emerald-50/80',
-    borderColor: 'border-emerald-200',
+    label: 'Ready for Check-in',
+    subtext: 'Take your baseline check-in to begin tracking your personal wellbeing trajectory.',
+    dotColor: 'bg-indigo-500',
+    textColor: 'text-indigo-900',
+    bgColor: 'bg-indigo-50/80',
+    borderColor: 'border-indigo-200',
   });
 
   const [latestAssessment, setLatestAssessment] = useState<AssessmentResultData>({
     sessionId: 'SESS-INIT-001',
     date: new Date().toISOString(),
-    userId: 'VICTIM-DEMO',
+    userId: 'VICTIM-USER',
     finalDistressScore: 28.5,
     riskLevel: 'low',
     totalMadrs: 12,
@@ -166,11 +161,13 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
     supportApi
       .getCheckinSchedule()
       .then((res) => {
-        setScheduleData({
-          days_remaining: res.days_remaining || 5,
-          completed_sessions: res.completed_sessions || 3,
-          next_due_date: res.next_due_date || 'Upcoming',
-        });
+        if (res) {
+          setScheduleData((prev) => ({
+            days_remaining: res.days_remaining ?? prev.days_remaining,
+            completed_sessions: res.completed_sessions ?? prev.completed_sessions,
+            next_due_date: res.next_due_date || prev.next_due_date,
+          }));
+        }
       })
       .catch(() => {});
 
@@ -178,7 +175,7 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
     assessmentApi
       .getVictimHistory()
       .then((res) => {
-        if (res.history && res.history.length > 0) {
+        if (res && res.history && res.history.length > 0) {
           const points = res.history
             .slice(0, 5)
             .reverse()
@@ -205,6 +202,10 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
               };
             });
           setHistoryData(points);
+          setScheduleData((prev) => ({
+            ...prev,
+            completed_sessions: res.history.length,
+          }));
 
           const latest = points[points.length - 1];
           if (latest.status === 'Stable') {
@@ -362,35 +363,84 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
       .catch(() => {});
   }, []);
 
+  // Determine friendly user first name for personalized greetings
+  const rawName = (userProfile?.name || userProfile?.full_name || getStoredUser()?.full_name || getStoredUser()?.name || '').trim();
+  const isGenericName = !rawName || rawName.toLowerCase() === 'citizen survivor' || rawName.toLowerCase() === 'courageous survivor' || rawName.toLowerCase() === 'victim-demo';
+  const displayName = isGenericName ? (getStoredUser()?.full_name || 'Friend') : rawName;
+  const firstName = displayName.split(' ')[0];
+
+  // Dynamic time-of-day greeting
+  const getGreetingInfo = () => {
+    const hour = new Date().getHours();
+    if (hour >= 5 && hour < 12) {
+      return {
+        salutation: 'Good Morning',
+        icon: '🌅',
+        hindiSalutation: 'शुभ प्रभात',
+        message: 'Wishing you peace, safety, and a gentle start to your day.',
+      };
+    } else if (hour >= 12 && hour < 17) {
+      return {
+        salutation: 'Good Afternoon',
+        icon: '☀️',
+        hindiSalutation: 'शुभ दोपहर',
+        message: 'Take a gentle pause to breathe, hydrate, and nurture yourself.',
+      };
+    } else if (hour >= 17 && hour < 22) {
+      return {
+        salutation: 'Good Evening',
+        icon: '🌆',
+        hindiSalutation: 'शुभ संध्या',
+        message: 'We hope your day was manageable. Take time to relax and unwind.',
+      };
+    } else {
+      return {
+        salutation: 'Restful Night',
+        icon: '🌙',
+        hindiSalutation: 'शुभ रात्रि',
+        message: 'You are in a safe, confidential space. Rest peacefully tonight.',
+      };
+    }
+  };
+
+  const greeting = getGreetingInfo();
+
   return (
     <div className="max-w-5xl mx-auto px-3 sm:px-6 py-6 sm:py-10 space-y-7 animate-fadeIn">
-      {/* 1. Header with Soft Pastel Frosted Styling */}
+      {/* 1. Header with Personalized Time-Aware Greeting */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-indigo-100/60">
         <div>
-          <div className="flex items-center gap-2 mb-1.5">
+          <div className="flex flex-wrap items-center gap-2 mb-1.5">
             <span className="text-[11px] font-extrabold uppercase tracking-widest text-indigo-700 bg-indigo-50/90 px-2.5 py-0.5 rounded-full border border-indigo-200/70">
-              ANVAYA • अन्वय
+              ANVAYA • {greeting.hindiSalutation}
             </span>
             <span className="text-slate-300">•</span>
             <span className="text-xs font-semibold text-slate-500">
               Confidential Wellbeing Sanctuary
             </span>
+            {userProfile?.district && (
+              <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50/60 px-2 py-0.5 rounded-md border border-indigo-100">
+                📍 {userProfile.district}, {userProfile.state || 'IN'}
+              </span>
+            )}
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-            Your healing journey matters.
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2 flex-wrap">
+            <span>{greeting.icon}</span>
+            <span>{greeting.salutation}, {firstName}.</span>
+            <span className="text-indigo-600 font-semibold text-lg sm:text-2xl block sm:inline">Your healing journey matters.</span>
           </h1>
-          <p className="text-sm font-medium text-slate-600 mt-0.5">
-            Safe, confidential space with personalized exercises and clinical support.
+          <p className="text-sm font-medium text-slate-600 mt-1">
+            {greeting.message} Safe, encrypted sanctuary with personalized exercises and accredited clinical support.
           </p>
         </div>
 
         {/* 1-Click Helpline Quick Pill */}
         <a
           href="tel:14566"
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200/80 text-emerald-900 text-xs font-bold shadow-xs hover:shadow-sm hover:scale-[1.02] transition"
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200/80 text-emerald-900 text-xs font-bold shadow-xs hover:shadow-sm hover:scale-[1.02] transition flex-shrink-0 self-start md:self-auto"
         >
           <PhoneCall className="w-3.5 h-3.5 text-emerald-600" />
-          <span>NHAA Helpline: 14566 (24x7 Free)</span>
+          <span>MoSJE Helpline: 14566 (24x7 Free)</span>
         </a>
       </div>
 
@@ -458,7 +508,7 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
           ======================================================== */}
       {activeSubTab === 'overview' && (
         <div className="space-y-6 animate-fadeIn">
-          {/* Daily Affirmation Strip with Soft Pastel Gradient */}
+          {/* Daily Affirmation Strip with Soft Pastel Gradient & Real Check-in Status */}
           <div className="p-4 sm:p-5 rounded-2xl pastel-amber flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
             <div className="flex items-center gap-3">
               <span className="text-2xl">🌱</span>
@@ -467,15 +517,21 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
                   Daily Affirmation & Healing Anchor
                 </span>
                 <p className="text-xs sm:text-sm font-bold text-amber-950 leading-snug">
-                  "Every gentle step you take towards your healing is an act of courage. You are stronger than what happened."
+                  "Every gentle step you take towards your healing is an act of courage, {firstName}. You are stronger than what happened."
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <span className="px-3 py-1 rounded-full text-[11px] font-black bg-white/90 border border-amber-200 text-amber-900 shadow-2xs flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                <span>{scheduleData.completed_sessions} Check-ins Completed</span>
+            <div className="flex items-center gap-2 flex-shrink-0 self-start sm:self-auto">
+              <span className="px-3.5 py-1.5 rounded-full text-[11px] font-black bg-white/95 border border-amber-200 text-amber-900 shadow-2xs flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                <span>
+                  {scheduleData.completed_sessions === 0
+                    ? 'Baseline Check-in Ready'
+                    : scheduleData.completed_sessions === 1
+                    ? '1 Check-in Completed'
+                    : `${scheduleData.completed_sessions} Check-ins Completed`}
+                </span>
               </span>
             </div>
           </div>
@@ -484,24 +540,29 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
           <div className="anvaya-card p-6 sm:p-8 relative overflow-hidden">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
               <div className="space-y-2 max-w-lg">
-                <span className="inline-flex items-center gap-2 text-xs font-bold text-indigo-800 bg-indigo-50/80 px-3 py-1 rounded-full border border-indigo-200/70">
-                  <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-                  <span>Confidential MADRS Check-in</span>
-                </span>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-800 bg-indigo-50/90 px-3 py-1 rounded-full border border-indigo-200/70">
+                    <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>Confidential MADRS Check-in</span>
+                  </span>
+                  <span className="text-[11px] font-bold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full">
+                    ⏱️ 2–3 Mins • 100% Private
+                  </span>
+                </div>
                 <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                  How are you feeling today?
+                  How are you feeling today, {firstName}?
                 </h2>
                 <p className="text-sm text-slate-600 font-medium leading-relaxed">
-                  Take a short, gentle check-in to reflect on your sleep, mood, energy, and peace of mind.
+                  Take a short, gentle check-in to reflect on your sleep, mood, energy, and peace of mind. Your responses are encrypted and protected.
                 </p>
               </div>
 
               <button
                 type="button"
                 onClick={onStartCheckin}
-                className="w-full sm:w-auto px-7 py-3.5 btn-primary font-extrabold text-sm rounded-2xl flex items-center justify-center gap-2.5 cursor-pointer"
+                className="w-full sm:w-auto px-7 py-3.5 btn-primary font-extrabold text-sm rounded-2xl flex items-center justify-center gap-2.5 cursor-pointer shadow-md shadow-indigo-500/25 hover:scale-[1.02] active:scale-95 transition"
               >
-                <span>Start Check-in</span>
+                <span>Start Gentle Check-in</span>
                 <ArrowRight className="w-4 h-4 text-white" />
               </button>
             </div>
@@ -708,38 +769,52 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
               </div>
             </div>
 
-            <div className="h-48 w-full pt-2">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={historyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <XAxis dataKey="date" tick={{ fill: '#475569', fontSize: 11, fontWeight: 700 }} stroke="#E2E8F0" />
-                  <YAxis domain={[0, 100]} tick={{ fill: '#475569', fontSize: 11, fontWeight: 600 }} stroke="#E2E8F0" />
-                  <Tooltip
-                    content={({ active, payload }) => {
-                      if (active && payload && payload.length) {
-                        const data = payload[0].payload;
-                        return (
-                          <div className="liquid-glass-panel p-2.5 rounded-xl border border-indigo-200 shadow-md text-xs font-bold text-slate-900">
-                            <div>{data.date}</div>
-                            <div className="text-indigo-700 text-[11px] font-medium mt-0.5">
-                              Status: {data.status} (Wellbeing: {data.value}/100)
+            {historyData.length > 0 ? (
+              <div className="h-48 w-full pt-2">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={historyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <XAxis dataKey="date" tick={{ fill: '#475569', fontSize: 11, fontWeight: 700 }} stroke="#E2E8F0" />
+                    <YAxis domain={[0, 100]} tick={{ fill: '#475569', fontSize: 11, fontWeight: 600 }} stroke="#E2E8F0" />
+                    <Tooltip
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          const data = payload[0].payload;
+                          return (
+                            <div className="liquid-glass-panel p-2.5 rounded-xl border border-indigo-200 shadow-md text-xs font-bold text-slate-900">
+                              <div>{data.date}</div>
+                              <div className="text-indigo-700 text-[11px] font-medium mt-0.5">
+                                Status: {data.status} (Wellbeing: {data.value}/100)
+                              </div>
                             </div>
-                          </div>
-                        );
-                      }
-                      return null;
-                    }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="value"
-                    stroke="#4F46E5"
-                    strokeWidth={3}
-                    dot={{ r: 4, fill: '#4F46E5', strokeWidth: 2, stroke: '#FFFFFF' }}
-                    activeDot={{ r: 6, fill: '#4338CA' }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="value"
+                      stroke="#4F46E5"
+                      strokeWidth={3}
+                      dot={{ r: 4, fill: '#4F46E5', strokeWidth: 2, stroke: '#FFFFFF' }}
+                      activeDot={{ r: 6, fill: '#4338CA' }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="py-8 px-4 text-center rounded-2xl bg-indigo-50/40 border border-dashed border-indigo-200/80 space-y-2">
+                <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center mx-auto text-lg">
+                  🌱
+                </div>
+                <div className="text-xs font-bold text-slate-800">
+                  Ready for your baseline check-in
+                </div>
+                <p className="text-[11px] text-slate-500 max-w-sm mx-auto">
+                  As you complete gentle check-ins, your personalized emotional recovery trajectory and SHAP clinical factors will be charted here.
+                </p>
+              </div>
+            )}
           </div>
 
 
