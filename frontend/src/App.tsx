@@ -1,34 +1,72 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { Navbar } from './components/Navbar';
 import { Onboarding } from './components/victim/Onboarding';
 import { VictimDashboard } from './components/victim/VictimDashboard';
 import { TileQuestionnaire } from './components/victim/TileQuestionnaire';
 import { OptionalHistoryCard, DataCollectionPayload } from './components/victim/OptionalHistoryCard';
-import { CheckinScheduleModal } from './components/victim/CheckinScheduleModal';
 import { AssessmentResult } from './components/victim/AssessmentResult';
 import { VoiceRecorder } from './components/victim/VoiceRecorder';
 import { CrisisModal } from './components/victim/CrisisModal';
 import { VictimChatbot } from './components/victim/VictimChatbot';
 import { VictimObserverChat } from './components/victim/VictimObserverChat';
-import { ObserverDashboard } from './components/observer/ObserverDashboard';
-import { NationalAnalytics } from './components/analytics/NationalAnalytics';
-import { ResourceDirectory } from './components/resources/ResourceDirectory';
 import { UserProfile, AssessmentResponse, AssessmentResultData, RiskLevel, ChatMessage } from './types';
 import { Bot, MessageSquare, Sparkles, Stethoscope } from 'lucide-react';
 import { assessmentApi, authApi, systemApi, getStoredToken, getStoredRefreshToken, getStoredUser, setStoredUser, clearStoredAuth } from './api';
 import { AuthModal } from './components/auth/AuthModal';
 import { AdminLoginModal } from './components/auth/AdminLoginModal';
 import { LandingPage } from './components/landing/LandingPage';
-import { IvrSimulatorModal } from './components/victim/IvrSimulatorModal';
-import { DoctorDirectoryModal } from './components/victim/DoctorDirectoryModal';
+import {
+  PageLoader,
+  DashboardOverviewSkeleton,
+  TableSkeleton,
+  CardGridSkeleton,
+  HopeWallSkeleton,
+  DoctorDirectorySkeleton,
+  StatCardSkeleton,
+} from './components/common/Skeleton';
 
-import { CommunityWall } from './components/victim/CommunityWall';
-import { PsychiatristPortal } from './components/portals/PsychiatristPortal';
-import { NgoPortal } from './components/portals/NgoPortal';
-import { PersonalizedActivities } from './components/victim/PersonalizedActivities';
-import { AdminPanel } from './components/admin/AdminPanel';
-import { UssdSimulatorModal } from './components/victim/UssdSimulatorModal';
-import { CalmingReportModal } from './components/victim/CalmingReportModal';
+// Lazy Loaded Portals & Views
+const ObserverDashboard = React.lazy(() =>
+  import('./components/observer/ObserverDashboard').then((m) => ({ default: m.ObserverDashboard }))
+);
+const PsychiatristPortal = React.lazy(() =>
+  import('./components/portals/PsychiatristPortal').then((m) => ({ default: m.PsychiatristPortal }))
+);
+const NgoPortal = React.lazy(() =>
+  import('./components/portals/NgoPortal').then((m) => ({ default: m.NgoPortal }))
+);
+const AdminPanel = React.lazy(() =>
+  import('./components/admin/AdminPanel').then((m) => ({ default: m.AdminPanel }))
+);
+const NationalAnalytics = React.lazy(() =>
+  import('./components/analytics/NationalAnalytics').then((m) => ({ default: m.NationalAnalytics }))
+);
+const ResourceDirectory = React.lazy(() =>
+  import('./components/resources/ResourceDirectory').then((m) => ({ default: m.ResourceDirectory }))
+);
+const CommunityWall = React.lazy(() =>
+  import('./components/victim/CommunityWall').then((m) => ({ default: m.CommunityWall }))
+);
+const PersonalizedActivities = React.lazy(() =>
+  import('./components/victim/PersonalizedActivities').then((m) => ({ default: m.PersonalizedActivities }))
+);
+
+// Lazy Loaded Modals
+const DoctorDirectoryModal = React.lazy(() =>
+  import('./components/victim/DoctorDirectoryModal').then((m) => ({ default: m.DoctorDirectoryModal }))
+);
+const CheckinScheduleModal = React.lazy(() =>
+  import('./components/victim/CheckinScheduleModal').then((m) => ({ default: m.CheckinScheduleModal }))
+);
+const IvrSimulatorModal = React.lazy(() =>
+  import('./components/victim/IvrSimulatorModal').then((m) => ({ default: m.IvrSimulatorModal }))
+);
+const UssdSimulatorModal = React.lazy(() =>
+  import('./components/victim/UssdSimulatorModal').then((m) => ({ default: m.UssdSimulatorModal }))
+);
+const CalmingReportModal = React.lazy(() =>
+  import('./components/victim/CalmingReportModal').then((m) => ({ default: m.CalmingReportModal }))
+);
 
 export const App: React.FC = () => {
   // Global State (Persistent Language throughout website)
@@ -910,18 +948,40 @@ export const App: React.FC = () => {
             )}
 
             {activeTab === 'observer' && (
-              <ObserverDashboard onTriggerCrisisGlobal={() => setIsCrisisOpen(true)} />
+              <Suspense fallback={<TableSkeleton rows={6} cols={6} showHeader={true} />}>
+                <ObserverDashboard onTriggerCrisisGlobal={() => setIsCrisisOpen(true)} />
+              </Suspense>
             )}
 
-            {activeTab === 'psychiatrist' && <PsychiatristPortal />}
+            {activeTab === 'psychiatrist' && (
+              <Suspense fallback={<TableSkeleton rows={5} cols={5} showHeader={true} />}>
+                <PsychiatristPortal />
+              </Suspense>
+            )}
 
-            {activeTab === 'ngo' && <NgoPortal />}
+            {activeTab === 'ngo' && (
+              <Suspense fallback={<CardGridSkeleton count={6} columns={3} />}>
+                <NgoPortal />
+              </Suspense>
+            )}
 
-            {activeTab === 'admin' && currentUser?.role === 'admin' && <AdminPanel />}
+            {activeTab === 'admin' && currentUser?.role === 'admin' && (
+              <Suspense fallback={<TableSkeleton rows={8} cols={6} showHeader={true} />}>
+                <AdminPanel />
+              </Suspense>
+            )}
 
-            {activeTab === 'analytics' && <NationalAnalytics />}
+            {activeTab === 'analytics' && (
+              <Suspense fallback={<PageLoader message="Loading National Mental Health Analytics..." subtext="Aggregating epidemiological telemetry across Indian states" />}>
+                <NationalAnalytics />
+              </Suspense>
+            )}
 
-            {activeTab === 'resources' && <ResourceDirectory />}
+            {activeTab === 'resources' && (
+              <Suspense fallback={<CardGridSkeleton count={6} columns={3} />}>
+                <ResourceDirectory />
+              </Suspense>
+            )}
           </>
         )}
       </main>
@@ -998,12 +1058,16 @@ export const App: React.FC = () => {
       />
 
       {/* 1:1 Registered Doctors & Observers Directory Modal */}
-      <DoctorDirectoryModal
-        isOpen={isDoctorDirectoryOpen}
-        onClose={() => setIsDoctorDirectoryOpen(false)}
-        userProfile={userProfile}
-        recentAssessmentScore={resultData?.finalDistressScore}
-      />
+      {isDoctorDirectoryOpen && (
+        <Suspense fallback={<PageLoader message="Connecting to Doctor Directory..." subtext="Retrieving verified telepsychiatrists" compact />}>
+          <DoctorDirectoryModal
+            isOpen={isDoctorDirectoryOpen}
+            onClose={() => setIsDoctorDirectoryOpen(false)}
+            userProfile={userProfile}
+            recentAssessmentScore={resultData?.finalDistressScore}
+          />
+        </Suspense>
+      )}
 
       {/* Immediate Crisis Modal */}
       <CrisisModal
@@ -1030,49 +1094,69 @@ export const App: React.FC = () => {
       <AdminLoginModal isOpen={isAdminLoginOpen} onClose={() => setIsAdminLoginOpen(false)} onAuthSuccess={handleAuthSuccess} />
 
       {/* Check-in Schedule Modal */}
-      <CheckinScheduleModal
-        isOpen={isScheduleModalOpen}
-        onClose={() => setIsScheduleModalOpen(false)}
-        onStartEarly={() => {
-          setIsScheduleModalOpen(false);
-          setVictimStep('questionnaire');
-        }}
-      />
+      {isScheduleModalOpen && (
+        <Suspense fallback={<PageLoader message="Loading Check-in Schedule..." compact />}>
+          <CheckinScheduleModal
+            isOpen={isScheduleModalOpen}
+            onClose={() => setIsScheduleModalOpen(false)}
+            onStartEarly={() => {
+              setIsScheduleModalOpen(false);
+              setVictimStep('questionnaire');
+            }}
+          />
+        </Suspense>
+      )}
 
       {/* 14566 IVRS Phone Touchpoint Simulator Modal */}
-      <IvrSimulatorModal
-        isOpen={isIvrModalOpen}
-        onClose={() => setIsIvrModalOpen(false)}
-        onCompleteIvrCheckin={handleCompleteIvrCheckin}
-        currentLang={currentLang}
-      />
+      {isIvrModalOpen && (
+        <Suspense fallback={<PageLoader message="Initializing IVRS Telecom Simulator..." compact />}>
+          <IvrSimulatorModal
+            isOpen={isIvrModalOpen}
+            onClose={() => setIsIvrModalOpen(false)}
+            onCompleteIvrCheckin={handleCompleteIvrCheckin}
+            currentLang={currentLang}
+          />
+        </Suspense>
+      )}
 
       {/* 2G Rural USSD Telecom Keypad Simulator Modal (*14566#) */}
-      <UssdSimulatorModal
-        isOpen={isUssdModalOpen}
-        onClose={() => setIsUssdModalOpen(false)}
-        onTriggerCrisis={() => setIsCrisisOpen(true)}
-        onRequestCall={() => alert('Urgent callback queued for Dr. Anita Joshi (District Nodal Cell)')}
-        currentLang={currentLang}
-      />
+      {isUssdModalOpen && (
+        <Suspense fallback={<PageLoader message="Initializing USSD GSM Stack..." compact />}>
+          <UssdSimulatorModal
+            isOpen={isUssdModalOpen}
+            onClose={() => setIsUssdModalOpen(false)}
+            onTriggerCrisis={() => setIsCrisisOpen(true)}
+            onRequestCall={() => alert('Urgent callback queued for Dr. Anita Joshi (District Nodal Cell)')}
+            currentLang={currentLang}
+          />
+        </Suspense>
+      )}
 
       {/* Survivor Community & Hope Wall Modal */}
-      <CommunityWall
-        isOpen={isCommunityWallOpen}
-        onClose={() => setIsCommunityWallOpen(false)}
-        currentLang={currentLang}
-        currentUser={currentUser}
-      />
+      {isCommunityWallOpen && (
+        <Suspense fallback={<PageLoader message="Loading Hope Wall & Community..." subtext="Syncing survivor thoughts and encouragement" compact />}>
+          <CommunityWall
+            isOpen={isCommunityWallOpen}
+            onClose={() => setIsCommunityWallOpen(false)}
+            currentLang={currentLang}
+            currentUser={currentUser}
+          />
+        </Suspense>
+      )}
 
       {/* Calming Colorful Report Popup Box for Citizen / Survivor */}
-      <CalmingReportModal
-        isOpen={isCalmingReportOpen}
-        onClose={() => setIsCalmingReportOpen(false)}
-        riskLevel={resultData.riskLevel}
-        recommendedCheckinDays={resultData.recommendedCheckinDays}
-        onOpenChatbot={() => setIsChatbotOpen(true)}
-        onOpenSupport={() => handleTabChange('resources')}
-      />
+      {isCalmingReportOpen && (
+        <Suspense fallback={<PageLoader message="Generating Calming Insights..." compact />}>
+          <CalmingReportModal
+            isOpen={isCalmingReportOpen}
+            onClose={() => setIsCalmingReportOpen(false)}
+            riskLevel={resultData.riskLevel}
+            recommendedCheckinDays={resultData.recommendedCheckinDays}
+            onOpenChatbot={() => setIsChatbotOpen(true)}
+            onOpenSupport={() => handleTabChange('resources')}
+          />
+        </Suspense>
+      )}
 
       {/* Therapeutic & Grounding Activities Modal */}
       {isTherapeuticOpen && (
@@ -1090,14 +1174,16 @@ export const App: React.FC = () => {
                 ✕
               </button>
             </div>
-            <PersonalizedActivities
-              currentLang={currentLang}
-              resultData={resultData}
-              onOpenCounsellorChat={() => {
-                setIsTherapeuticOpen(false);
-                setIsObserverChatOpen(true);
-              }}
-            />
+            <Suspense fallback={<CardGridSkeleton count={4} columns={2} />}>
+              <PersonalizedActivities
+                currentLang={currentLang}
+                resultData={resultData}
+                onOpenCounsellorChat={() => {
+                  setIsTherapeuticOpen(false);
+                  setIsObserverChatOpen(true);
+                }}
+              />
+            </Suspense>
           </div>
         </div>
       )}

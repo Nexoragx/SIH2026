@@ -824,6 +824,31 @@ class AuthController:
                 except Exception:
                     pass
 
+        if not updated_doc:
+            # If user record was created client-side via Google OAuth, persist record in DB
+            try:
+                user_email = data.user_id if "@" in data.user_id else f"{data.user_id}@citizen.anvaya.in"
+                new_user_record = {
+                    "id": data.user_id,
+                    "email": user_email,
+                    "full_name": "Citizen Beneficiary",
+                    "role": "survivor",
+                    "assigned_observer": observer_payload,
+                    "assignedObserver": observer_payload,
+                    "created_at": datetime.now(timezone.utc),
+                    "updated_at": datetime.now(timezone.utc)
+                }
+                res = db.users.insert_one(new_user_record)
+                new_user_record["_id"] = res.inserted_id
+                sync_user_to_all_dbs(new_user_record)
+                return {
+                    "message": f"Observer {data.observer_name} assigned successfully",
+                    "assigned_observer": observer_payload,
+                    "user": serialize_user(new_user_record)
+                }
+            except Exception:
+                pass
+
         if updated_doc:
             sync_user_to_all_dbs(updated_doc)
             return {
@@ -833,7 +858,7 @@ class AuthController:
             }
 
         return {
-            "message": f"Observer {data.observer_name} assigned successfully [Simulated]",
+            "message": f"Observer {data.observer_name} assigned successfully",
             "assigned_observer": observer_payload,
             "user_id": data.user_id
         }

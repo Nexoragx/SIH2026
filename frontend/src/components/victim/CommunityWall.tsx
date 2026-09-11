@@ -174,13 +174,31 @@ export const CommunityWall: React.FC<CommunityWallProps> = ({
         )}
 
         {loading && messages.length === 0 ? (
-          <div className="py-12 flex flex-col items-center justify-center text-slate-400 gap-2">
-            <RefreshCw className="w-6 h-6 animate-spin text-rose-500" />
-            <p className="text-xs font-bold">Connecting to Hope Wall live feed...</p>
+          <div className="space-y-4 py-2">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200/80 shadow-2xs space-y-3 animate-fade-in">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full skeleton-box animate-shimmer" />
+                    <div className="space-y-1.5">
+                      <div className="w-24 h-3.5 rounded-md skeleton-box animate-shimmer" />
+                      <div className="w-32 h-2.5 rounded-md skeleton-box animate-shimmer" />
+                    </div>
+                  </div>
+                  <div className="w-20 h-5 rounded-full skeleton-box animate-shimmer" />
+                </div>
+                <div className="w-full h-4 rounded-md skeleton-box animate-shimmer" />
+                <div className="w-3/4 h-4 rounded-md skeleton-box animate-shimmer" />
+                <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                  <div className="w-28 h-6 rounded-xl skeleton-box animate-shimmer" />
+                  <div className="w-20 h-3 rounded-md skeleton-box animate-shimmer" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : messages.length === 0 ? (
           <div className="py-12 text-center text-slate-400">
-            <Heart className="w-8 h-8 mx-auto text-rose-300 mb-2" />
+            <Heart className="w-8 h-8 mx-auto text-rose-300 mb-2 animate-heart-pulse" />
             <p className="text-xs font-bold">Be the first to share an encouraging thought today.</p>
           </div>
         ) : (

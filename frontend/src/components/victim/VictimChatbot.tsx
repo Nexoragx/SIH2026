@@ -728,11 +728,19 @@ export const VictimChatbot: React.FC<VictimChatbotProps> = ({
           })}
 
           {isTyping && (
-            <div className="flex items-center gap-2 text-xs text-slate-500 font-semibold pl-9">
-              <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-bounce"></span>
-              <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-bounce [animation-delay:0.2s]"></span>
-              <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-bounce [animation-delay:0.4s]"></span>
-              <span>ANVAYA Saathi is typing...</span>
+            <div className="flex items-start gap-2.5 animate-fade-in">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-600 via-purple-600 to-indigo-700 flex items-center justify-center text-white text-xs shadow-xs flex-shrink-0 animate-pulse">
+                <Bot className="w-4 h-4" />
+              </div>
+              <div className="p-3.5 rounded-2xl bg-white border border-slate-200/90 shadow-2xs space-y-1.5 max-w-[220px]">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-indigo-500 animate-bounce"></span>
+                  <span className="w-2 h-2 rounded-full bg-purple-500 animate-bounce [animation-delay:0.18s]"></span>
+                  <span className="w-2 h-2 rounded-full bg-pink-500 animate-bounce [animation-delay:0.36s]"></span>
+                  <span className="text-[11px] font-bold text-slate-500 ml-1.5">Thinking...</span>
+                </div>
+                <div className="w-28 h-2 rounded-full skeleton-box animate-shimmer" />
+              </div>
             </div>
           )}
 

@@ -356,9 +356,38 @@ export const DoctorDirectoryModal: React.FC<DoctorDirectoryModalProps> = ({
             /* Registered Doctors Directory Grid */
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {loading ? (
-                <div className="col-span-2 py-12 text-center text-slate-500 space-y-2">
-                  <div className="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-                  <p className="text-xs font-bold">Loading verified Tele-MANAS psychiatrists...</p>
+                <div className="col-span-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {[...Array(4)].map((_, i) => (
+                      <div
+                        key={i}
+                        className="p-4 rounded-3xl bg-slate-50/80 border border-slate-200/80 space-y-3 animate-fade-in"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-3">
+                            <div className="w-11 h-11 rounded-2xl skeleton-box animate-shimmer" />
+                            <div className="space-y-1.5">
+                              <div className="w-28 h-3.5 rounded-md skeleton-box animate-shimmer" />
+                              <div className="w-20 h-2.5 rounded-md skeleton-box animate-shimmer" />
+                            </div>
+                          </div>
+                          <div className="w-12 h-5 rounded-full skeleton-box animate-shimmer" />
+                        </div>
+                        <div className="space-y-1.5 py-1">
+                          <div className="w-3/4 h-3 rounded-md skeleton-box animate-shimmer" />
+                          <div className="w-full h-3 rounded-md skeleton-box animate-shimmer" />
+                          <div className="w-1/2 h-4 rounded-xl skeleton-box animate-shimmer" />
+                        </div>
+                        <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+                          <div className="w-24 h-3 rounded-md skeleton-box animate-shimmer" />
+                          <div className="flex gap-1.5">
+                            <div className="w-16 h-7 rounded-xl skeleton-box animate-shimmer" />
+                            <div className="w-20 h-7 rounded-xl skeleton-box animate-shimmer" />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ) : filteredDoctors.length === 0 ? (
                 <div className="col-span-2 py-12 text-center text-slate-500 space-y-2">

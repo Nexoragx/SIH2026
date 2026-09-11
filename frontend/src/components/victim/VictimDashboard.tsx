@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import {
   Heart,
   Calendar,
@@ -28,10 +28,18 @@ import {
 } from 'recharts';
 import { assessmentApi, supportApi, authApi, getStoredUser } from '../../api';
 import { DistressMeter } from './DistressMeter';
-import { PersonalizedActivities } from './PersonalizedActivities';
-import { CommunityWall } from './CommunityWall';
-import { DoctorDirectoryModal } from './DoctorDirectoryModal';
 import { AssessmentResultData, RiskLevel } from '../../types';
+import { PageLoader, HopeWallSkeleton, DoctorDirectorySkeleton, CardGridSkeleton } from '../common/Skeleton';
+
+const PersonalizedActivities = React.lazy(() =>
+  import('./PersonalizedActivities').then((m) => ({ default: m.PersonalizedActivities }))
+);
+const CommunityWall = React.lazy(() =>
+  import('./CommunityWall').then((m) => ({ default: m.CommunityWall }))
+);
+const DoctorDirectoryModal = React.lazy(() =>
+  import('./DoctorDirectoryModal').then((m) => ({ default: m.DoctorDirectoryModal }))
+);
 
 interface VictimDashboardProps {
   onStartCheckin: () => void;
@@ -64,93 +72,76 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<'overview' | 'exercises' | 'scale' | 'community'>(initialSubTab);
   const [currentSelectedExercise, setCurrentSelectedExercise] = useState<string | undefined>(targetExercise);
-  const [liveAssignedObserver, setLiveAssignedObserver] = useState<any>(() => {
+  const resolveAssignedObserver = () => {
     try {
       const stored = getStoredUser();
+      if (userProfile?.assignedObserver) return userProfile.assignedObserver;
+      if (userProfile?.assigned_observer) return userProfile.assigned_observer;
+      if (stored?.assignedObserver) return stored.assignedObserver;
+      if (stored?.assigned_observer) return stored.assigned_observer;
+
+      const idsToTry = [
+        userProfile?.id,
+        userProfile?.uid,
+        userProfile?.email,
+        userProfile?.email?.toLowerCase(),
+        stored?.id,
+        stored?.uid,
+        stored?.email,
+        stored?.email?.toLowerCase(),
+      ].filter(Boolean);
+
+      for (const id of idsToTry) {
+        const fromKey = localStorage.getItem(`anvaya_assigned_observer_${id}`);
+        if (fromKey) {
+          try {
+            const parsed = JSON.parse(fromKey);
+            if (parsed && (parsed.name || parsed.id)) return parsed;
+          } catch {}
+        }
+      }
+
+      const citizenProfiles = JSON.parse(localStorage.getItem('anvaya_citizen_profiles') || '{}');
+      for (const id of idsToTry) {
+        if (citizenProfiles[id]?.assignedObserver) return citizenProfiles[id].assignedObserver;
+        if (citizenProfiles[id]?.assigned_observer) return citizenProfiles[id].assigned_observer;
+      }
+
+      for (const key of Object.keys(citizenProfiles)) {
+        const p = citizenProfiles[key];
+        if (!p) continue;
+        const match =
+          (userProfile?.email && p.email?.toLowerCase() === userProfile.email.toLowerCase()) ||
+          (stored?.email && p.email?.toLowerCase() === stored.email.toLowerCase()) ||
+          (userProfile?.id && p.id === userProfile.id) ||
+          (stored?.id && p.id === stored.id) ||
+          (userProfile?.name && (p.name === userProfile.name || p.full_name === userProfile.name)) ||
+          (stored?.name && (p.name === stored.name || p.full_name === stored.name));
+
+        if (match && (p.assignedObserver || p.assigned_observer)) {
+          return p.assignedObserver || p.assigned_observer;
+        }
+      }
+
       const lastAssigned =
         JSON.parse(localStorage.getItem('anvaya_last_assigned_observer') || 'null') ||
         JSON.parse(localStorage.getItem('anvaya_global_assigned_observer') || 'null');
-      const byId = userProfile?.id
-        ? JSON.parse(localStorage.getItem(`anvaya_assigned_observer_${userProfile.id}`) || 'null')
-        : null;
-      const byEmail = userProfile?.email
-        ? JSON.parse(localStorage.getItem(`anvaya_assigned_observer_${userProfile.email}`) || 'null')
-        : null;
-      const byStoredId = stored?.id
-        ? JSON.parse(localStorage.getItem(`anvaya_assigned_observer_${stored.id}`) || 'null')
-        : null;
-      const byStoredEmail = stored?.email
-        ? JSON.parse(localStorage.getItem(`anvaya_assigned_observer_${stored.email}`) || 'null')
-        : null;
+      if (lastAssigned && (lastAssigned.name || lastAssigned.id)) return lastAssigned;
 
-      const citizenProfiles = JSON.parse(localStorage.getItem('anvaya_citizen_profiles') || '{}');
-      const fromCitizenProfiles =
-        (userProfile?.id ? citizenProfiles[userProfile.id]?.assignedObserver || citizenProfiles[userProfile.id]?.assigned_observer : null) ||
-        (stored?.id ? citizenProfiles[stored.id]?.assignedObserver || citizenProfiles[stored.id]?.assigned_observer : null);
-
-      return (
-        userProfile?.assignedObserver ||
-        userProfile?.assigned_observer ||
-        byId ||
-        byEmail ||
-        byStoredId ||
-        byStoredEmail ||
-        fromCitizenProfiles ||
-        stored?.assigned_observer ||
-        stored?.assignedObserver ||
-        lastAssigned ||
-        null
-      );
+      return null;
     } catch {
       return null;
     }
-  });
+  };
+
+  const [liveAssignedObserver, setLiveAssignedObserver] = useState<any>(resolveAssignedObserver);
 
   // Re-sync observer allocation from server, props, and local storage
   useEffect(() => {
-    const syncObserverFromCache = () => {
-      try {
-        const stored = getStoredUser();
-        const lastAssigned =
-          JSON.parse(localStorage.getItem('anvaya_last_assigned_observer') || 'null') ||
-          JSON.parse(localStorage.getItem('anvaya_global_assigned_observer') || 'null');
-        const byId = userProfile?.id
-          ? JSON.parse(localStorage.getItem(`anvaya_assigned_observer_${userProfile.id}`) || 'null')
-          : null;
-        const byEmail = userProfile?.email
-          ? JSON.parse(localStorage.getItem(`anvaya_assigned_observer_${userProfile.email}`) || 'null')
-          : null;
-        const byStoredId = stored?.id
-          ? JSON.parse(localStorage.getItem(`anvaya_assigned_observer_${stored.id}`) || 'null')
-          : null;
-        const byStoredEmail = stored?.email
-          ? JSON.parse(localStorage.getItem(`anvaya_assigned_observer_${stored.email}`) || 'null')
-          : null;
-
-        const citizenProfiles = JSON.parse(localStorage.getItem('anvaya_citizen_profiles') || '{}');
-        const fromCitizenProfiles =
-          (userProfile?.id ? citizenProfiles[userProfile.id]?.assignedObserver || citizenProfiles[userProfile.id]?.assigned_observer : null) ||
-          (stored?.id ? citizenProfiles[stored.id]?.assignedObserver || citizenProfiles[stored.id]?.assigned_observer : null);
-
-        const candidate =
-          userProfile?.assignedObserver ||
-          userProfile?.assigned_observer ||
-          byId ||
-          byEmail ||
-          byStoredId ||
-          byStoredEmail ||
-          fromCitizenProfiles ||
-          stored?.assigned_observer ||
-          stored?.assignedObserver ||
-          lastAssigned;
-
-        if (candidate) {
-          setLiveAssignedObserver(candidate);
-        }
-      } catch {}
-    };
-
-    syncObserverFromCache();
+    const candidate = resolveAssignedObserver();
+    if (candidate) {
+      setLiveAssignedObserver(candidate);
+    }
 
     authApi.getMe()
       .then((me: any) => {
@@ -170,18 +161,17 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
     const handleObserverUpdate = (e: any) => {
       if (e.detail?.observer !== undefined) {
         setLiveAssignedObserver(e.detail.observer);
+      } else {
+        const candidate = resolveAssignedObserver();
+        if (candidate) setLiveAssignedObserver(candidate);
       }
     };
 
     const handleStorageUpdate = () => {
-      try {
-        const lastAssigned =
-          JSON.parse(localStorage.getItem('anvaya_last_assigned_observer') || 'null') ||
-          JSON.parse(localStorage.getItem('anvaya_global_assigned_observer') || 'null');
-        if (lastAssigned) {
-          setLiveAssignedObserver(lastAssigned);
-        }
-      } catch {}
+      const candidate = resolveAssignedObserver();
+      if (candidate) {
+        setLiveAssignedObserver(candidate);
+      }
     };
 
     window.addEventListener('anvaya_observer_assigned', handleObserverUpdate);
@@ -190,7 +180,7 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
       window.removeEventListener('anvaya_observer_assigned', handleObserverUpdate);
       window.removeEventListener('storage', handleStorageUpdate);
     };
-  }, []);
+  }, [userProfile]);
 
   useEffect(() => {
     if (initialSubTab) {
@@ -1039,12 +1029,14 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
           </div>
 
           {/* Embedded Full Component */}
-          <PersonalizedActivities
-            currentLang={currentLang}
-            resultData={latestAssessment}
-            onOpenCounsellorChat={onOpenChat}
-            initialActivity={currentSelectedExercise}
-          />
+          <Suspense fallback={<CardGridSkeleton count={4} columns={2} />}>
+            <PersonalizedActivities
+              currentLang={currentLang}
+              resultData={latestAssessment}
+              onOpenCounsellorChat={onOpenChat}
+              initialActivity={currentSelectedExercise}
+            />
+          </Suspense>
         </div>
       )}
 
@@ -1129,17 +1121,23 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
             </div>
           </div>
 
-          <CommunityWall currentLang={currentLang} currentUser={userProfile || getStoredUser()} />
+          <Suspense fallback={<HopeWallSkeleton />}>
+            <CommunityWall currentLang={currentLang} currentUser={userProfile || getStoredUser()} />
+          </Suspense>
         </div>
       )}
 
       {/* 1:1 Doctor & Observer Directory Modal */}
-      <DoctorDirectoryModal
-        isOpen={isDoctorDirectoryOpen}
-        onClose={() => setIsDoctorDirectoryOpen(false)}
-        userProfile={getStoredUser()}
-        recentAssessmentScore={latestAssessment?.finalDistressScore}
-      />
+      {isDoctorDirectoryOpen && (
+        <Suspense fallback={<PageLoader message="Loading Doctors..." compact />}>
+          <DoctorDirectoryModal
+            isOpen={isDoctorDirectoryOpen}
+            onClose={() => setIsDoctorDirectoryOpen(false)}
+            userProfile={getStoredUser()}
+            recentAssessmentScore={latestAssessment?.finalDistressScore}
+          />
+        </Suspense>
+      )}
     </div>
   );
 };
