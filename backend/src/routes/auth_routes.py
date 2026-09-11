@@ -13,7 +13,10 @@ from src.controllers.auth_controller import (
     RequestOtpSchema,
     VerifyOtpSchema,
     AssignObserverSchema,
-    UnassignObserverSchema
+    UnassignObserverSchema,
+    CreatePersonnelSchema,
+    UpdateRoleSchema,
+    ResetCredentialsSchema
 )
 
 router = APIRouter(prefix="/auth", tags=["Authentication & OAuth"])
@@ -110,12 +113,45 @@ def get_current_profile(current_user: dict = Depends(get_current_user)):
     }
 
 
-@router.get("/admin/users", summary="Admin: List all registered citizens and beneficiaries")
+@router.get("/admin/users", summary="Admin: List strictly registered citizens and beneficiaries")
 def get_admin_users(db: Database = Depends(get_db)):
     """
-    Lists all registered users/citizens for admin verification and observer assignment.
+    Lists strictly citizen survivors/beneficiaries for admin verification and observer assignment.
+    Excludes doctors, observers, and administrators.
     """
     return AuthController.get_admin_users(db=db)
+
+
+@router.get("/admin/personnel", summary="Admin: List all institutional staff and role-holders")
+def get_admin_personnel(db: Database = Depends(get_db)):
+    """
+    Lists all institutional staff (Observers, Psychiatrists, NGO field officers, Admins).
+    """
+    return AuthController.get_institutional_personnel(db=db)
+
+
+@router.post("/admin/personnel", summary="Admin: Provision new institutional staff member")
+def create_personnel(data: CreatePersonnelSchema, db: Database = Depends(get_db)):
+    """
+    Creates and provisions an observer, doctor, NGO officer, or administrator with login credentials.
+    """
+    return AuthController.create_personnel(data=data, db=db)
+
+
+@router.put("/admin/users/role", summary="Admin: Update or assign user role")
+def update_user_role(data: UpdateRoleSchema, db: Database = Depends(get_db)):
+    """
+    Updates role for a specific user or institutional officer.
+    """
+    return AuthController.update_user_role(data=data, db=db)
+
+
+@router.put("/admin/users/credentials", summary="Admin: Reset or update user password")
+def reset_credentials(data: ResetCredentialsSchema, db: Database = Depends(get_db)):
+    """
+    Resets credentials and password hash for a user.
+    """
+    return AuthController.reset_credentials(data=data, db=db)
 
 
 @router.get("/admin/observers", summary="Admin: List all accredited health observers")
@@ -156,4 +192,5 @@ async def oauth_callback(code: str = Query(..., description="OAuth2 authorizatio
     OAuth2 callback endpoint that processes authorization code and returns JWT token pair.
     """
     return await AuthController.oauth_callback(code=code, db=db)
+
 

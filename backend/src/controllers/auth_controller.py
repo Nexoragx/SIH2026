@@ -131,6 +131,34 @@ class UnassignObserverSchema(BaseModel):
     user_id: str = Field(..., description="Target User / Beneficiary ID")
 
 
+class CreatePersonnelSchema(BaseModel):
+    full_name: str = Field(..., min_length=2)
+    email: str = Field(..., min_length=5)
+    role: str = Field("observer", description="observer | psychiatrist | ngo | admin")
+    phone: Optional[str] = "+91 98000 00000"
+    district: Optional[str] = "Nashik"
+    state: Optional[str] = "Maharashtra"
+    hospital_or_org: Optional[str] = "District Care Unit"
+    password: Optional[str] = None
+    staff_id: Optional[str] = None
+
+
+class UpdateRoleSchema(BaseModel):
+    user_id: str
+    role: Optional[str] = None
+    new_role: Optional[str] = None
+
+    @property
+    def target_role(self) -> str:
+        return (self.new_role or self.role or "victim").strip().lower()
+
+
+class ResetCredentialsSchema(BaseModel):
+    user_id: str
+    new_password: Optional[str] = None
+
+
+
 # --- Controller Business Logic (MongoDB) ---
 
 class AuthController:
@@ -636,61 +664,342 @@ class AuthController:
             "user": serialize_user(user)
         }
 
+    INSTITUTIONAL_ROLES = {
+        "admin", "administrator", "system_admin", "observer", "health_observer",
+        "doctor", "psychiatrist", "telepsychiatrist", "ngo", "ngo_partner", "case_worker"
+    }
+
     @staticmethod
     def get_admin_users(db: Database) -> list:
         """
-        Returns all registered citizens and beneficiaries for Admin verification and observer allocation.
+        Returns strictly registered citizens and survivor beneficiaries for Admin verification and observer allocation.
+        Excludes institutional staff, observers, doctors, and system administrators.
         """
         users_list = []
-        # Query both possible collections
-        cursor = db.user.find({}) or []
         seen_ids = set()
 
-        for u in cursor:
-            uid = str(u.get("_id", ""))
-            if not uid or uid in seen_ids:
-                continue
-            seen_ids.add(uid)
+        for col in [db.user, db.users]:
+            try:
+                for u in col.find({}):
+                    uid = str(u.get("_id", ""))
+                    if not uid or uid in seen_ids:
+                        continue
 
-            # Skip pure system administrators if filtering for beneficiaries
-            role = u.get("role", "victim")
+                    role = str(u.get("role") or "victim").strip().lower()
+                    name = str(u.get("full_name") or u.get("name") or "").strip()
+                    email = str(u.get("email") or "").strip().lower()
 
-            users_list.append({
-                "id": uid,
-                "email": u.get("email", ""),
-                "full_name": u.get("full_name") or u.get("name") or "Citizen Survivor",
-                "role": role,
-                "phone": u.get("phone") or "Not provided",
-                "district": u.get("district") or "Nashik",
-                "state": u.get("state") or "Maharashtra",
-                "assigned_observer": u.get("assigned_observer"),
-                "is_active": u.get("is_active", True),
-                "created_at": u.get("created_at").isoformat() if hasattr(u.get("created_at"), "isoformat") else str(u.get("created_at") or datetime.now(timezone.utc).isoformat())
-            })
+                    # Exclude institutional staff from Beneficiaries table
+                    if role in AuthController.INSTITUTIONAL_ROLES:
+                        continue
+                    if any(term in name.lower() for term in ["director", "administrator", "telepsychiatrist", "nodal officer", "coordinator", "health observer"]):
+                        continue
+                    if "admin" in email or "observer" in email or "psychiatrist" in email or "ngo.partner" in email:
+                        continue
 
-        # Also search in users collection if distinct
-        try:
-            for u in db.users.find({}):
-                uid = str(u.get("_id", ""))
-                if not uid or uid in seen_ids:
-                    continue
-                seen_ids.add(uid)
-                users_list.append({
-                    "id": uid,
-                    "email": u.get("email", ""),
-                    "full_name": u.get("full_name") or u.get("name") or "Citizen Survivor",
-                    "role": u.get("role", "victim"),
-                    "phone": u.get("phone") or "Not provided",
-                    "district": u.get("district") or "Nashik",
-                    "state": u.get("state") or "Maharashtra",
-                    "assigned_observer": u.get("assigned_observer"),
-                    "is_active": u.get("is_active", True),
-                    "created_at": u.get("created_at").isoformat() if hasattr(u.get("created_at"), "isoformat") else str(u.get("created_at") or datetime.now(timezone.utc).isoformat())
-                })
-        except Exception:
-            pass
+                    seen_ids.add(uid)
+                    users_list.append({
+                        "id": uid,
+                        "email": u.get("email", ""),
+                        "full_name": name or "Citizen Survivor",
+                        "role": "victim",
+                        "phone": u.get("phone") or "Not provided",
+                        "district": u.get("district") or "Nashik",
+                        "state": u.get("state") or "Maharashtra",
+                        "assigned_observer": u.get("assigned_observer") or u.get("assignedObserver"),
+                        "is_active": u.get("is_active", True),
+                        "created_at": u.get("created_at").isoformat() if hasattr(u.get("created_at"), "isoformat") else str(u.get("created_at") or datetime.now(timezone.utc).isoformat())
+                    })
+            except Exception:
+                pass
 
         return users_list
+
+    @staticmethod
+    def get_institutional_personnel(db: Database) -> list:
+        """
+        Returns all institutional staff (Health Observers, Telepsychiatrists, NGO Partners, MoSJE Admins).
+        """
+        staff_list = []
+        seen_ids = set()
+
+        # Seed standard institutional accounts if missing
+        seed_staff = [
+            {
+                "email": "observer.district@sih.gov.in",
+                "full_name": "Dr. Anita Joshi, MD",
+                "role": "observer",
+                "phone": "+91 98230 11416",
+                "district": "Nashik Central",
+                "state": "Maharashtra",
+                "hospital_or_org": "District Nodal Mental Health Unit",
+                "staff_id": "OBS-ANITA-001",
+                "is_active": True
+            },
+            {
+                "email": "observer.field@sih.gov.in",
+                "full_name": "Rajesh Kumar, MSW",
+                "role": "observer",
+                "phone": "+91 98450 22334",
+                "district": "Nashik Rural",
+                "state": "Maharashtra",
+                "hospital_or_org": "Rural Primary Health Extension Cell",
+                "staff_id": "OBS-RAJESH-002",
+                "is_active": True
+            },
+            {
+                "email": "psychiatrist@sih.gov.in",
+                "full_name": "Dr. Anita Joshi, MD (Telepsychiatrist)",
+                "role": "psychiatrist",
+                "phone": "+91 94222 10801",
+                "district": "Nashik",
+                "state": "Maharashtra",
+                "hospital_or_org": "Tele-MANAS Regional Care Station",
+                "staff_id": "DOC-ANITA-101",
+                "is_active": True
+            },
+            {
+                "email": "dr.deshmukh@sih.gov.in",
+                "full_name": "Dr. Vivek Deshmukh, MD",
+                "role": "psychiatrist",
+                "phone": "+91 98230 45671",
+                "district": "Nashik",
+                "state": "Maharashtra",
+                "hospital_or_org": "Govt Medical College & Hospital",
+                "staff_id": "DOC-DESHMUKH-102",
+                "is_active": True
+            },
+            {
+                "email": "ngo.partner@sih.gov.in",
+                "full_name": "Ram Kumar (Samata NGO Field Coordinator)",
+                "role": "ngo",
+                "phone": "+91 98230 45678",
+                "district": "Nashik",
+                "state": "Maharashtra",
+                "hospital_or_org": "Samata Atrocity Survivor Aid Foundation",
+                "staff_id": "NGO-SAMATA-001",
+                "is_active": True
+            },
+            {
+                "email": "observer.state@sih.gov.in",
+                "full_name": "Shri Sunil Patil (State Surveillance Director)",
+                "role": "observer",
+                "phone": "+91 98200 11223",
+                "district": "Mumbai HQ",
+                "state": "Maharashtra",
+                "hospital_or_org": "Maharashtra State Health Directorate (L3)",
+                "staff_id": "OBS-STATE-001",
+                "is_active": True
+            },
+            {
+                "email": "admin.mosje@sih.gov.in",
+                "full_name": "Shri Rajesh Meena (Joint Secretary, MoSJE)",
+                "role": "admin",
+                "phone": "+91 98100 99887",
+                "district": "New Delhi",
+                "state": "Delhi",
+                "hospital_or_org": "Ministry of Social Justice & Empowerment Apex Tier",
+                "staff_id": "ADM-MOSJE-001",
+                "is_active": True
+            },
+            {
+                "email": "admin123@internal.local",
+                "full_name": "System Administrator",
+                "role": "admin",
+                "phone": "+91 99000 11223",
+                "district": "New Delhi",
+                "state": "Delhi",
+                "hospital_or_org": "ANVAYA National Command Apex",
+                "staff_id": "ADM-ROOT-001",
+                "is_active": True
+            }
+        ]
+
+        # Check existing staff in DB
+        for col in [db.user, db.users]:
+            try:
+                for u in col.find({}):
+                    uid = str(u.get("_id", ""))
+                    if not uid or uid in seen_ids:
+                        continue
+                    role = str(u.get("role") or "").strip().lower()
+                    name = str(u.get("full_name") or u.get("name") or "").strip()
+                    email = str(u.get("email") or "").strip().lower()
+
+                    if role in AuthController.INSTITUTIONAL_ROLES or any(t in name.lower() for t in ["director", "administrator", "psychiatrist", "observer", "coordinator", "nodal"]):
+                        seen_ids.add(uid)
+                        staff_list.append({
+                            "id": uid,
+                            "email": email or u.get("username", "staff@anvaya.in"),
+                            "full_name": name or "Institutional Officer",
+                            "role": role if role in AuthController.INSTITUTIONAL_ROLES else "observer",
+                            "phone": u.get("phone") or "+91 98000 12345",
+                            "district": u.get("district") or "Nashik",
+                            "state": u.get("state") or "Maharashtra",
+                            "hospital_or_org": u.get("hospital_or_org") or u.get("hospital") or "District Nodal Center",
+                            "staff_id": u.get("staff_id") or u.get("doctor_id") or f"STF-{uid[-6:].upper()}",
+                            "is_active": u.get("is_active", True),
+                            "created_at": u.get("created_at").isoformat() if hasattr(u.get("created_at"), "isoformat") else str(u.get("created_at") or datetime.now(timezone.utc).isoformat())
+                        })
+            except Exception:
+                pass
+
+        # If DB had fewer staff, append seeded accounts
+        for s in seed_staff:
+            if not any(x["email"].lower() == s["email"].lower() for x in staff_list):
+                staff_list.append({
+                    "id": f"seed-{s['staff_id'].lower()}",
+                    **s,
+                    "created_at": datetime.now(timezone.utc).isoformat()
+                })
+
+        return staff_list
+
+    @staticmethod
+    def create_personnel(data: CreatePersonnelSchema, db: Database) -> dict:
+        """
+        Creates and provisions a new institutional staff user (Observer, Doctor, NGO, Admin).
+        """
+        now = datetime.now(timezone.utc)
+        clean_email = data.email.strip().lower()
+        clean_pwd = data.password.strip() if data.password else "Anvaya@2026"
+        role_val = data.role.strip().lower()
+
+        # Check existing
+        existing = db.user.find_one({"email": clean_email}) or db.users.find_one({"email": clean_email})
+        if existing:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"An account with email {clean_email} already exists."
+            )
+
+        staff_id = data.staff_id or f"{role_val[:3].upper()}-{clean_email.split('@')[0].upper()[:6]}"
+        user_doc = {
+            "email": clean_email,
+            "username": clean_email.split("@")[0],
+            "hashed_password": hash_password(clean_pwd),
+            "full_name": data.full_name.strip(),
+            "role": role_val,
+            "phone": data.phone or "+91 98000 00000",
+            "district": data.district or "Nashik",
+            "state": data.state or "Maharashtra",
+            "hospital_or_org": data.hospital_or_org or "District Healthcare Unit",
+            "staff_id": staff_id,
+            "doctor_id": staff_id if role_val == "psychiatrist" else None,
+            "is_active": True,
+            "oauth_provider": "local_admin_provisioned",
+            "created_at": now,
+            "updated_at": now
+        }
+
+        res = db.user.insert_one(user_doc)
+        user_doc["_id"] = res.inserted_id
+        sync_user_to_all_dbs(user_doc)
+
+        return {
+            "success": True,
+            "message": f"Successfully provisioned {data.full_name} as {role_val.upper()}",
+            "personnel": {
+                "id": str(res.inserted_id),
+                "email": clean_email,
+                "full_name": data.full_name.strip(),
+                "role": role_val,
+                "staff_id": staff_id,
+                "phone": user_doc["phone"],
+                "district": user_doc["district"],
+                "state": user_doc["state"],
+                "hospital_or_org": user_doc["hospital_or_org"],
+                "temporary_password": clean_pwd,
+                "is_active": True,
+                "created_at": now.isoformat()
+            }
+        }
+
+    @staticmethod
+    def update_user_role(data: UpdateRoleSchema, db: Database) -> dict:
+        """
+        Updates role for any user or institutional officer.
+        """
+        target_id = data.user_id
+        new_role = data.target_role
+
+        query_clauses = [{"email": target_id}, {"id": target_id}, {"username": target_id}]
+        if ObjectId.is_valid(target_id):
+            query_clauses.append({"_id": ObjectId(target_id)})
+
+        query = {"$or": query_clauses}
+        updated = None
+
+        for col in [db.user, db.users]:
+            try:
+                res = col.find_one_and_update(
+                    query,
+                    {"$set": {"role": new_role, "updated_at": datetime.now(timezone.utc)}},
+                    return_document=True
+                )
+                if res:
+                    updated = res
+            except Exception:
+                pass
+
+        if not updated:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"User {target_id} not found."
+            )
+
+        sync_user_to_all_dbs(updated)
+        return {
+            "success": True,
+            "message": f"Updated role to {new_role.upper()} for {updated.get('full_name', 'User')}",
+            "user_id": str(updated["_id"]),
+            "new_role": new_role
+        }
+
+    @staticmethod
+    def reset_credentials(data: ResetCredentialsSchema, db: Database) -> dict:
+        """
+        Resets user credentials and updates password hash in MongoDB.
+        """
+        target_id = data.user_id
+        new_pwd = data.new_password.strip() if data.new_password else f"Anvaya@{datetime.now().strftime('%Y')}"
+
+        query_clauses = [{"email": target_id}, {"id": target_id}, {"username": target_id}]
+        if ObjectId.is_valid(target_id):
+            query_clauses.append({"_id": ObjectId(target_id)})
+
+        query = {"$or": query_clauses}
+        updated = None
+
+        for col in [db.user, db.users]:
+            try:
+                res = col.find_one_and_update(
+                    query,
+                    {"$set": {
+                        "hashed_password": hash_password(new_pwd),
+                        "updated_at": datetime.now(timezone.utc)
+                    }},
+                    return_document=True
+                )
+                if res:
+                    updated = res
+            except Exception:
+                pass
+
+        if not updated:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"User {target_id} not found."
+            )
+
+        sync_user_to_all_dbs(updated)
+        return {
+            "success": True,
+            "message": f"Successfully updated credentials for {updated.get('full_name', 'User')}",
+            "email": updated.get("email"),
+            "new_password": new_pwd
+        }
+
 
     @staticmethod
     def get_available_observers(db: Database) -> list:

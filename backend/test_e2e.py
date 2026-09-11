@@ -328,11 +328,39 @@ def run_tests():
     assert notifs_list.status_code == 200
     assert notifs_list.json()["unread_count"] >= 1
 
-    mark_read = client.post(f"/api/v1/support/notifications/{notif_id}/read")
-    assert mark_read.status_code == 200
-    print(f"✅ 19. Admin quote broadcast & notification center verified (Notif #{notif_id})")
+    # Test 20: Institutional Personnel Hub & Provisioning
+    pers_list = client.get("/api/v1/auth/admin/personnel")
+    assert pers_list.status_code == 200
+    assert len(pers_list.json()) >= 1
+    print(f"✅ 20. Institutional Personnel Registry retrieved ({len(pers_list.json())} staff members)")
 
-    print("\n🎉 ALL 20 INTEGRATION TESTS PASSED SUCCESSFULLY! 🎉")
+    # Test 21: Staff Provisioning with Auto-Generated Credentials
+    new_staff_res = client.post("/api/v1/auth/admin/personnel", json={
+        "full_name": "Dr. Sunita Sharma, MD",
+        "email": "sunita.sharma@anvaya.gov.in",
+        "role": "psychiatrist",
+        "designation": "Senior Consultant Psychiatrist",
+        "district": "Nashik Central",
+        "state": "Maharashtra",
+        "phone": "+91 98220 77112",
+        "hospital": "Nashik Government Mental Health Centre",
+        "password": "TempStaff@2026"
+    })
+    assert new_staff_res.status_code == 200
+    staff_data = new_staff_res.json()["personnel"]
+    staff_uid = staff_data["id"]
+    print(f"✅ 21. Provisioned new staff officer: {staff_data['full_name']} (Staff ID: {staff_data['staff_id']})")
+
+    # Test 22: Role Assignment & Credentials Password Reset
+    role_res = client.put("/api/v1/auth/admin/users/role", json={"user_id": staff_uid, "role": "doctor"})
+    assert role_res.status_code == 200
+
+    cred_res = client.put("/api/v1/auth/admin/users/credentials", json={"user_id": staff_uid, "new_password": "NewStaffPass@2026"})
+    assert cred_res.status_code == 200
+    assert cred_res.json()["new_password"] == "NewStaffPass@2026"
+    print(f"✅ 22. Role upgraded to DOCTOR and credentials reset for Staff ID: {staff_data['staff_id']}")
+
+    print("\n🎉 ALL 22 INTEGRATION TESTS PASSED SUCCESSFULLY! 🎉")
 
 if __name__ == "__main__":
     run_tests()

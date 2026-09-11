@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Wind,
   Sparkles,
@@ -64,6 +65,16 @@ export const PersonalizedActivities: React.FC<PersonalizedActivitiesProps> = ({
       setSelectedActivity(null);
     }
   }, [initialActivity]);
+
+  useEffect(() => {
+    if (selectedActivity) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [selectedActivity]);
 
   // Global Audio Context & Web Audio Synthesizer
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -855,17 +866,18 @@ export const PersonalizedActivities: React.FC<PersonalizedActivitiesProps> = ({
       {/* ========================================================
           TOP FLOATING MODAL OVERLAY FOR ACTIVE EXERCISE
           ======================================================== */}
-      {selectedActivity && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/70 backdrop-blur-md animate-fadeIn"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              setSelectedActivity(null);
-              stopSoundscape();
-            }
-          }}
-        >
-          <div className="anvaya-card rounded-3xl max-w-3xl w-full max-h-[92vh] bg-white border-2 border-indigo-200 shadow-2xl flex flex-col overflow-hidden animate-tile-come-up relative">
+      {selectedActivity &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[9999] flex items-center justify-center p-0 sm:p-4 md:p-6 bg-slate-950/80 backdrop-blur-md animate-fadeIn"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                setSelectedActivity(null);
+                stopSoundscape();
+              }
+            }}
+          >
+            <div className="rounded-none sm:rounded-3xl max-w-3xl w-full h-[100dvh] sm:h-auto sm:max-h-[92vh] bg-white border-0 sm:border-2 border-indigo-200 shadow-2xl flex flex-col overflow-hidden animate-tile-come-up relative">
             {/* Top Floating Modal Header */}
             <div className="p-4 sm:p-5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 bg-gradient-to-r from-indigo-50/90 via-white to-purple-50/90">
               <div className="flex items-center gap-3">
@@ -1593,7 +1605,8 @@ export const PersonalizedActivities: React.FC<PersonalizedActivitiesProps> = ({
           )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

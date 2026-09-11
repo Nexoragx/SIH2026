@@ -69,6 +69,39 @@ export interface AvailableObserver {
   status: string;
 }
 
+export interface PersonnelItem {
+  id: string;
+  user_id?: string;
+  full_name: string;
+  email: string;
+  role: string;
+  staff_id?: string;
+  designation?: string;
+  district?: string;
+  state?: string;
+  phone?: string;
+  hospital?: string;
+  qualification?: string;
+  active_cases?: number;
+  status?: string;
+  is_active?: boolean;
+  created_at?: string;
+  plain_password_hint?: string;
+}
+
+export interface CreatePersonnelPayload {
+  full_name: string;
+  email: string;
+  role: 'observer' | 'psychiatrist' | 'doctor' | 'ngo' | 'case_worker' | 'admin';
+  password?: string;
+  designation?: string;
+  district?: string;
+  state?: string;
+  phone?: string;
+  hospital?: string;
+  qualification?: string;
+}
+
 export const authApi = {
   async register(payload: RegisterPayload): Promise<AuthResponse> {
     return persistSession(await apiRequest<AuthResponse>('/auth/register', {
@@ -230,6 +263,35 @@ export const authApi = {
     } catch {
       return { message: 'Observer unassigned successfully', user_id: userId };
     }
+  },
+
+  async getInstitutionalPersonnel(): Promise<PersonnelItem[]> {
+    try {
+      return await apiRequest<PersonnelItem[]>('/auth/admin/personnel');
+    } catch {
+      return [];
+    }
+  },
+
+  async createPersonnel(payload: CreatePersonnelPayload): Promise<{ success: boolean; message?: string; personnel?: any }> {
+    return await apiRequest<{ success: boolean; message?: string; personnel?: any }>('/auth/admin/personnel', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async updateUserRole(userId: string, newRole: string): Promise<{ success: boolean; message?: string }> {
+    return await apiRequest<{ success: boolean; message?: string }>('/auth/admin/users/role', {
+      method: 'PUT',
+      body: JSON.stringify({ user_id: userId, role: newRole }),
+    });
+  },
+
+  async resetUserCredentials(userId: string, newPassword?: string): Promise<{ success: boolean; message?: string; new_password?: string }> {
+    return await apiRequest<{ success: boolean; message?: string; new_password?: string }>('/auth/admin/users/credentials', {
+      method: 'PUT',
+      body: JSON.stringify({ user_id: userId, new_password: newPassword }),
+    });
   },
 
   saveLocalSession(user: any, token?: string, refreshToken?: string): void {

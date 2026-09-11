@@ -35,7 +35,13 @@ import {
   Send,
   Bell,
   Quote,
-  Megaphone
+  Megaphone,
+  Key,
+  Lock,
+  ShieldCheck,
+  Copy,
+  UserCog,
+  CheckCheck
 } from 'lucide-react';
 import {
   BarChart,
@@ -49,7 +55,7 @@ import {
   Line,
 } from 'recharts';
 import { assessmentApi } from '../../api/assessmentApi';
-import { adminReportsApi, AdminReportSummary, AssessmentBackendResponse, authApi, AdminUserItem, AvailableObserver } from '../../api';
+import { adminReportsApi, AdminReportSummary, AssessmentBackendResponse, authApi, AdminUserItem, AvailableObserver, PersonnelItem, CreatePersonnelPayload } from '../../api';
 import { supportApi } from '../../api/supportApi';
 import { BASELINE_ASSESSMENT_REPORTS } from '../../data/baselineReports';
 import { ReportDetailModal } from './ReportDetailModal';
@@ -110,7 +116,7 @@ export const resolvePatientName = (rep: any): string => {
 
 export const AdminPanel: React.FC = () => {
   const [selectedTier, setSelectedTier] = useState<'L1' | 'L2' | 'L3' | 'L4'>('L4');
-  const [activeTab, setActiveTab] = useState<'users' | 'reports' | 'broadcast' | 'statutory' | 'overview' | 'assessments' | 'sla' | 'court' | 'model'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'personnel' | 'reports' | 'broadcast' | 'statutory' | 'overview' | 'assessments' | 'sla' | 'court' | 'model'>('users');
   const [statutorySubTab, setStatutorySubTab] = useState<'overview' | 'sla' | 'court' | 'model'>('overview');
 
   // Beneficiaries & Observer Allocation state
@@ -122,6 +128,40 @@ export const AdminPanel: React.FC = () => {
   const [assignModalUser, setAssignModalUser] = useState<AdminUserItem | null>(null);
   const [selectedObserverId, setSelectedObserverId] = useState<string>('OBS-ANITA-001');
   const [assignmentNotice, setAssignmentNotice] = useState<string | null>(null);
+
+  // Institutional Personnel & Role Governance State
+  const [personnelList, setPersonnelList] = useState<PersonnelItem[]>([]);
+  const [personnelLoading, setPersonnelLoading] = useState<boolean>(false);
+  const [personnelRoleFilter, setPersonnelRoleFilter] = useState<string>('ALL');
+  const [personnelSearchFilter, setPersonnelSearchFilter] = useState<string>('');
+
+  // Modals for Personnel & Roles
+  const [isProvisionModalOpen, setIsProvisionModalOpen] = useState<boolean>(false);
+  const [provisionSubmitting, setProvisionSubmitting] = useState<boolean>(false);
+  const [newPersonnelForm, setNewPersonnelForm] = useState<CreatePersonnelPayload>({
+    full_name: '',
+    email: '',
+    role: 'observer',
+    designation: '',
+    district: 'Nashik Central',
+    state: 'Maharashtra',
+    phone: '',
+    hospital: '',
+    qualification: '',
+    password: '',
+  });
+  const [provisionedSuccessCard, setProvisionedSuccessCard] = useState<any | null>(null);
+
+  // Role Edit Modal
+  const [roleModalPersonnel, setRoleModalPersonnel] = useState<PersonnelItem | null>(null);
+  const [selectedNewRole, setSelectedNewRole] = useState<string>('observer');
+  const [roleUpdating, setRoleUpdating] = useState<boolean>(false);
+
+  // Credentials Modal
+  const [credsModalPersonnel, setCredsModalPersonnel] = useState<PersonnelItem | null>(null);
+  const [newResetPassword, setNewResetPassword] = useState<string>('');
+  const [resetCredsLoading, setResetCredsLoading] = useState<boolean>(false);
+  const [copiedStatus, setCopiedStatus] = useState<string | null>(null);
 
   // Broadcast Notification & Quote State
   const [isBroadcastModalOpen, setIsBroadcastModalOpen] = useState<boolean>(false);
@@ -379,6 +419,16 @@ export const AdminPanel: React.FC = () => {
         ];
       }
 
+      // Strictly ensure institutional staff are never listed in the citizen beneficiaries table
+      const institutionalRoles = ['admin', 'observer', 'psychiatrist', 'doctor', 'ngo', 'case_worker', 'counsellor'];
+      combinedUsers = combinedUsers.filter((u: any) => {
+        const role = (u.role || '').toLowerCase();
+        const name = (u.full_name || '').toLowerCase();
+        if (institutionalRoles.includes(role)) return false;
+        if (name.includes('administrator') || name.includes('dr.') || name.includes('director') || name.includes('nodal officer') || name.includes('psychiatrist') || name.includes('observer')) return false;
+        return true;
+      });
+
       setUsersList(combinedUsers);
       setAvailableObservers(observers);
     } catch {
@@ -387,9 +437,203 @@ export const AdminPanel: React.FC = () => {
     }
   };
 
+  const loadPersonnel = async () => {
+    setPersonnelLoading(true);
+    try {
+      const data = await authApi.getInstitutionalPersonnel();
+      if (data && Array.isArray(data) && data.length > 0) {
+        setPersonnelList(data);
+      } else {
+        setPersonnelList([
+          {
+            id: 'PERS-ADM-001',
+            full_name: 'System Administrator (Nodal Head)',
+            email: 'admin@anvaya.in',
+            role: 'admin',
+            staff_id: 'ADM-2026-001',
+            designation: 'MoSJE Chief Surveillance Director',
+            district: 'National HQ',
+            state: 'New Delhi',
+            phone: '+91 11 2338 0001',
+            hospital: 'MoSJE Atrocity Surveillance Command Centre',
+            qualification: 'Director General of Social Justice & Empowerment',
+            status: 'Active',
+            plain_password_hint: 'admin123',
+          },
+          {
+            id: 'PERS-OBS-001',
+            full_name: 'Dr. Anita Joshi, MD',
+            email: 'anita.joshi@anvaya.gov.in',
+            role: 'observer',
+            staff_id: 'OBS-2026-001',
+            designation: 'District Nodal Care Officer & L1 Telepsychiatrist',
+            district: 'Nashik Central',
+            state: 'Maharashtra',
+            phone: '+91 98230 11416',
+            hospital: 'District Nodal Mental Health Unit',
+            qualification: 'MD Psychiatry (NIMHANS), Tele-MANAS Lead',
+            active_cases: 14,
+            status: 'Active',
+            plain_password_hint: 'Observer@2026',
+          },
+          {
+            id: 'PERS-PSY-002',
+            full_name: 'Dr. Ramesh Verma, DPM',
+            email: 'ramesh.verma@anvaya.gov.in',
+            role: 'psychiatrist',
+            staff_id: 'PSY-2026-002',
+            designation: 'Senior Consultant Psychiatrist & Clinical Lead',
+            district: 'Aurangabad',
+            state: 'Maharashtra',
+            phone: '+91 94220 55678',
+            hospital: 'Government Medical College & Hospital',
+            qualification: 'DPM, Forensic & Atrocity Trauma Specialist',
+            active_cases: 8,
+            status: 'Active',
+            plain_password_hint: 'Psychiatrist@2026',
+          },
+          {
+            id: 'PERS-NGO-003',
+            full_name: 'Priya Sharma, MSW',
+            email: 'priya.sharma@anvaya.gov.in',
+            role: 'ngo',
+            staff_id: 'NGO-2026-003',
+            designation: 'MoSJE Community Rehabilitation Specialist',
+            district: 'Nagpur Division',
+            state: 'Maharashtra',
+            phone: '+91 98110 99887',
+            hospital: 'MoSJE District Protection Special Cell',
+            qualification: 'MSW, Legal & Psychosocial Rehabilitation Lead',
+            active_cases: 6,
+            status: 'Active',
+            plain_password_hint: 'Community@2026',
+          },
+          {
+            id: 'PERS-OBS-004',
+            full_name: 'Rajesh Kumar, MSW',
+            email: 'rajesh.kumar@anvaya.gov.in',
+            role: 'observer',
+            staff_id: 'OBS-2026-004',
+            designation: 'Senior L1 Field Health Observer & Case Officer',
+            district: 'Nashik Rural',
+            state: 'Maharashtra',
+            phone: '+91 98450 22334',
+            hospital: 'Rural Primary Health Extension Cell',
+            qualification: 'Master of Social Work (TISS), Community Trauma Lead',
+            active_cases: 9,
+            status: 'Active',
+            plain_password_hint: 'Observer@2026',
+          },
+        ]);
+      }
+    } catch {
+    } finally {
+      setPersonnelLoading(false);
+    }
+  };
+
   useEffect(() => {
     loadUsersAndObservers();
+    loadPersonnel();
   }, []);
+
+  const copyToClipboard = (text: string, label: string) => {
+    try {
+      navigator.clipboard.writeText(text);
+      setCopiedStatus(label);
+      setTimeout(() => setCopiedStatus(null), 2500);
+    } catch {
+      alert(`Copied: ${text}`);
+    }
+  };
+
+  const handleCreatePersonnel = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPersonnelForm.full_name.trim() || !newPersonnelForm.email.trim()) {
+      alert('Please provide full name and official email address.');
+      return;
+    }
+    setProvisionSubmitting(true);
+    try {
+      const res = await authApi.createPersonnel(newPersonnelForm);
+      if (res && res.personnel) {
+        setProvisionedSuccessCard(res.personnel);
+        setPersonnelList((prev) => [res.personnel, ...prev]);
+        setAssignmentNotice(`✅ Successfully provisioned ${res.personnel.full_name} (${res.personnel.role}) with Staff ID ${res.personnel.staff_id}`);
+        setTimeout(() => setAssignmentNotice(null), 6000);
+        // Reset form
+        setNewPersonnelForm({
+          full_name: '',
+          email: '',
+          role: 'observer',
+          designation: '',
+          district: 'Nashik Central',
+          state: 'Maharashtra',
+          phone: '',
+          hospital: '',
+          qualification: '',
+          password: '',
+        });
+      } else {
+        await loadPersonnel();
+        setIsProvisionModalOpen(false);
+      }
+    } catch (err: any) {
+      alert(`Provisioning failed: ${err.message || 'Please check input fields.'}`);
+    } finally {
+      setProvisionSubmitting(false);
+    }
+  };
+
+  const handleUpdateRole = async () => {
+    if (!roleModalPersonnel || !selectedNewRole) return;
+    setRoleUpdating(true);
+    try {
+      const uid = roleModalPersonnel.user_id || roleModalPersonnel.id;
+      await authApi.updateUserRole(uid, selectedNewRole);
+      setPersonnelList((prev) =>
+        prev.map((p) =>
+          (p.id === roleModalPersonnel.id || p.user_id === roleModalPersonnel.user_id)
+            ? { ...p, role: selectedNewRole }
+            : p
+        )
+      );
+      setAssignmentNotice(`✅ Role updated to "${selectedNewRole.toUpperCase()}" for ${roleModalPersonnel.full_name}`);
+      setTimeout(() => setAssignmentNotice(null), 5000);
+      setRoleModalPersonnel(null);
+    } catch (err: any) {
+      alert(`Failed to update role: ${err.message || 'Unknown error'}`);
+    } finally {
+      setRoleUpdating(false);
+    }
+  };
+
+  const handleResetCredentials = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!credsModalPersonnel) return;
+    setResetCredsLoading(true);
+    try {
+      const uid = credsModalPersonnel.user_id || credsModalPersonnel.id;
+      const res = await authApi.resetUserCredentials(uid, newResetPassword || undefined);
+      if (res && res.new_password) {
+        setPersonnelList((prev) =>
+          prev.map((p) =>
+            (p.id === credsModalPersonnel.id || p.user_id === credsModalPersonnel.user_id)
+              ? { ...p, plain_password_hint: res.new_password }
+              : p
+          )
+        );
+        setCredsModalPersonnel((prev) => prev ? { ...prev, plain_password_hint: res.new_password } : null);
+        setAssignmentNotice(`✅ Password reset successfully for ${credsModalPersonnel.full_name}. New password: ${res.new_password}`);
+        setTimeout(() => setAssignmentNotice(null), 8000);
+        setNewResetPassword('');
+      }
+    } catch (err: any) {
+      alert(`Failed to reset credentials: ${err.message || 'Unknown error'}`);
+    } finally {
+      setResetCredsLoading(false);
+    }
+  };
 
   const handleConfirmAssignment = async () => {
     if (!assignModalUser || !selectedObserverId) return;
@@ -722,6 +966,12 @@ export const AdminPanel: React.FC = () => {
             label: 'Beneficiaries & Observers',
             icon: Users,
             badge: usersList.length ? `${usersList.length}` : undefined,
+          },
+          {
+            id: 'personnel',
+            label: 'Personnel & Role Governance',
+            icon: ShieldCheck,
+            badge: personnelList.length ? `${personnelList.length}` : undefined,
           },
           {
             id: 'reports',
@@ -1075,6 +1325,330 @@ export const AdminPanel: React.FC = () => {
                                   <span>Assign Observer</span>
                                 </button>
                               )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tab: Institutional Personnel & Role Governance */}
+      {activeTab === 'personnel' && (
+        <div className="space-y-6 animate-fadeIn">
+          {/* Real-time Notice Alert Banner */}
+          {assignmentNotice && (
+            <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-bold flex items-center justify-between shadow-xs animate-fadeIn">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+                <span>{assignmentNotice}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAssignmentNotice(null)}
+                className="p-1 rounded-lg hover:bg-emerald-100 text-emerald-700 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          {/* Institutional Governance Header & Macro Counters */}
+          <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200 shadow-xs space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
+                    <ShieldCheck className="w-5 h-5 text-indigo-600" />
+                    <span>Institutional Personnel & Role Governance Hub</span>
+                  </h3>
+                  <span className="text-[10px] font-black uppercase text-indigo-700 bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 rounded-full">
+                    RBAC Staffing Command
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">
+                  Provision care officers, assign operational roles, inspect & reset access credentials, and monitor duty rosters across districts.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setProvisionedSuccessCard(null);
+                    setIsProvisionModalOpen(true);
+                  }}
+                  className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:opacity-95 text-white text-xs font-black rounded-xl flex items-center gap-1.5 shadow-sm shadow-indigo-600/20 transition cursor-pointer"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  <span>Provision New Personnel</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={loadPersonnel}
+                  className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-xl flex items-center gap-1.5 transition cursor-pointer"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${personnelLoading ? 'animate-spin' : ''}`} />
+                  <span>Refresh Staff</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Metric Counters Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+              <div className="p-3.5 rounded-2xl bg-indigo-50/70 border border-indigo-200">
+                <span className="text-[10px] uppercase font-black tracking-wider text-indigo-800 block">
+                  Total Personnel
+                </span>
+                <span className="text-2xl font-black text-indigo-950 font-mono mt-0.5 block">
+                  {personnelList.length}
+                </span>
+                <span className="text-[11px] text-indigo-700 font-medium">Active Duty Roster</span>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-purple-50/80 border border-purple-200">
+                <span className="text-[10px] uppercase font-black tracking-wider text-purple-800 block">
+                  Health Observers
+                </span>
+                <span className="text-2xl font-black text-purple-900 font-mono mt-0.5 block">
+                  {personnelList.filter((p) => p.role === 'observer').length}
+                </span>
+                <span className="text-[11px] text-purple-700 font-bold">L1 / L2 Field Officers</span>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-cyan-50/80 border border-cyan-200">
+                <span className="text-[10px] uppercase font-black tracking-wider text-cyan-800 block">
+                  Psychiatrists & MDs
+                </span>
+                <span className="text-2xl font-black text-cyan-900 font-mono mt-0.5 block">
+                  {personnelList.filter((p) => p.role === 'psychiatrist' || p.role === 'doctor').length}
+                </span>
+                <span className="text-[11px] text-cyan-700 font-bold">Clinical Care Leads</span>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200">
+                <span className="text-[10px] uppercase font-black tracking-wider text-amber-800 block">
+                  NGO & Social Workers
+                </span>
+                <span className="text-2xl font-black text-amber-950 font-mono mt-0.5 block">
+                  {personnelList.filter((p) => p.role === 'ngo' || p.role === 'case_worker').length}
+                </span>
+                <span className="text-[11px] text-amber-700 font-medium">Rehabilitation Cells</span>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-rose-50/80 border border-rose-200 col-span-2 sm:col-span-1">
+                <span className="text-[10px] uppercase font-black tracking-wider text-rose-800 block">
+                  System Admins
+                </span>
+                <span className="text-2xl font-black text-rose-950 font-mono mt-0.5 block">
+                  {personnelList.filter((p) => p.role === 'admin').length}
+                </span>
+                <span className="text-[11px] text-rose-700 font-medium">Nodal Directors</span>
+              </div>
+            </div>
+
+            {/* Filter & Search Controls */}
+            <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
+              <div className="relative flex-1 w-full">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Search staff by name, email, staff ID, designation, or district..."
+                  value={personnelSearchFilter}
+                  onChange={(e) => setPersonnelSearchFilter(e.target.value)}
+                  className="w-full pl-9.5 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-hidden focus:border-indigo-500 focus:bg-white transition"
+                />
+              </div>
+
+              <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0">
+                {[
+                  { id: 'ALL', label: `All (${personnelList.length})` },
+                  { id: 'observer', label: `Observers (${personnelList.filter((p) => p.role === 'observer').length})` },
+                  { id: 'psychiatrist', label: `Psychiatrists (${personnelList.filter((p) => p.role === 'psychiatrist').length})` },
+                  { id: 'doctor', label: `Doctors (${personnelList.filter((p) => p.role === 'doctor').length})` },
+                  { id: 'ngo', label: `NGOs / Social (${personnelList.filter((p) => p.role === 'ngo' || p.role === 'case_worker').length})` },
+                  { id: 'admin', label: `Admins (${personnelList.filter((p) => p.role === 'admin').length})` },
+                ].map((filterOpt) => (
+                  <button
+                    key={filterOpt.id}
+                    type="button"
+                    onClick={() => setPersonnelRoleFilter(filterOpt.id)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition cursor-pointer flex-shrink-0 ${
+                      personnelRoleFilter === filterOpt.id
+                        ? 'bg-indigo-600 text-white shadow-xs'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-black'
+                    }`}
+                  >
+                    {filterOpt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Personnel Registry Table */}
+            <div className="overflow-x-auto pt-2">
+              {personnelLoading && personnelList.length === 0 ? (
+                <div className="space-y-3 py-2 animate-fade-in">
+                  <div className="grid grid-cols-5 gap-3 p-3 bg-slate-50 rounded-xl">
+                    {[...Array(5)].map((_, i) => (
+                      <div key={i} className="h-3.5 rounded-md skeleton-box animate-shimmer" />
+                    ))}
+                  </div>
+                  {[...Array(4)].map((_, r) => (
+                    <div key={r} className="grid grid-cols-5 gap-3 p-3 border-b border-slate-100 items-center">
+                      <div className="w-28 h-3 rounded-md skeleton-box animate-shimmer" />
+                      <div className="w-20 h-5 rounded-full skeleton-box animate-shimmer" />
+                      <div className="w-28 h-3 rounded-md skeleton-box animate-shimmer" />
+                      <div className="w-24 h-3 rounded-md skeleton-box animate-shimmer" />
+                      <div className="w-20 h-6 rounded-xl skeleton-box animate-shimmer" />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-slate-500 font-extrabold uppercase text-[10px] tracking-wider bg-slate-50/60">
+                      <th className="py-3 px-3.5 rounded-l-xl">Staff Member & ID</th>
+                      <th className="py-3 px-3">Role & Privilege</th>
+                      <th className="py-3 px-3">Jurisdiction & Center</th>
+                      <th className="py-3 px-3">Official Contact</th>
+                      <th className="py-3 px-3.5 text-right rounded-r-xl">Governance Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 font-medium">
+                    {personnelList
+                      .filter((p) => {
+                        if (personnelRoleFilter !== 'ALL') {
+                          if (personnelRoleFilter === 'ngo') {
+                            if (p.role !== 'ngo' && p.role !== 'case_worker') return false;
+                          } else if (p.role !== personnelRoleFilter) {
+                            return false;
+                          }
+                        }
+                        if (!personnelSearchFilter.trim()) return true;
+                        const q = personnelSearchFilter.toLowerCase();
+                        return (
+                          p.full_name?.toLowerCase().includes(q) ||
+                          p.email?.toLowerCase().includes(q) ||
+                          p.staff_id?.toLowerCase().includes(q) ||
+                          p.designation?.toLowerCase().includes(q) ||
+                          p.district?.toLowerCase().includes(q) ||
+                          p.hospital?.toLowerCase().includes(q) ||
+                          p.role?.toLowerCase().includes(q)
+                        );
+                      })
+                      .map((person) => {
+                        const getRoleBadge = (role: string) => {
+                          switch (role) {
+                            case 'admin':
+                              return { label: 'Administrator', bg: 'bg-rose-50 text-rose-800 border-rose-200' };
+                            case 'observer':
+                              return { label: 'Health Observer (L1/L2)', bg: 'bg-purple-50 text-purple-800 border-purple-200' };
+                            case 'psychiatrist':
+                              return { label: 'Clinical Psychiatrist', bg: 'bg-cyan-50 text-cyan-800 border-cyan-200' };
+                            case 'doctor':
+                              return { label: 'Medical Doctor', bg: 'bg-blue-50 text-blue-800 border-blue-200' };
+                            case 'ngo':
+                              return { label: 'NGO / Rehabilitation', bg: 'bg-amber-50 text-amber-900 border-amber-200' };
+                            case 'case_worker':
+                              return { label: 'Case Officer', bg: 'bg-teal-50 text-teal-800 border-teal-200' };
+                            default:
+                              return { label: role.toUpperCase(), bg: 'bg-slate-100 text-slate-800 border-slate-200' };
+                          }
+                        };
+                        const badge = getRoleBadge(person.role);
+
+                        return (
+                          <tr key={person.id || person.staff_id} className="hover:bg-indigo-50/30 transition">
+                            <td className="py-3.5 px-3.5">
+                              <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-2xl bg-indigo-100 text-indigo-800 font-extrabold flex items-center justify-center text-xs flex-shrink-0 shadow-2xs">
+                                  {person.full_name
+                                    .split(' ')
+                                    .map((n) => n[0])
+                                    .join('')
+                                    .slice(0, 2)
+                                    .toUpperCase() || 'ST'}
+                                </div>
+                                <div>
+                                  <div className="font-extrabold text-slate-900 text-xs sm:text-sm flex items-center gap-1.5">
+                                    <span>{person.full_name}</span>
+                                    <span className="text-[10px] font-mono font-bold bg-slate-100 text-slate-700 px-1.5 py-0.2 rounded-md border border-slate-200">
+                                      {person.staff_id || person.id}
+                                    </span>
+                                  </div>
+                                  <span className="text-[11px] text-slate-500 font-medium">
+                                    {person.designation || person.qualification || 'Institutional Personnel'}
+                                  </span>
+                                </div>
+                              </div>
+                            </td>
+
+                            <td className="py-3.5 px-3">
+                              <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-black border ${badge.bg}`}>
+                                <Shield className="w-3 h-3" />
+                                <span>{badge.label}</span>
+                              </span>
+                              {person.active_cases !== undefined && (
+                                <span className="text-[10px] text-slate-500 font-mono block mt-1">
+                                  ⚡ {person.active_cases} Active Assigned Cases
+                                </span>
+                              )}
+                            </td>
+
+                            <td className="py-3.5 px-3">
+                              <div className="flex items-center gap-1.5 text-slate-800 font-bold">
+                                <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                                <span>{person.district || 'National HQ'}</span>
+                              </div>
+                              <span className="text-[10px] text-slate-500 block truncate max-w-[180px]">
+                                {person.hospital || person.state || 'Institutional Command'}
+                              </span>
+                            </td>
+
+                            <td className="py-3.5 px-3">
+                              <div className="flex items-center gap-1.5 text-slate-700">
+                                <Mail className="w-3.5 h-3.5 text-slate-400" />
+                                <span className="text-xs font-mono">{person.email}</span>
+                              </div>
+                              <span className="text-[10px] text-slate-500 font-mono block">
+                                {person.phone ? `📞 ${person.phone}` : 'No phone linked'}
+                              </span>
+                            </td>
+
+                            <td className="py-3.5 px-3.5 text-right">
+                              <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setCredsModalPersonnel(person);
+                                    setNewResetPassword('');
+                                  }}
+                                  className="px-2.5 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-xs font-bold transition cursor-pointer flex items-center gap-1 shadow-2xs"
+                                  title="View and Reset Credentials"
+                                >
+                                  <Key className="w-3.5 h-3.5 text-amber-700" />
+                                  <span>Credentials</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setRoleModalPersonnel(person);
+                                    setSelectedNewRole(person.role || 'observer');
+                                  }}
+                                  className="px-2.5 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 text-xs font-bold transition cursor-pointer flex items-center gap-1 shadow-2xs"
+                                  title="Change User Role"
+                                >
+                                  <UserCog className="w-3.5 h-3.5 text-indigo-600" />
+                                  <span>Assign Role</span>
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         );
@@ -2174,6 +2748,461 @@ export const AdminPanel: React.FC = () => {
             setSelectedReport(null);
           }}
         />
+      )}
+
+      {/* Modal: Provision New Institutional Staff */}
+      {isProvisionModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-md animate-fadeIn">
+          <div className="anvaya-card rounded-3xl max-w-2xl w-full p-5 sm:p-7 shadow-2xl border-2 border-indigo-200 bg-white space-y-5 max-h-[92vh] overflow-y-auto animate-tile-come-up relative">
+            <button
+              type="button"
+              onClick={() => {
+                setIsProvisionModalOpen(false);
+                setProvisionedSuccessCard(null);
+              }}
+              className="absolute top-5 right-5 p-2 rounded-full hover:bg-slate-100 text-slate-500 hover:text-black transition cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {provisionedSuccessCard ? (
+              <div className="space-y-5">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center flex-shrink-0 shadow-md shadow-emerald-600/20">
+                    <CheckCircle2 className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                      Provisioning Complete
+                    </span>
+                    <h3 className="text-lg sm:text-xl font-black text-slate-950 mt-0.5">
+                      Credentials Ready for Handover
+                    </h3>
+                  </div>
+                </div>
+
+                <div className="p-5 rounded-2xl bg-gradient-to-br from-indigo-900 via-slate-900 to-indigo-950 text-white space-y-4 border border-indigo-700/50 shadow-xl">
+                  <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-indigo-300">Staff Member</span>
+                      <h4 className="text-base font-black text-white">{provisionedSuccessCard.full_name}</h4>
+                    </div>
+                    <span className="text-xs font-mono font-black bg-indigo-500/30 text-indigo-200 px-3 py-1 rounded-xl border border-indigo-400/30">
+                      {provisionedSuccessCard.staff_id}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    <div className="p-3 rounded-xl bg-white/5 border border-white/10">
+                      <span className="text-[10px] text-slate-400 font-bold block uppercase">Assigned Role</span>
+                      <span className="font-extrabold text-amber-300 uppercase">{provisionedSuccessCard.role}</span>
+                    </div>
+                    <div className="p-3 rounded-xl bg-white/5 border border-white/10">
+                      <span className="text-[10px] text-slate-400 font-bold block uppercase">Jurisdiction / Hospital</span>
+                      <span className="font-bold text-slate-200 truncate block">{provisionedSuccessCard.hospital || provisionedSuccessCard.district}</span>
+                    </div>
+                    <div className="p-3 rounded-xl bg-white/5 border border-white/10 sm:col-span-2">
+                      <span className="text-[10px] text-slate-400 font-bold block uppercase">Login Email (Username)</span>
+                      <span className="font-mono font-bold text-white text-sm">{provisionedSuccessCard.email}</span>
+                    </div>
+                    <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 sm:col-span-2">
+                      <span className="text-[10px] text-emerald-300 font-bold block uppercase">Temporary Initial Password</span>
+                      <span className="font-mono font-black text-emerald-200 text-sm tracking-wider">
+                        {provisionedSuccessCard.plain_password_hint || 'Staff@2026!489'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <span className="text-[11px] text-slate-400">
+                      💡 Share these credentials securely with the designated institutional officer.
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        copyToClipboard(
+                          `Official Anvaya Institutional Staff Credentials:\nName: ${provisionedSuccessCard.full_name}\nRole: ${provisionedSuccessCard.role}\nStaff ID: ${provisionedSuccessCard.staff_id}\nEmail / Username: ${provisionedSuccessCard.email}\nInitial Password: ${provisionedSuccessCard.plain_password_hint || 'Staff@2026!489'}\nJurisdiction: ${provisionedSuccessCard.district || 'HQ'}`,
+                          'creds'
+                        )
+                      }
+                      className="px-4 py-2 bg-indigo-500 hover:bg-indigo-400 text-white text-xs font-black rounded-xl flex items-center gap-1.5 transition cursor-pointer shadow-md self-start sm:self-auto"
+                    >
+                      {copiedStatus === 'creds' ? <CheckCheck className="w-4 h-4 text-emerald-300" /> : <Copy className="w-4 h-4" />}
+                      <span>{copiedStatus === 'creds' ? 'Copied!' : 'Copy Credentials'}</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-2.5 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setProvisionedSuccessCard(null)}
+                    className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs hover:bg-slate-100 transition cursor-pointer"
+                  >
+                    Provision Another Staff Member
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsProvisionModalOpen(false);
+                      setProvisionedSuccessCard(null);
+                    }}
+                    className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs transition cursor-pointer shadow-md"
+                  >
+                    Done
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={handleCreatePersonnel} className="space-y-4">
+                <div className="flex items-center gap-3.5 pr-8">
+                  <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center flex-shrink-0 shadow-md shadow-indigo-600/20">
+                    <UserPlus className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-black uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-full border border-indigo-200">
+                      Staff Provisioning Portal
+                    </span>
+                    <h3 className="text-lg sm:text-xl font-black text-slate-950 mt-0.5">
+                      Provision New Institutional Personnel
+                    </h3>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-xs">
+                  <div>
+                    <label className="font-bold text-slate-700 block mb-1">Full Name & Honorific *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Dr. Rajesh Sen, MD"
+                      value={newPersonnelForm.full_name}
+                      onChange={(e) => setNewPersonnelForm({ ...newPersonnelForm, full_name: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="font-bold text-slate-700 block mb-1">Official Email Address *</label>
+                    <input
+                      type="email"
+                      required
+                      placeholder="e.g. rajesh.sen@anvaya.gov.in"
+                      value={newPersonnelForm.email}
+                      onChange={(e) => setNewPersonnelForm({ ...newPersonnelForm, email: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 font-mono font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="font-bold text-slate-700 block mb-1">Institutional Role & Privilege *</label>
+                    <select
+                      value={newPersonnelForm.role}
+                      onChange={(e) => setNewPersonnelForm({ ...newPersonnelForm, role: e.target.value as any })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                    >
+                      <option value="observer">Health Observer (L1/L2 Field Officer)</option>
+                      <option value="psychiatrist">Clinical Psychiatrist (Tele-MANAS Lead)</option>
+                      <option value="doctor">Medical Doctor / Medical Officer</option>
+                      <option value="ngo">NGO / Psychosocial Rehabilitation Specialist</option>
+                      <option value="case_worker">Community Case Officer</option>
+                      <option value="admin">System Administrator / Nodal Director</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="font-bold text-slate-700 block mb-1">Official Designation</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Senior Trauma & Atrocity Care Specialist"
+                      value={newPersonnelForm.designation}
+                      onChange={(e) => setNewPersonnelForm({ ...newPersonnelForm, designation: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="font-bold text-slate-700 block mb-1">Assigned District</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Nashik Central"
+                      value={newPersonnelForm.district}
+                      onChange={(e) => setNewPersonnelForm({ ...newPersonnelForm, district: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="font-bold text-slate-700 block mb-1">State / Union Territory</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Maharashtra"
+                      value={newPersonnelForm.state}
+                      onChange={(e) => setNewPersonnelForm({ ...newPersonnelForm, state: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="font-bold text-slate-700 block mb-1">Contact Phone</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. +91 98230 55112"
+                      value={newPersonnelForm.phone}
+                      onChange={(e) => setNewPersonnelForm({ ...newPersonnelForm, phone: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="font-bold text-slate-700 block mb-1">Hospital / Protection Special Cell</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. District Nodal Mental Health Unit"
+                      value={newPersonnelForm.hospital}
+                      onChange={(e) => setNewPersonnelForm({ ...newPersonnelForm, hospital: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="font-bold text-slate-700 block mb-1">Initial Password (Optional - leave blank to auto-generate)</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        placeholder="Leave blank for auto-generated strong password"
+                        value={newPersonnelForm.password}
+                        onChange={(e) => setNewPersonnelForm({ ...newPersonnelForm, password: e.target.value })}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const randomPass = 'Staff@' + Math.floor(1000 + Math.random() * 9000) + '!';
+                          setNewPersonnelForm({ ...newPersonnelForm, password: randomPass });
+                        }}
+                        className="px-3 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl whitespace-nowrap text-xs cursor-pointer"
+                      >
+                        🎲 Generate
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-200">
+                  <button
+                    type="button"
+                    onClick={() => setIsProvisionModalOpen(false)}
+                    className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs hover:bg-slate-100 transition cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="submit"
+                    disabled={provisionSubmitting}
+                    className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs transition shadow-md shadow-indigo-600/20 cursor-pointer flex items-center gap-1.5"
+                  >
+                    <Check className="w-4 h-4" />
+                    <span>{provisionSubmitting ? 'Provisioning Staff...' : 'Create & Generate Credentials'}</span>
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Change User Role */}
+      {roleModalPersonnel && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-md animate-fadeIn">
+          <div className="anvaya-card rounded-3xl max-w-lg w-full p-5 sm:p-7 shadow-2xl border-2 border-indigo-200 bg-white space-y-5 animate-tile-come-up relative">
+            <button
+              type="button"
+              onClick={() => setRoleModalPersonnel(null)}
+              className="absolute top-5 right-5 p-2 rounded-full hover:bg-slate-100 text-slate-500 hover:text-black transition cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3.5 pr-8">
+              <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center flex-shrink-0 shadow-md shadow-indigo-600/20">
+                <UserCog className="w-6 h-6" />
+              </div>
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-full border border-indigo-200">
+                  Role Governance
+                </span>
+                <h3 className="text-lg sm:text-xl font-black text-slate-950 mt-0.5">
+                  Update Role for {roleModalPersonnel.full_name}
+                </h3>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-1 text-xs">
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-bold uppercase text-[10px]">Staff ID:</span>
+                <span className="font-mono font-bold text-slate-900">{roleModalPersonnel.staff_id || roleModalPersonnel.id}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-bold uppercase text-[10px]">Email:</span>
+                <span className="font-mono text-slate-900">{roleModalPersonnel.email}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-bold uppercase text-[10px]">Current Role:</span>
+                <span className="font-bold text-indigo-700 uppercase">{roleModalPersonnel.role}</span>
+              </div>
+            </div>
+
+            <div className="space-y-2 text-xs">
+              <label className="font-black uppercase tracking-wider text-slate-700 block">
+                Select Target Institutional Role:
+              </label>
+              <select
+                value={selectedNewRole}
+                onChange={(e) => setSelectedNewRole(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer text-xs"
+              >
+                <option value="observer">Health Observer (L1/L2 Field Officer)</option>
+                <option value="psychiatrist">Clinical Psychiatrist (Tele-MANAS Lead)</option>
+                <option value="doctor">Medical Doctor / Medical Officer</option>
+                <option value="ngo">NGO / Psychosocial Rehabilitation Specialist</option>
+                <option value="case_worker">Community Case Officer</option>
+                <option value="admin">System Administrator / Nodal Director</option>
+              </select>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-200">
+              <button
+                type="button"
+                onClick={() => setRoleModalPersonnel(null)}
+                className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs hover:bg-slate-100 transition cursor-pointer"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                disabled={roleUpdating}
+                onClick={handleUpdateRole}
+                className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs transition shadow-md shadow-indigo-600/20 cursor-pointer flex items-center gap-1.5"
+              >
+                <Check className="w-4 h-4" />
+                <span>{roleUpdating ? 'Saving...' : 'Confirm Role Update'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: View & Reset Credentials */}
+      {credsModalPersonnel && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-md animate-fadeIn">
+          <div className="anvaya-card rounded-3xl max-w-lg w-full p-5 sm:p-7 shadow-2xl border-2 border-amber-200 bg-white space-y-5 animate-tile-come-up relative">
+            <button
+              type="button"
+              onClick={() => setCredsModalPersonnel(null)}
+              className="absolute top-5 right-5 p-2 rounded-full hover:bg-slate-100 text-slate-500 hover:text-black transition cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3.5 pr-8">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500 text-white flex items-center justify-center flex-shrink-0 shadow-md shadow-amber-500/20">
+                <Key className="w-6 h-6" />
+              </div>
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-wider text-amber-800 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200">
+                  Credential Management
+                </span>
+                <h3 className="text-lg sm:text-xl font-black text-slate-950 mt-0.5">
+                  Staff Credentials: {credsModalPersonnel.full_name}
+                </h3>
+              </div>
+            </div>
+
+            {/* Credentials Info Card */}
+            <div className="p-4 rounded-2xl bg-slate-900 text-white space-y-3 text-xs border border-slate-800 shadow-md">
+              <div className="flex justify-between items-center border-b border-white/10 pb-2">
+                <span className="text-slate-400 font-bold uppercase text-[10px]">Staff ID:</span>
+                <span className="font-mono font-black text-amber-300">{credsModalPersonnel.staff_id || credsModalPersonnel.id}</span>
+              </div>
+              <div className="flex justify-between items-center border-b border-white/10 pb-2">
+                <span className="text-slate-400 font-bold uppercase text-[10px]">Login Email:</span>
+                <span className="font-mono font-bold text-white">{credsModalPersonnel.email}</span>
+              </div>
+              <div className="flex justify-between items-center border-b border-white/10 pb-2">
+                <span className="text-slate-400 font-bold uppercase text-[10px]">Assigned Role:</span>
+                <span className="font-black text-cyan-300 uppercase">{credsModalPersonnel.role}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-400 font-bold uppercase text-[10px]">Current Password:</span>
+                <span className="font-mono font-bold text-emerald-300">
+                  {credsModalPersonnel.plain_password_hint || 'Encrypted (bcrypt hash)'}
+                </span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() =>
+                copyToClipboard(
+                  `Anvaya Staff Credentials:\nStaff Name: ${credsModalPersonnel.full_name}\nRole: ${credsModalPersonnel.role}\nStaff ID: ${credsModalPersonnel.staff_id || credsModalPersonnel.id}\nEmail: ${credsModalPersonnel.email}\nPassword: ${credsModalPersonnel.plain_password_hint || 'Contact Admin'}`,
+                  'modal-creds'
+                )
+              }
+              className="w-full py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition cursor-pointer"
+            >
+              {copiedStatus === 'modal-creds' ? <CheckCheck className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+              <span>{copiedStatus === 'modal-creds' ? 'Credentials Copied!' : 'Copy Staff Credentials to Clipboard'}</span>
+            </button>
+
+            {/* Reset Password Form */}
+            <form onSubmit={handleResetCredentials} className="space-y-3 pt-2 border-t border-slate-200">
+              <label className="text-xs font-black uppercase tracking-wider text-slate-700 block">
+                Reset / Overwrite Password:
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  placeholder="New password (or leave blank to auto-generate)"
+                  value={newResetPassword}
+                  onChange={(e) => setNewResetPassword(e.target.value)}
+                  className="flex-1 px-3.5 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const randomPass = 'Reset@' + Math.floor(1000 + Math.random() * 9000) + '!';
+                    setNewResetPassword(randomPass);
+                  }}
+                  className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl whitespace-nowrap text-xs cursor-pointer"
+                >
+                  🎲 Random
+                </button>
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setCredsModalPersonnel(null)}
+                  className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs hover:bg-slate-100 transition cursor-pointer"
+                >
+                  Close
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={resetCredsLoading}
+                  className="px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-black text-xs transition shadow-md shadow-amber-600/20 cursor-pointer flex items-center gap-1.5"
+                >
+                  <Lock className="w-3.5 h-3.5" />
+                  <span>{resetCredsLoading ? 'Updating...' : 'Update Password'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );
