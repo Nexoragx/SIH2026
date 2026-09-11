@@ -31,7 +31,7 @@ import { DistressMeter } from './DistressMeter';
 import { PersonalizedActivities } from './PersonalizedActivities';
 import { CommunityWall } from './CommunityWall';
 import { DoctorDirectoryModal } from './DoctorDirectoryModal';
-import { AssessmentResultData } from '../../types';
+import { AssessmentResultData, RiskLevel } from '../../types';
 
 interface VictimDashboardProps {
   onStartCheckin: () => void;
@@ -44,6 +44,8 @@ interface VictimDashboardProps {
   onOpenTherapeutic?: () => void;
   onOpenUssdSimulator?: () => void;
   currentLang?: string;
+  initialSubTab?: 'overview' | 'exercises' | 'scale' | 'community';
+  targetExercise?: 'breathing' | 'grounding' | 'journal' | 'muscle' | 'sounds' | 'emdr';
 }
 
 export const VictimDashboard: React.FC<VictimDashboardProps> = ({
@@ -57,8 +59,16 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
   onOpenTherapeutic,
   onOpenUssdSimulator,
   currentLang = 'en',
+  initialSubTab = 'overview',
+  targetExercise,
 }) => {
-  const [activeSubTab, setActiveSubTab] = useState<'overview' | 'exercises' | 'scale' | 'community'>('overview');
+  const [activeSubTab, setActiveSubTab] = useState<'overview' | 'exercises' | 'scale' | 'community'>(initialSubTab);
+
+  useEffect(() => {
+    if (initialSubTab) {
+      setActiveSubTab(initialSubTab);
+    }
+  }, [initialSubTab]);
   const [isDoctorDirectoryOpen, setIsDoctorDirectoryOpen] = useState<boolean>(false);
 
   const [scheduleData, setScheduleData] = useState<{
@@ -202,46 +212,124 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
             });
           }
 
-          // Map backend history item to latestAssessment
-          const rawLatestScore = res.history[0]?.distress_score || 28.5;
-          const rLevel =
-            rawLatestScore > 75
-              ? 'crisis'
-              : rawLatestScore > 50
-              ? 'critical'
-              : rawLatestScore > 30
+          // Map backend history item to latestAssessment using actual database values
+          const latestDoc = res.latest_report || res.history[0];
+          const rawLatestScore = Number(latestDoc.distress_score ?? 28.5);
+
+          const rawSev = (latestDoc.severity_level || '').toUpperCase();
+          const rLevel: RiskLevel =
+            rawSev === 'CRITICAL'
+              ? (latestDoc.ambulance_108_dispatched || latestDoc.alert_triggered ? 'crisis' : 'critical')
+              : rawSev === 'HIGH'
+              ? 'high'
+              : rawSev === 'MODERATE'
               ? 'moderate'
               : 'low';
+
+          // Extract clinical assessment from DB
+          const clin = latestDoc.clinical_assessment || {};
+          const dbMadrs: number =
+            latestDoc.total_madrs ??
+            clin.total_score ??
+            clin.madrs_total ??
+            (Array.isArray(clin.answers) ? clin.answers.reduce((a: number, b: number) => a + b, 0) : null) ??
+            Math.round((rawLatestScore / 100) * 60);
+
+          const dbPhq9: number =
+            clin.phq9_score ??
+            Math.min(27, Math.round(dbMadrs * (27 / 60)));
+
+          // Extract fused multimodal contributions from DB
+          const fused = latestDoc.fused_features || {};
+          const contribs = fused.modalities_contributions || {};
+
+          let voiceScore = 0;
+          if (contribs.voice_features !== undefined) {
+            voiceScore = Math.min(10, Number(((contribs.voice_features / 15) * 10).toFixed(1)));
+          } else if (latestDoc.voice_analysis?.voice_distress_score !== undefined) {
+            voiceScore = Math.min(10, Number((latestDoc.voice_analysis.voice_distress_score / 10).toFixed(1)));
+          } else {
+            voiceScore = Number(((rawLatestScore / 100) * 10).toFixed(1));
+          }
+
+          let nlpScore = 0;
+          let contextScore = 0;
+          if (contribs.emotion_score !== undefined) {
+            nlpScore = Number(contribs.emotion_score.toFixed(1));
+          } else if (latestDoc.nlp_analysis?.nlp_distress_score !== undefined) {
+            nlpScore = Number(((latestDoc.nlp_analysis.nlp_distress_score / 100) * 15).toFixed(1));
+          } else {
+            nlpScore = Number(((rawLatestScore / 100) * 15).toFixed(1));
+          }
+
+          if (contribs.threat_indicators !== undefined || contribs.context !== undefined) {
+            contextScore = Number(((contribs.threat_indicators || contribs.context || 0)).toFixed(1));
+          } else {
+            contextScore = Number(((rawLatestScore / 100) * 15).toFixed(1));
+          }
+
+          // SHAP Explainability factors directly from database
+          const dbShapList = latestDoc.shap_explanations?.features;
+          const mappedShapFactors =
+            Array.isArray(dbShapList) && dbShapList.length > 0
+              ? dbShapList.map((f: any) => ({
+                  name: f.feature || 'Affective Burden',
+                  impact: typeof f.shap_value === 'number' ? f.shap_value : (f.points ? f.points / 100 : 0.2),
+                  description: f.impact || `Relative influence: ${f.relative_pct || Math.round((f.shap_value || 0.1) * 100)}%`,
+                }))
+              : [
+                  { name: 'Depressive Affect & Sadness', impact: 0.35, description: 'Clinical depression symptom burden' },
+                  { name: 'Circadian Sleep Latency', impact: 0.25, description: 'Sleep disruption biomarker' },
+                  { name: 'Acoustic Voice Stress & Jitter', impact: 0.15, description: 'Vocal acoustic biomarker' },
+                ];
+
+          // Temporal trend directly from database
+          const trend = latestDoc.temporal_trend || {};
+          const rawTrendDir = (trend.trend_direction || '').toLowerCase();
+          const trendDir: 'improving' | 'stable' | 'escalating' =
+            rawTrendDir.includes('escalat') || rawTrendDir.includes('worsen')
+              ? 'escalating'
+              : rawTrendDir.includes('improv')
+              ? 'improving'
+              : 'stable';
+
+          const predScore = Number(
+            trend.projected_7d_score ??
+            (trendDir === 'improving' ? Math.max(5, rawLatestScore - 4.5) : Math.min(100, rawLatestScore + 5.5))
+          );
+
+          // Recommendations from database
+          const recs = latestDoc.recommendations || {};
+          const recDays =
+            recs.checkin_interval_days ??
+            (rawLatestScore > 75 ? 1 : rawLatestScore > 50 ? 3 : 7);
+
           setLatestAssessment({
-            sessionId: res.history[0]?.session_id || 'SESS-HIST-001',
-            date: res.history[0]?.created_at || new Date().toISOString(),
-            userId: 'VICTIM-DEMO',
+            sessionId: latestDoc.session_id || 'SESSION-LIVE-DB',
+            date: latestDoc.created_at || new Date().toISOString(),
+            userId: latestDoc.victim_id || 'REGISTERED-VICTIM',
             finalDistressScore: rawLatestScore,
             riskLevel: rLevel,
-            totalMadrs: Math.round((rawLatestScore / 100) * 60 * 0.4 * 2.5),
-            phq9Equivalent: Math.round((rawLatestScore / 100) * 27 * 0.5),
-            voiceStressScore: Number(((rawLatestScore / 100) * 10).toFixed(1)),
-            nlpSentimentScore: Number(((rawLatestScore / 100) * 15).toFixed(1)),
-            contextualBonus: Number(((rawLatestScore / 100) * 15).toFixed(1)),
-            crisisFlag: rawLatestScore > 75,
-            threatFlag: rawLatestScore > 65,
-            dsm5Probable: rawLatestScore > 50,
-            shapFactors: [
-              { name: 'Sleep Latency & Fatigue Variations', impact: 0.28, description: 'Disrupted sleep pattern' },
-              { name: 'Somatic Muscle Tension & Hyper-Arousal', impact: 0.22, description: 'Trauma somatic reflex' },
-              { name: 'Acoustic Speech Pause Variance', impact: 0.15, description: 'Vocal biomarker indicator' },
-            ],
-            predictedScoreNextWeek: Math.max(10, rawLatestScore - 4.5),
-            trendVelocity: -2.1,
-            trendDirection: 'improving',
-            recommendedCheckinDays: rawLatestScore > 75 ? 2 : 7,
+            totalMadrs: dbMadrs,
+            phq9Equivalent: dbPhq9,
+            voiceStressScore: voiceScore,
+            nlpSentimentScore: nlpScore,
+            contextualBonus: contextScore,
+            crisisFlag: Boolean(latestDoc.ambulance_108_dispatched || latestDoc.alert_triggered || rawLatestScore > 75),
+            threatFlag: Boolean(latestDoc.nlp_analysis?.threat_detected || (contribs.threat_indicators ?? 0) > 10 || rawLatestScore > 65),
+            dsm5Probable: Boolean(clin.dsm5_probable_depression ?? (dbMadrs >= 20)),
+            shapFactors: mappedShapFactors,
+            predictedScoreNextWeek: predScore,
+            trendVelocity: trend.trend_velocity ?? (trendDir === 'escalating' ? 2.1 : -1.8),
+            trendDirection: trendDir,
+            recommendedCheckinDays: recDays,
             personalizedSuggestions: [
               {
-                category: 'immediate',
-                title: '4-7-8 Pranayama Breathwork',
-                description: 'Slow, deep breath cycles to relax the vagal nerve.',
-                actionLabel: 'Start Breathing',
-                actionType: 'activity',
+                category: rawLatestScore > 75 ? 'immediate' : 'coping',
+                title: recs.clinical_action ? 'Clinical Care Action' : '4-7-8 Pranayama Breathwork',
+                description: recs.clinical_action || 'Slow, deep breath cycles to relax the vagal nerve and restore parasympathetic tone.',
+                actionLabel: rawLatestScore > 75 ? 'Emergency Support' : 'Start Breathing',
+                actionType: rawLatestScore > 75 ? 'helpline' : 'activity',
               },
             ],
           });
@@ -808,6 +896,7 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
             currentLang={currentLang}
             resultData={latestAssessment}
             onOpenCounsellorChat={onOpenChat}
+            initialActivity={targetExercise}
           />
         </div>
       )}

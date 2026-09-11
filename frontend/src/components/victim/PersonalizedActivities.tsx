@@ -24,14 +24,25 @@ interface PersonalizedActivitiesProps {
   currentLang: string;
   resultData: AssessmentResultData;
   onOpenCounsellorChat?: () => void;
+  initialActivity?: 'breathing' | 'grounding' | 'journal' | 'muscle' | 'sounds' | 'emdr';
 }
 
 export const PersonalizedActivities: React.FC<PersonalizedActivitiesProps> = ({
   currentLang,
   resultData,
   onOpenCounsellorChat,
+  initialActivity,
 }) => {
-  const [activeActivity, setActiveActivity] = useState<'breathing' | 'grounding' | 'journal' | 'muscle' | 'sounds' | 'emdr'>('breathing');
+  const [activeActivity, setActiveActivity] = useState<'breathing' | 'grounding' | 'journal' | 'muscle' | 'sounds' | 'emdr'>(initialActivity || 'breathing');
+
+  useEffect(() => {
+    if (initialActivity) {
+      setActiveActivity(initialActivity);
+      if (initialActivity === 'breathing') {
+        setIsBreathingActive(true);
+      }
+    }
+  }, [initialActivity]);
 
   // 1. 4-7-8 Breathing State
   const [isBreathingActive, setIsBreathingActive] = useState<boolean>(false);

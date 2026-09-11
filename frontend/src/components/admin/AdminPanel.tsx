@@ -256,7 +256,7 @@ export const AdminPanel: React.FC = () => {
       </div>
 
       {/* Macro Stats Row */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs">
           <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
             Total Monitored Cases
@@ -284,16 +284,6 @@ export const AdminPanel: React.FC = () => {
           <div className="text-2xl sm:text-3xl font-black text-emerald-600 mt-1">94.8%</div>
           <span className="text-[11px] text-slate-600 font-medium mt-0.5 block">
             &lt; 4h for Critical Cases
-          </span>
-        </div>
-
-        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs">
-          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-            Atrocity Compensation Link
-          </span>
-          <div className="text-2xl sm:text-3xl font-black text-black mt-1">₹18.4 Cr</div>
-          <span className="text-[11px] text-slate-600 font-medium mt-0.5 block">
-            Disbursed via Direct Benefit
           </span>
         </div>
       </div>

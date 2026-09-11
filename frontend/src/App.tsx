@@ -119,6 +119,18 @@ export const App: React.FC = () => {
 
   // Citizen / Survivor flow state: 'dashboard' | 'questionnaire' | 'history' | 'result'
   const [victimStep, setVictimStep] = useState<'dashboard' | 'questionnaire' | 'history' | 'result'>('dashboard');
+  const [victimSubTab, setVictimSubTab] = useState<'overview' | 'exercises' | 'scale' | 'community'>('overview');
+  const [targetExercise, setTargetExercise] = useState<'breathing' | 'grounding' | 'journal' | 'muscle' | 'sounds' | 'emdr' | undefined>(undefined);
+
+  const handleNavigateToExercises = (exerciseType?: string) => {
+    setActiveTab('victim');
+    setVictimStep('dashboard');
+    setVictimSubTab('exercises');
+    if (exerciseType && ['breathing', 'grounding', 'journal', 'muscle', 'sounds', 'emdr'].includes(exerciseType)) {
+      setTargetExercise(exerciseType as any);
+    }
+    setIsChatbotOpen(false);
+  };
 
   // Check backend health and softly validate session on mount without logging out on network hiccup
   useEffect(() => {
@@ -756,6 +768,8 @@ export const App: React.FC = () => {
                     onOpenTherapeutic={() => setIsTherapeuticOpen(true)}
                     onOpenUssdSimulator={() => setIsUssdModalOpen(true)}
                     currentLang={currentLang}
+                    initialSubTab={victimSubTab}
+                    targetExercise={targetExercise}
                   />
                 )}
 
@@ -867,6 +881,7 @@ export const App: React.FC = () => {
         currentLang={currentLang}
         distressLevel={resultData.riskLevel}
         onTriggerCrisis={() => setIsCrisisOpen(true)}
+        onNavigateToExercises={handleNavigateToExercises}
       />
 
       {/* 1:1 Live Health Observer Chat Portal */}

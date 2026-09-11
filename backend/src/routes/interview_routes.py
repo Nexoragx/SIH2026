@@ -130,7 +130,7 @@ def get_report(
 
 @router.get("/history", summary="Get Victim Assessment History & Trajectory")
 def get_victim_history(
-    current_user: dict = Depends(get_current_user),
+    current_user: Optional[dict] = Depends(get_optional_current_user),
     db: Database = Depends(get_db)
 ):
     """

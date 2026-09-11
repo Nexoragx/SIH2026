@@ -31,6 +31,13 @@ export interface ChatMessageResponse {
   action_required: 'CONTINUE' | 'SHOW_CRISIS_SCREEN';
   support_numbers?: string[];
   timestamp: string;
+  exercise_suggestion?: {
+    type: 'breathing' | 'grounding' | 'journal' | 'sounds' | 'muscle' | 'emdr';
+    title: string;
+    description: string;
+    button_label?: string;
+    buttonLabel?: string;
+  };
 }
 
 export interface CheckinScheduleResponse {

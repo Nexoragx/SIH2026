@@ -6,16 +6,21 @@
 const HOSTED_BACKEND_URL = 'https://sih2026-frki.onrender.com/api/v1';
 
 const getBaseUrl = (): string => {
-  let url = import.meta.env.VITE_API_URL;
-  // If env URL is localhost or not set, default directly to hosted Render backend
-  if (!url || typeof url !== 'string' || url.includes('localhost') || url.includes('127.0.0.1')) {
-    return HOSTED_BACKEND_URL;
+  const envUrl = import.meta.env.VITE_API_URL;
+  if (envUrl && typeof envUrl === 'string' && envUrl.trim()) {
+    const clean = envUrl.trim().replace(/\/+$/, '');
+    return clean.endsWith('/api/v1') ? clean : `${clean}/api/v1`;
   }
-  url = url.trim().replace(/\/+$/, '');
-  if (!url.endsWith('/api/v1')) {
-    url = `${url}/api/v1`;
+
+  // When running locally in browser, connect to local backend / Vite proxy for instant <5ms responses
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    if (host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0') {
+      return '/api/v1';
+    }
   }
-  return url;
+
+  return HOSTED_BACKEND_URL;
 };
 
 const API_BASE_URL = getBaseUrl();

@@ -76,16 +76,30 @@ export interface AssessmentBackendResponse {
   created_at: string;
 }
 
+export interface AssessmentHistoryItem {
+  id: string;
+  session_id: string;
+  victim_id?: string;
+  distress_score: number;
+  severity_level: string;
+  created_at: string;
+  status: string;
+  clinical_assessment?: any;
+  total_madrs?: number;
+  fused_features?: any;
+  shap_explanations?: any;
+  temporal_trend?: any;
+  alert_triggered?: boolean;
+  ambulance_108_dispatched?: boolean;
+  recommendations?: any;
+  voice_analysis?: any;
+  nlp_analysis?: any;
+}
+
 export interface AssessmentHistoryResponse {
   total_assessments: number;
-  history: {
-    id: string;
-    session_id: string;
-    distress_score: number;
-    severity_level: string;
-    created_at: string;
-    status: string;
-  }[];
+  history: AssessmentHistoryItem[];
+  latest_report?: AssessmentHistoryItem;
 }
 
 export const assessmentApi = {

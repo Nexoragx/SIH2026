@@ -82,6 +82,12 @@ export interface ChatMessage {
   timestamp: string;
   text: string;
   isAudio?: boolean;
+  exerciseSuggestion?: {
+    type: 'breathing' | 'grounding' | 'journal' | 'sounds' | 'muscle' | 'emdr';
+    title: string;
+    description: string;
+    buttonLabel: string;
+  };
 }
 
 export interface CaseRecord {
