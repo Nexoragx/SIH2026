@@ -23,11 +23,9 @@ import {
   Bell,
   Download,
   Smartphone,
-  Laptop,
   CheckCircle2,
-  Calendar,
   Trash2,
-  Quote
+  Settings
 } from 'lucide-react';
 import { translations } from '../utils/translations';
 import { systemApi } from '../api';
@@ -67,6 +65,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const t = translations[currentLang] || translations.en;
   const [isLangOpen, setIsLangOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isAccessibilityOpen, setIsAccessibilityOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
@@ -78,11 +77,10 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [highContrast, setHighContrast] = useState<boolean>(false);
 
   const langRef = useRef<HTMLDivElement>(null);
+  const profileRef = useRef<HTMLDivElement>(null);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
   const accessibilityRef = useRef<HTMLDivElement>(null);
   const notificationRef = useRef<HTMLDivElement>(null);
-  const notificationsRef = notificationRef;
-
 
   // Lock body scroll when mobile menu is open
   useEffect(() => {
@@ -104,17 +102,21 @@ export const Navbar: React.FC<NavbarProps> = ({
         setIsAccessibilityOpen(false);
         setIsNotificationsOpen(false);
         setIsLangOpen(false);
+        setIsProfileMenuOpen(false);
       }
     };
     const handleClickOutside = (e: MouseEvent | TouchEvent) => {
       if (accessibilityRef.current && !accessibilityRef.current.contains(e.target as Node)) {
         setIsAccessibilityOpen(false);
       }
-      if (notificationsRef.current && !notificationsRef.current.contains(e.target as Node)) {
+      if (notificationRef.current && !notificationRef.current.contains(e.target as Node)) {
         setIsNotificationsOpen(false);
       }
       if (langRef.current && !langRef.current.contains(e.target as Node)) {
         setIsLangOpen(false);
+      }
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
+        setIsProfileMenuOpen(false);
       }
       if (mobileMenuRef.current && !mobileMenuRef.current.contains(e.target as Node)) {
         setIsMobileMenuOpen(false);
@@ -306,13 +308,15 @@ export const Navbar: React.FC<NavbarProps> = ({
   }, [backendOnline]);
 
   const languages = [
-    { code: 'en', label: 'English' },
-    { code: 'hi', label: 'हिन्दी' },
-    { code: 'bn', label: 'বাংলা' },
-    { code: 'ta', label: 'தமிழ்' },
-    { code: 'te', label: 'తెలుగు' },
-    { code: 'mr', label: 'मराठी' },
+    { code: 'en', label: 'English', short: 'EN' },
+    { code: 'hi', label: 'हिन्दी', short: 'HI' },
+    { code: 'bn', label: 'বাংলা', short: 'BN' },
+    { code: 'ta', label: 'தமிழ்', short: 'TA' },
+    { code: 'te', label: 'తెలుగు', short: 'TE' },
+    { code: 'mr', label: 'मराठी', short: 'MR' },
   ];
+
+  const currentLangObj = languages.find((l) => l.code === currentLang) || languages[0];
 
   const toggleHighContrast = () => {
     const next = !highContrast;
@@ -350,56 +354,49 @@ export const Navbar: React.FC<NavbarProps> = ({
     badge?: boolean;
   }
 
-  // Strictly role-based navigation items
+  // Strictly role-based navigation items with concise labels
   const getNavItems = (): NavItem[] => {
     if (isAdmin) {
       return [
-        { id: 'admin', label: t.navExecutive || 'Executive Panel', icon: Sparkles, highlight: true },
-        { id: 'analytics', label: t.navAnalytics || 'National Analytics', icon: BarChart3 },
-        { id: 'observer', label: t.navOversight || 'District Oversight', icon: Shield },
-        { id: 'resources', label: t.navDirectory || 'Statutory Directory', icon: Globe },
+        { id: 'admin', label: t.navExecutive || 'Executive', icon: Sparkles, highlight: true },
+        { id: 'analytics', label: t.navAnalytics || 'Analytics', icon: BarChart3 },
+        { id: 'observer', label: t.navOversight || 'Oversight', icon: Shield },
+        { id: 'resources', label: t.navDirectory || 'Directory', icon: Globe },
       ];
     }
     if (isPsychiatrist) {
       return [
-        { id: 'psychiatrist' as NavTab, label: t.navTelepsychiatry || 'Telepsychiatry Station', icon: Activity, highlight: true },
+        { id: 'psychiatrist' as NavTab, label: t.navTelepsychiatry || 'Telepsychiatry', icon: Activity, highlight: true },
+        { id: 'resources' as NavTab, label: t.navDirectory || 'Directory', icon: Globe },
       ];
     }
     if (isNgo) {
       return [
-        { id: 'ngo' as NavTab, label: t.navNgo || 'NGO Field Ops', icon: Users, highlight: true },
-        { id: 'resources' as NavTab, label: t.navDirectory || 'Ground Directory', icon: Globe },
+        { id: 'ngo' as NavTab, label: t.navNgo || 'Field Ops', icon: Users, highlight: true },
+        { id: 'resources' as NavTab, label: t.navDirectory || 'Directory', icon: Globe },
       ];
     }
     if (isObserver) {
       return [
-        { id: 'observer' as NavTab, label: 'Caseload & Triage', icon: Shield, badge: true },
-        { id: 'analytics' as NavTab, label: t.navAnalytics || 'District Analytics', icon: BarChart3 },
-        { id: 'resources' as NavTab, label: t.navDirectory || 'Resource Network', icon: Globe },
+        { id: 'observer' as NavTab, label: 'Triage & Cases', icon: Shield, badge: true },
+        { id: 'analytics' as NavTab, label: t.navAnalytics || 'Analytics', icon: BarChart3 },
+        { id: 'resources' as NavTab, label: t.navDirectory || 'Directory', icon: Globe },
       ];
     }
     // Default: Citizen / Survivor
     return [
       { id: 'victim' as NavTab, label: t.navCare || 'Care & Wellbeing', icon: Heart },
-      { id: 'resources' as NavTab, label: t.navDirectory || 'Helplines & Directory', icon: Globe },
+      { id: 'resources' as NavTab, label: t.navDirectory || 'Helplines', icon: Globe },
     ];
   };
 
   const navItems = getNavItems();
 
-  const getPersonaKey = () => {
-    if (isAdmin) return 'admin';
-    if (isPsychiatrist) return 'psychiatrist';
-    if (isNgo) return 'ngo';
-    if (isObserver) return 'observer';
-    return 'citizen';
-  };
-
   const getRoleDisplayName = () => {
-    if (isAdmin) return 'MoSJE Admin';
-    if (isPsychiatrist) return 'Telepsychiatrist';
-    if (isNgo) return 'NGO Partner';
-    if (isObserver) return 'District Observer';
+    if (isAdmin) return 'Admin';
+    if (isPsychiatrist) return 'Psychiatrist';
+    if (isNgo) return 'NGO';
+    if (isObserver) return 'Observer';
     return 'Citizen';
   };
 
@@ -420,40 +417,40 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <>
-      {/* Single Unified Modern Header */}
-      <header className="sticky top-0 z-40 w-full bg-white/85 backdrop-blur-xl border-b border-slate-200/80 shadow-xs transition-all">
+      {/* Sleek, Modern, Minimal Navbar Header */}
+      <header className="sticky top-0 z-40 w-full bg-white/90 backdrop-blur-xl border-b border-slate-200/70 shadow-xs transition-all">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16 sm:h-18 gap-2 sm:gap-4">
+          <div className="flex items-center justify-between h-15 sm:h-16 gap-2 sm:gap-4">
             
             {/* 1. Left: Brand Logo & Title */}
             <div
               onClick={handleBrandClick}
-              className="flex items-center gap-2.5 sm:gap-3 cursor-pointer group select-none flex-shrink-0"
+              className="flex items-center gap-2 sm:gap-2.5 cursor-pointer group select-none flex-shrink-0"
               role="button"
               tabIndex={0}
               onKeyDown={(e) => e.key === 'Enter' && handleBrandClick()}
             >
-              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-teal-400 flex items-center justify-center text-white shadow-md shadow-indigo-500/20 group-hover:scale-105 transition-transform">
-                <Heart className="w-5 h-5 fill-white" />
+              <div className="w-8.5 h-8.5 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-teal-400 flex items-center justify-center text-white shadow-xs group-hover:scale-105 transition-transform">
+                <Heart className="w-4.5 h-4.5 fill-white" />
               </div>
               <div className="flex flex-col">
                 <div className="flex items-center gap-1.5">
-                  <span className="font-black text-lg sm:text-xl tracking-tight text-slate-900 group-hover:text-indigo-600 transition-colors">
+                  <span className="font-black text-base sm:text-lg tracking-tight text-slate-900 group-hover:text-indigo-600 transition-colors">
                     ANVAYA
                   </span>
-                  <span className="text-[10px] sm:text-xs font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded-md border border-indigo-200/70">
+                  <span className="text-[9px] sm:text-[10px] font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.2 rounded border border-indigo-100">
                     अन्वय
                   </span>
                 </div>
-                <span className="text-[10px] font-semibold text-slate-500 hidden sm:block">
+                <span className="text-[9px] font-medium text-slate-400 hidden xl:block leading-none">
                   MoSJE Mental Health Safety Net
                 </span>
               </div>
             </div>
 
-            {/* 2. Center: Role-Based Navigation Tabs (Desktop only) */}
+            {/* 2. Center: Sleek Role-Based Navigation Tabs (Desktop) */}
             {currentUser && (
-              <nav className="hidden lg:flex items-center gap-1 bg-slate-100/90 p-1.5 rounded-2xl border border-slate-200/80 shadow-2xs">
+              <nav className="hidden lg:flex items-center bg-slate-100/80 p-1 rounded-xl border border-slate-200/60 shadow-2xs">
                 {navItems.map((tab) => {
                   const Icon = tab.icon;
                   const isActive = activeTab === tab.id;
@@ -461,16 +458,16 @@ export const Navbar: React.FC<NavbarProps> = ({
                     <button
                       key={tab.id}
                       onClick={() => onTabChange(tab.id)}
-                      className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                         isActive
-                          ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/30 font-extrabold'
-                          : 'text-slate-600 hover:text-indigo-600 hover:bg-white/80'
+                          ? 'bg-white text-indigo-700 shadow-xs font-black'
+                          : 'text-slate-600 hover:text-indigo-600 hover:bg-white/50'
                       }`}
                     >
-                      <Icon className="w-3.5 h-3.5" />
+                      <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-indigo-600' : 'text-slate-500'}`} />
                       <span>{tab.label}</span>
                       {tab.badge && (
-                        <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
+                        <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse ml-0.5"></span>
                       )}
                     </button>
                   );
@@ -481,50 +478,68 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* 3. Right: Action Cluster */}
             <div className="flex items-center gap-1.5 sm:gap-2">
               
-              {/* Language Selector (Desktop) */}
-              <div className="hidden sm:flex items-center bg-slate-50 hover:bg-slate-100 rounded-xl px-2.5 py-1.5 border border-slate-200 text-xs font-bold text-slate-700 transition">
-                <Globe className="w-3.5 h-3.5 text-indigo-600 mr-1.5 flex-shrink-0" />
-                <select
-                  value={currentLang}
-                  onChange={(e) => onLanguageChange(e.target.value)}
-                  className="bg-transparent text-xs font-bold text-slate-800 outline-none cursor-pointer pr-1"
-                  aria-label="Language Selector"
+              {/* Language Selector Dropdown (Desktop) */}
+              <div className="relative hidden md:block" ref={langRef}>
+                <button
+                  type="button"
+                  onClick={() => setIsLangOpen(!isLangOpen)}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-slate-200/80 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold transition cursor-pointer"
+                  title="Change Language"
                 >
-                  {languages.map((lang) => (
-                    <option key={lang.code} value={lang.code} className="bg-white text-slate-900">
-                      {lang.label}
-                    </option>
-                  ))}
-                </select>
+                  <Globe className="w-3.5 h-3.5 text-indigo-600 flex-shrink-0" />
+                  <span>{currentLangObj.label}</span>
+                  <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform ${isLangOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {isLangOpen && (
+                  <div className="absolute right-0 mt-1.5 w-36 rounded-xl bg-white border border-slate-200 shadow-xl z-50 py-1 animate-fadeIn">
+                    {languages.map((lang) => (
+                      <button
+                        key={lang.code}
+                        type="button"
+                        onClick={() => {
+                          onLanguageChange(lang.code);
+                          setIsLangOpen(false);
+                        }}
+                        className={`w-full px-3 py-1.5 text-xs text-left flex items-center justify-between font-bold hover:bg-indigo-50 cursor-pointer ${
+                          currentLang === lang.code ? 'text-indigo-700 bg-indigo-50/50' : 'text-slate-700'
+                        }`}
+                      >
+                        <span>{lang.label}</span>
+                        {currentLang === lang.code && <Check className="w-3.5 h-3.5 text-indigo-600" />}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
-              {/* Download / Install App Button (Desktop) */}
+              {/* Download / Install App Icon Button (Desktop) */}
               <button
                 type="button"
                 onClick={handleInstallApp}
-                className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-indigo-200/90 bg-gradient-to-r from-indigo-50/80 to-purple-50/80 hover:from-indigo-100 hover:to-purple-100 text-indigo-800 text-xs font-bold transition shadow-2xs cursor-pointer group"
-                title="Download / Install Anvaya Chrome App"
+                className="hidden sm:flex items-center justify-center w-8.5 h-8.5 rounded-xl border border-slate-200/80 bg-white hover:bg-slate-50 text-slate-700 hover:text-indigo-600 text-xs font-bold transition shadow-2xs cursor-pointer group"
+                title="Install Anvaya Chrome/Android App"
+                aria-label="Install App"
               >
-                <Download className="w-3.5 h-3.5 text-indigo-600 group-hover:-translate-y-0.5 transition-transform" />
-                <span>{t.navDownload || 'Download App'}</span>
+                <Download className="w-4 h-4 text-indigo-600 group-hover:-translate-y-0.5 transition-transform" />
               </button>
 
-              {/* Notification Bell with Badge & Responsive Popover */}
+              {/* Notification Bell with Badge & Dropdown */}
               <div className="relative" ref={notificationRef}>
                 <button
                   type="button"
                   onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
-                  className={`relative flex items-center justify-center min-w-[38px] h-9 px-2 rounded-xl border text-xs font-bold transition cursor-pointer shadow-2xs ${
+                  className={`relative flex items-center justify-center w-8.5 h-8.5 rounded-xl border text-xs font-bold transition cursor-pointer shadow-2xs ${
                     isNotificationsOpen
                       ? 'bg-indigo-50 border-indigo-300 text-indigo-700'
-                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                      : 'bg-white border-slate-200/80 text-slate-700 hover:bg-slate-50'
                   }`}
                   title="Notifications & Resilience Quotes"
                   aria-label="Notifications"
                 >
                   <Bell className="w-4 h-4 text-slate-700" />
                   {unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-rose-500 text-white rounded-full text-[10px] font-black flex items-center justify-center px-1 shadow-xs border-2 border-white animate-pulse">
+                    <span className="absolute -top-1 -right-1 min-w-[17px] h-[17px] bg-rose-500 text-white rounded-full text-[9px] font-black flex items-center justify-center px-1 shadow-xs border-2 border-white animate-pulse">
                       {unreadCount}
                     </span>
                   )}
@@ -539,16 +554,16 @@ export const Navbar: React.FC<NavbarProps> = ({
                   />
                 )}
 
-                {/* Notifications Dropdown Panel (Responsive on Mobile & Desktop) */}
+                {/* Notifications Dropdown */}
                 {isNotificationsOpen && (
-                  <div className="fixed inset-x-3 top-16 sm:absolute sm:top-full sm:right-0 sm:left-auto sm:inset-x-auto sm:mt-2 sm:w-96 p-0 rounded-3xl bg-white border border-slate-200 shadow-2xl z-[9999] animate-fadeIn overflow-hidden flex flex-col max-h-[82vh] sm:max-h-[500px]">
-                    <div className="p-3.5 sm:p-4 bg-gradient-to-r from-indigo-50 via-purple-50 to-rose-50 border-b border-indigo-100/60 flex items-center justify-between flex-shrink-0">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-xs flex-shrink-0">
-                          <Bell className="w-4 h-4" />
+                  <div className="fixed inset-x-3 top-16 sm:absolute sm:top-full sm:right-0 sm:left-auto sm:inset-x-auto sm:mt-2 sm:w-92 p-0 rounded-2xl bg-white border border-slate-200 shadow-2xl z-[9999] animate-fadeIn overflow-hidden flex flex-col max-h-[82vh] sm:max-h-[480px]">
+                    <div className="p-3 bg-gradient-to-r from-indigo-50 via-purple-50 to-pink-50 border-b border-indigo-100/60 flex items-center justify-between flex-shrink-0">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-xs flex-shrink-0">
+                          <Bell className="w-3.5 h-3.5" />
                         </div>
                         <div>
-                          <h4 className="text-xs sm:text-sm font-black text-slate-900 leading-tight">Notifications & Daily Quotes</h4>
+                          <h4 className="text-xs font-black text-slate-900 leading-tight">Notifications</h4>
                           <p className="text-[10px] text-slate-500 font-semibold">{unreadCount} unread • {notifications.length} total</p>
                         </div>
                       </div>
@@ -557,27 +572,24 @@ export const Navbar: React.FC<NavbarProps> = ({
                           <button
                             type="button"
                             onClick={handleMarkAllRead}
-                            className="text-[10px] font-bold text-indigo-700 hover:text-indigo-900 bg-white/90 hover:bg-white px-2 py-1 rounded-lg border border-indigo-200 transition cursor-pointer shadow-2xs"
-                            title="Mark all notifications as read"
+                            className="text-[10px] font-bold text-indigo-700 hover:text-indigo-900 bg-white/90 hover:bg-white px-2 py-0.5 rounded-md border border-indigo-200 transition cursor-pointer shadow-2xs"
                           >
-                            Mark all read
+                            Mark read
                           </button>
                         )}
                         {notifications.length > 0 && (
                           <button
                             type="button"
                             onClick={handleClearAll}
-                            className="text-[10px] font-bold text-rose-700 hover:text-rose-900 bg-white/90 hover:bg-white px-2 py-1 rounded-lg border border-rose-200 transition cursor-pointer shadow-2xs flex items-center gap-1"
-                            title="Clear all notifications"
+                            className="text-[10px] font-bold text-rose-700 hover:text-rose-900 bg-white/90 hover:bg-white px-1.5 py-0.5 rounded-md border border-rose-200 transition cursor-pointer shadow-2xs flex items-center gap-0.5"
                           >
                             <Trash2 className="w-3 h-3 text-rose-600" />
-                            <span>Clear all</span>
                           </button>
                         )}
                         <button
                           type="button"
                           onClick={() => setIsNotificationsOpen(false)}
-                          className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/80 hover:bg-white text-slate-500 hover:text-slate-800 text-xs font-bold border border-slate-200 transition cursor-pointer"
+                          className="w-6 h-6 flex items-center justify-center rounded-md bg-white/80 hover:bg-white text-slate-500 text-xs font-bold border border-slate-200 cursor-pointer"
                         >
                           ✕
                         </button>
@@ -586,10 +598,10 @@ export const Navbar: React.FC<NavbarProps> = ({
 
                     <div className="flex-1 overflow-y-auto divide-y divide-slate-100 p-0 overscroll-contain">
                       {notifications.length === 0 ? (
-                        <div className="py-10 text-center text-slate-400 text-xs font-medium space-y-1">
-                          <p className="text-xl">🌸</p>
-                          <p className="font-bold text-slate-600">No notifications right now.</p>
-                          <p className="text-[11px]">You're all caught up with your daily resilience updates.</p>
+                        <div className="py-8 text-center text-slate-400 text-xs font-medium space-y-1">
+                          <p className="text-lg">🌸</p>
+                          <p className="font-bold text-slate-600">No new notifications</p>
+                          <p className="text-[11px]">You're up to date with your resilience feed.</p>
                         </div>
                       ) : (
                         notifications.map((notif) => {
@@ -600,75 +612,66 @@ export const Navbar: React.FC<NavbarProps> = ({
                           return (
                             <div
                               key={notif.id}
-                              className={`p-3.5 sm:p-4 transition flex flex-col gap-1.5 group relative ${
+                              className={`p-3 transition flex flex-col gap-1.5 group relative ${
                                 notif.is_read ? 'bg-white' : 'bg-indigo-50/40 hover:bg-indigo-50/60'
                               }`}
                             >
                               <div className="flex items-center justify-between">
-                                <span className="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md tracking-wider">
-                                  {isQuote && <span className="text-pink-700 bg-pink-100 px-1.5 py-0.5 rounded">Resilience Quote 🌸</span>}
-                                  {isCheckin && <span className="text-indigo-700 bg-indigo-100 px-1.5 py-0.5 rounded">Health Check-in 📋</span>}
-                                  {isAlert && <span className="text-rose-700 bg-rose-100 px-1.5 py-0.5 rounded">Safety Alert ⚠️</span>}
+                                <span className="inline-flex items-center gap-1 text-[9px] font-extrabold uppercase px-1.5 py-0.2 rounded tracking-wider">
+                                  {isQuote && <span className="text-pink-700 bg-pink-100 px-1.5 py-0.5 rounded">Quote 🌸</span>}
+                                  {isCheckin && <span className="text-indigo-700 bg-indigo-100 px-1.5 py-0.5 rounded">Check-in 📋</span>}
+                                  {isAlert && <span className="text-rose-700 bg-rose-100 px-1.5 py-0.5 rounded">Alert ⚠️</span>}
                                   {!isQuote && !isCheckin && !isAlert && (
-                                    <span className="text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded">Support Update 📢</span>
+                                    <span className="text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded">Update 📢</span>
                                   )}
                                 </span>
-                                <div className="flex items-center gap-2">
-                                  {!notif.is_read && <span className="w-2 h-2 rounded-full bg-indigo-600 inline-block"></span>}
+                                <div className="flex items-center gap-1.5">
+                                  {!notif.is_read && <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 inline-block"></span>}
                                   <button
                                     type="button"
                                     onClick={() => handleClearSingle(notif.id)}
-                                    className="text-slate-400 hover:text-rose-600 p-1 rounded-md hover:bg-slate-100 transition cursor-pointer"
-                                    title="Dismiss / Clear notification"
+                                    className="text-slate-400 hover:text-rose-600 p-0.5 rounded hover:bg-slate-100 transition cursor-pointer"
                                   >
-                                    <X className="w-3.5 h-3.5" />
+                                    <X className="w-3 h-3" />
                                   </button>
                                 </div>
                               </div>
 
-                              <h5 className="text-xs sm:text-sm font-bold text-slate-900 leading-snug">{notif.title}</h5>
-                              <p className="text-[11px] sm:text-xs text-slate-600 leading-relaxed font-medium">
+                              <h5 className="text-xs font-bold text-slate-900 leading-snug">{notif.title}</h5>
+                              <p className="text-[11px] text-slate-600 leading-relaxed font-medium">
                                 {notif.message}
                               </p>
 
-                              <div className="flex items-center justify-between pt-1.5 mt-1 border-t border-slate-100/80 gap-2 flex-wrap">
+                              <div className="flex items-center justify-between pt-1 border-t border-slate-100/80 gap-2">
                                 {notif.action_label && (
                                   <button
                                     type="button"
                                     onClick={() => {
                                       handleMarkAsRead(notif.id);
                                       setIsNotificationsOpen(false);
-                                      if (notif.action_url?.includes('tab=exercises')) {
-                                        onTabChange('victim');
-                                      } else if (notif.action_url?.includes('tab=assessment')) {
-                                        onTabChange('victim');
-                                      } else if (notif.action_url?.includes('tab=helplines')) {
-                                        onTabChange('victim');
-                                      } else {
-                                        onTabChange('victim');
-                                      }
+                                      onTabChange('victim');
                                     }}
-                                    className="text-[11px] font-extrabold text-indigo-700 hover:text-indigo-900 flex items-center gap-1 cursor-pointer bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1.5 rounded-xl border border-indigo-200 transition"
+                                    className="text-[10px] font-bold text-indigo-700 hover:text-indigo-900 flex items-center gap-0.5 cursor-pointer bg-indigo-50 px-2 py-1 rounded-lg border border-indigo-200"
                                   >
                                     <span>{notif.action_label}</span>
-                                    <ChevronRight className="w-3.5 h-3.5" />
+                                    <ChevronRight className="w-3 h-3" />
                                   </button>
                                 )}
 
-                                <div className="flex items-center gap-2 ml-auto">
+                                <div className="flex items-center gap-1.5 ml-auto">
                                   {!notif.is_read && (
                                     <button
                                       type="button"
                                       onClick={() => handleMarkAsRead(notif.id)}
-                                      className="text-[11px] text-slate-400 hover:text-slate-700 font-bold cursor-pointer py-1 px-2 rounded-lg hover:bg-slate-100 transition"
+                                      className="text-[10px] text-slate-400 hover:text-slate-700 font-bold cursor-pointer py-0.5 px-1.5 rounded hover:bg-slate-100"
                                     >
-                                      Mark read
+                                      Read
                                     </button>
                                   )}
                                   <button
                                     type="button"
                                     onClick={() => handleClearSingle(notif.id)}
-                                    className="text-[11px] text-rose-500 hover:text-rose-700 font-bold cursor-pointer py-1 px-2 rounded-lg hover:bg-rose-50 transition"
+                                    className="text-[10px] text-rose-500 hover:text-rose-700 font-bold cursor-pointer py-0.5 px-1.5 rounded hover:bg-rose-50"
                                   >
                                     Clear
                                   </button>
@@ -683,30 +686,28 @@ export const Navbar: React.FC<NavbarProps> = ({
                 )}
               </div>
 
-              {/* Accessibility Menu Toggle (Desktop) */}
+              {/* Accessibility Aa Quick Toggle (Desktop) */}
               <div className="relative hidden sm:block" ref={accessibilityRef}>
                 <button
                   type="button"
                   onClick={() => setIsAccessibilityOpen(!isAccessibilityOpen)}
-                  className={`flex items-center justify-center min-w-[38px] h-9 px-2 rounded-xl border text-xs font-bold transition cursor-pointer shadow-2xs ${
+                  className={`flex items-center justify-center w-8.5 h-8.5 rounded-xl border text-xs font-bold transition cursor-pointer shadow-2xs ${
                     isAccessibilityOpen || highContrast || fontScale !== 'normal'
                       ? 'bg-indigo-50 border-indigo-300 text-indigo-700'
-                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                      : 'bg-white border-slate-200/80 text-slate-700 hover:bg-slate-50'
                   }`}
-                  title="Accessibility Settings (Font Size, Contrast)"
+                  title="Accessibility (Font Size, Contrast)"
                   aria-label="Accessibility Settings"
                 >
                   <Sliders className="w-3.5 h-3.5 text-indigo-600" />
-                  <span className="ml-1 text-[11px]">Aa</span>
                 </button>
 
-                {/* Accessibility Dropdown Popover */}
                 {isAccessibilityOpen && (
-                  <div className="absolute right-0 mt-2 w-64 p-4 rounded-2xl bg-white/95 backdrop-blur-xl border border-slate-200 shadow-xl z-50 animate-fadeIn space-y-3">
-                    <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                  <div className="absolute right-0 mt-2 w-60 p-3.5 rounded-2xl bg-white border border-slate-200 shadow-xl z-50 animate-fadeIn space-y-3">
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-1.5">
                       <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
                         <Eye className="w-3.5 h-3.5 text-indigo-600" />
-                        <span>Accessibility Options</span>
+                        <span>Accessibility</span>
                       </span>
                       <button
                         type="button"
@@ -717,18 +718,17 @@ export const Navbar: React.FC<NavbarProps> = ({
                       </button>
                     </div>
 
-                    {/* Text Scaling */}
                     <div>
-                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
                         Text Size
                       </span>
-                      <div className="grid grid-cols-3 gap-1 bg-slate-100 p-1 rounded-xl">
+                      <div className="grid grid-cols-3 gap-1 bg-slate-100 p-0.5 rounded-lg">
                         {(['normal', 'large', 'xlarge'] as const).map((scale) => (
                           <button
                             key={scale}
                             type="button"
                             onClick={() => changeFontScale(scale)}
-                            className={`py-1 text-[11px] font-bold rounded-lg transition cursor-pointer ${
+                            className={`py-1 text-[11px] font-bold rounded transition cursor-pointer ${
                               fontScale === scale ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-600'
                             }`}
                           >
@@ -738,99 +738,158 @@ export const Navbar: React.FC<NavbarProps> = ({
                       </div>
                     </div>
 
-                    {/* High Contrast */}
                     <div>
                       <button
                         type="button"
                         onClick={toggleHighContrast}
-                        className={`w-full py-2 px-3 rounded-xl border text-xs font-bold transition flex items-center justify-between cursor-pointer ${
+                        className={`w-full py-1.5 px-2.5 rounded-lg border text-xs font-bold transition flex items-center justify-between cursor-pointer ${
                           highContrast
                             ? 'bg-black text-white border-black shadow-xs'
                             : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
                         }`}
                       >
-                        <span>High Contrast Mode</span>
-                        <span className="font-mono text-[11px] font-bold">{highContrast ? 'ON' : 'OFF'}</span>
+                        <span>High Contrast</span>
+                        <span className="font-mono text-[10px] font-bold">{highContrast ? 'ON' : 'OFF'}</span>
                       </button>
                     </div>
                   </div>
                 )}
               </div>
 
-              {/* Authenticated User Status & Logout (Desktop) */}
+              {/* 4. Streamlined User Profile Dropdown (Desktop) */}
               {currentUser ? (
-                <div className="hidden lg:flex items-center gap-2">
-                  {/* User Profile Pill */}
-                  <div className="flex items-center gap-2 bg-slate-50 border border-slate-200/90 rounded-xl px-2.5 py-1 shadow-2xs">
-                    <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-indigo-600 to-teal-500 text-white flex items-center justify-center text-[10px] font-black shadow-xs flex-shrink-0">
+                <div className="relative hidden lg:block" ref={profileRef}>
+                  <button
+                    type="button"
+                    onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+                    className="flex items-center gap-2 pl-1.5 pr-2.5 py-1 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200/90 shadow-2xs transition cursor-pointer group"
+                    aria-label="User profile menu"
+                  >
+                    <div className="w-6.5 h-6.5 rounded-lg bg-gradient-to-tr from-indigo-600 to-teal-500 text-white flex items-center justify-center text-[11px] font-black shadow-xs flex-shrink-0">
                       {currentUser.full_name ? currentUser.full_name.charAt(0).toUpperCase() : 'U'}
                     </div>
-                    <div className="text-left">
-                      <div className="text-[11px] font-bold text-slate-900 leading-tight truncate max-w-[100px]">
-                        {currentUser.full_name || currentUser.email}
-                      </div>
-                      <div className="text-[9px] font-bold text-indigo-600 uppercase tracking-wider">
+                    <div className="text-left flex items-center gap-1.5">
+                      <span className="text-xs font-bold text-slate-800 max-w-[90px] truncate">
+                        {currentUser.full_name?.split(' ')[0] || currentUser.email?.split('@')[0] || 'User'}
+                      </span>
+                      <span className="text-[9px] font-bold text-indigo-700 bg-indigo-100/70 px-1.5 py-0.2 rounded uppercase">
                         {getRoleDisplayName()}
-                      </div>
+                      </span>
                     </div>
-                  </div>
+                    <ChevronDown className={`w-3 h-3 text-slate-400 group-hover:text-slate-600 transition-transform ${isProfileMenuOpen ? 'rotate-180' : ''}`} />
+                  </button>
 
-                  {/* Sign Out Button */}
-                  {onLogout && (
-                    <button
-                      type="button"
-                      onClick={onLogout}
-                      className="flex items-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs px-3 py-2 rounded-xl border border-rose-200 shadow-2xs transition cursor-pointer"
-                      title="Sign Out"
-                    >
-                      <LogOut className="w-3.5 h-3.5 text-rose-600" />
-                      <span>{t.navLogout || 'Sign Out'}</span>
-                    </button>
+                  {/* Polished Floating User Menu Dropdown */}
+                  {isProfileMenuOpen && (
+                    <div className="absolute right-0 mt-2 w-64 rounded-2xl bg-white border border-slate-200 shadow-2xl z-50 p-2 animate-fadeIn space-y-1">
+                      {/* User Info Header */}
+                      <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 space-y-1">
+                        <div className="text-xs font-black text-slate-900 truncate">
+                          {currentUser.full_name || currentUser.email}
+                        </div>
+                        <div className="text-[10px] text-slate-500 truncate">
+                          {currentUser.email || 'Citizen User'}
+                        </div>
+                        <div className="inline-flex items-center gap-1 bg-white border border-indigo-100 px-2 py-0.5 rounded text-[9px] font-extrabold text-indigo-700 shadow-2xs">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                          <span>Role: {getRoleDisplayName()}</span>
+                        </div>
+                      </div>
+
+                      {/* Quick Links inside Dropdown */}
+                      <div className="pt-1 space-y-0.5">
+                        {onOpenUssdSimulator && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsProfileMenuOpen(false);
+                              onOpenUssdSimulator();
+                            }}
+                            className="w-full px-2.5 py-1.5 rounded-lg text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center justify-between transition cursor-pointer"
+                          >
+                            <span className="flex items-center gap-2">
+                              <Radio className="w-3.5 h-3.5 text-emerald-600" />
+                              <span>USSD Mode (*14566#)</span>
+                            </span>
+                            <span className="text-[9px] text-slate-400 font-semibold">2G</span>
+                          </button>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsProfileMenuOpen(false);
+                            handleInstallApp();
+                          }}
+                          className="w-full px-2.5 py-1.5 rounded-lg text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center justify-between transition cursor-pointer"
+                        >
+                          <span className="flex items-center gap-2">
+                            <Download className="w-3.5 h-3.5 text-indigo-600" />
+                            <span>Install Chrome App</span>
+                          </span>
+                        </button>
+                      </div>
+
+                      {/* Sign Out Button in Dropdown */}
+                      {onLogout && (
+                        <div className="pt-1 border-t border-slate-100">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsProfileMenuOpen(false);
+                              onLogout();
+                            }}
+                            className="w-full px-2.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs flex items-center gap-2 transition cursor-pointer"
+                          >
+                            <LogOut className="w-3.5 h-3.5 text-rose-600" />
+                            <span>{t.navLogout || 'Sign Out'}</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
               ) : (
-                /* Unauthenticated Actions (Desktop) */
-                <div className="hidden lg:flex items-center gap-2">
+                /* Unauthenticated Guest Actions (Desktop) */
+                <div className="hidden lg:flex items-center gap-1.5">
                   <button
                     type="button"
                     onClick={() => onOpenAuthModal && onOpenAuthModal('login')}
-                    className="flex items-center gap-1.5 bg-white hover:bg-slate-50 text-indigo-600 font-bold text-xs px-3.5 py-2 rounded-xl border border-slate-200 shadow-2xs transition cursor-pointer"
+                    className="text-xs font-bold text-slate-700 hover:text-indigo-600 px-3 py-1.5 rounded-xl hover:bg-slate-50 transition cursor-pointer"
                   >
-                    <User className="w-3.5 h-3.5" />
-                    <span>{t.navSignIn || 'Sign In'}</span>
+                    {t.navSignIn || 'Sign In'}
                   </button>
                   <button
                     type="button"
                     onClick={() => onOpenAuthModal && onOpenAuthModal('register')}
-                    className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-sm transition cursor-pointer"
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3.5 py-1.5 rounded-xl shadow-xs transition cursor-pointer"
                   >
-                    <span>{t.navRegister || 'Register'}</span>
+                    {t.navRegister || 'Register'}
                   </button>
                   {onOpenAdminLogin && (
                     <button
                       type="button"
                       onClick={onOpenAdminLogin}
-                      className="flex items-center gap-1 bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-xs px-3 py-2 rounded-xl border border-amber-200 transition cursor-pointer"
-                      title="Administrative Staff Portal"
+                      className="text-slate-400 hover:text-amber-700 p-1.5 rounded-xl hover:bg-amber-50 transition cursor-pointer"
+                      title="Staff Portal Login"
                     >
-                      <Shield className="w-3.5 h-3.5 text-amber-700" />
-                      <span>{t.navAdmin || 'Admin'}</span>
+                      <Shield className="w-4 h-4" />
                     </button>
                   )}
                 </div>
               )}
 
-              {/* Emergency SOS Button (Compact, visible for citizens and guests) */}
+              {/* 5. Emergency SOS Button (Compact & Crisp) */}
               {!isPsychiatrist && !isAdmin && (
                 <button
                   type="button"
                   onClick={onTriggerCrisis}
-                  className="flex items-center justify-center gap-1.5 bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 active:scale-95 text-white px-3 sm:px-3.5 py-2 rounded-xl text-xs font-black shadow-sm shadow-rose-500/25 transition-all border border-rose-400/30 cursor-pointer"
-                  title="Immediate Crisis Intervention & Helplines"
+                  className="flex items-center justify-center gap-1.5 bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 active:scale-95 text-white px-3 py-1.5 sm:px-3.5 sm:py-1.5 rounded-xl text-xs font-black shadow-xs shadow-rose-500/20 transition-all cursor-pointer"
+                  title="Emergency Distress Support"
                 >
                   <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping"></span>
                   <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
-                  <span className="font-black">{t.sosButton || 'SOS'}</span>
+                  <span className="font-black tracking-wide">{t.sosButton || 'SOS'}</span>
                 </button>
               )}
 
@@ -838,14 +897,14 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 type="button"
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="flex lg:hidden w-10 h-10 items-center justify-center rounded-xl bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-800 border border-slate-200 shadow-2xs transition cursor-pointer"
+                className="flex lg:hidden w-8.5 h-8.5 items-center justify-center rounded-xl bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-800 border border-slate-200 shadow-2xs transition cursor-pointer"
                 aria-label={isMobileMenuOpen ? 'Close Menu' : 'Open Menu'}
                 aria-expanded={isMobileMenuOpen}
               >
                 {isMobileMenuOpen ? (
-                  <X className="w-5 h-5 text-rose-600" />
+                  <X className="w-4.5 h-4.5 text-rose-600" />
                 ) : (
-                  <Menu className="w-5 h-5 text-slate-900" />
+                  <Menu className="w-4.5 h-4.5 text-slate-900" />
                 )}
               </button>
             </div>
@@ -885,7 +944,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <div>
                     <div className="flex items-center gap-1.5">
                       <span className="font-black text-base text-slate-900">ANVAYA</span>
-                      <span className="text-[10px] font-bold text-indigo-700 bg-indigo-100 px-1.5 py-0.5 rounded">
+                      <span className="text-[10px] font-bold text-indigo-700 bg-indigo-100 px-1.5 py-0.2 rounded">
                         अन्वय
                       </span>
                     </div>
@@ -898,7 +957,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className="w-9 h-9 flex items-center justify-center rounded-xl bg-white hover:bg-slate-100 text-slate-600 border border-slate-200 transition cursor-pointer shadow-2xs"
+                  className="w-8.5 h-8.5 flex items-center justify-center rounded-xl bg-white hover:bg-slate-100 text-slate-600 border border-slate-200 transition cursor-pointer shadow-2xs"
                   aria-label="Close menu"
                 >
                   <X className="w-4 h-4 text-slate-700" />
@@ -909,9 +968,9 @@ export const Navbar: React.FC<NavbarProps> = ({
               <div className="p-4 space-y-4 flex-1 overflow-y-auto">
                 {/* 1. User Profile or Auth CTA */}
                 {currentUser ? (
-                  <div className="p-3.5 rounded-2xl bg-indigo-50/70 border border-indigo-100 space-y-2">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center text-sm font-black shadow-xs flex-shrink-0">
+                  <div className="p-3 rounded-2xl bg-indigo-50/70 border border-indigo-100 space-y-2">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center text-xs font-black shadow-xs flex-shrink-0">
                         {currentUser.full_name ? currentUser.full_name.charAt(0).toUpperCase() : 'U'}
                       </div>
                       <div className="flex-1 min-w-0">
@@ -923,22 +982,19 @@ export const Navbar: React.FC<NavbarProps> = ({
                         </div>
                       </div>
                     </div>
-                    <div className="inline-flex items-center gap-1.5 bg-white border border-indigo-200 px-2.5 py-1 rounded-lg text-[10px] font-bold text-indigo-700 shadow-2xs">
+                    <div className="inline-flex items-center gap-1.5 bg-white border border-indigo-200 px-2 py-0.5 rounded-md text-[10px] font-bold text-indigo-700 shadow-2xs">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                       <span>Role: {getRoleDisplayName()}</span>
                     </div>
                   </div>
                 ) : (
-                  <div className="p-4 rounded-2xl bg-gradient-to-br from-indigo-50 to-slate-50 border border-indigo-200 space-y-3">
+                  <div className="p-3.5 rounded-2xl bg-gradient-to-br from-indigo-50 to-slate-50 border border-indigo-200 space-y-2.5">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-indigo-950">Welcome to ANVAYA</span>
                       <span className="text-[10px] font-bold text-indigo-700 bg-white px-2 py-0.5 rounded-full border border-indigo-200">
                         Guest
                       </span>
                     </div>
-                    <p className="text-[11px] text-slate-600 leading-relaxed">
-                      Confidential psychological monitoring, distress safeguarding, and 24x7 crisis support.
-                    </p>
                     <div className="grid grid-cols-2 gap-2 pt-1">
                       <button
                         type="button"
@@ -946,7 +1002,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                           setIsMobileMenuOpen(false);
                           if (onOpenAuthModal) onOpenAuthModal('login');
                         }}
-                        className="py-2.5 px-3 rounded-xl bg-white text-indigo-700 font-bold text-xs border border-indigo-300 shadow-2xs text-center cursor-pointer flex items-center justify-center gap-1.5"
+                        className="py-2 px-3 rounded-xl bg-white text-indigo-700 font-bold text-xs border border-indigo-300 shadow-2xs text-center cursor-pointer flex items-center justify-center gap-1"
                       >
                         <User className="w-3.5 h-3.5 text-indigo-600" />
                         <span>Sign In</span>
@@ -957,7 +1013,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                           setIsMobileMenuOpen(false);
                           if (onOpenAuthModal) onOpenAuthModal('register');
                         }}
-                        className="py-2.5 px-3 rounded-xl bg-indigo-600 text-white font-bold text-xs shadow-xs text-center cursor-pointer"
+                        className="py-2 px-3 rounded-xl bg-indigo-600 text-white font-bold text-xs shadow-xs text-center cursor-pointer"
                       >
                         Register
                       </button>
@@ -972,79 +1028,16 @@ export const Navbar: React.FC<NavbarProps> = ({
                         className="w-full py-2 px-3 rounded-xl bg-amber-50 text-amber-800 border border-amber-200 text-xs font-bold text-center cursor-pointer flex items-center justify-center gap-1.5"
                       >
                         <Shield className="w-3.5 h-3.5 text-amber-700" />
-                        <span>Administrative Staff Login</span>
+                        <span>Staff Login</span>
                       </button>
                     )}
                   </div>
                 )}
 
-                {/* Mobile Drawer Notifications & Daily Quotes Section */}
-                <div className="space-y-2 p-3.5 rounded-2xl bg-gradient-to-br from-indigo-50/90 via-purple-50/70 to-pink-50/90 border border-indigo-100/90 shadow-2xs">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-xs shadow-xs">
-                        <Bell className="w-3.5 h-3.5" />
-                      </div>
-                      <span className="text-xs font-black text-slate-900">Notifications & Daily Quotes</span>
-                    </div>
-                    {unreadCount > 0 ? (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-500 text-white animate-pulse">
-                        {unreadCount} New
-                      </span>
-                    ) : (
-                      <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
-                        All Caught Up
-                      </span>
-                    )}
-                  </div>
-
-                  {notifications.length > 0 && (
-                    <div className="p-2.5 rounded-xl bg-white/95 border border-indigo-100 space-y-1 shadow-2xs">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-black text-indigo-700 uppercase tracking-wider">
-                          {notifications[0].category === 'QUOTE' ? '🌸 Daily Quote' : '📢 Latest Update'}
-                        </span>
-                        {!notifications[0].is_read && (
-                          <span className="w-2 h-2 rounded-full bg-rose-500"></span>
-                        )}
-                      </div>
-                      <p className="text-[11px] font-bold text-slate-800 leading-snug line-clamp-2">
-                        {notifications[0].title}
-                      </p>
-                      <p className="text-[10px] text-slate-600 line-clamp-2">
-                        {notifications[0].message}
-                      </p>
-                    </div>
-                  )}
-
-                  <div className="flex gap-2 pt-1">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsMobileMenuOpen(false);
-                        setIsNotificationsOpen(true);
-                      }}
-                      className="flex-1 py-2 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs shadow-xs text-center cursor-pointer transition flex items-center justify-center gap-1.5"
-                    >
-                      <Bell className="w-3.5 h-3.5" />
-                      <span>View All Updates ({notifications.length})</span>
-                    </button>
-                    {unreadCount > 0 && (
-                      <button
-                        type="button"
-                        onClick={handleMarkAllRead}
-                        className="py-2 px-3 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-bold text-xs text-center cursor-pointer transition shadow-2xs"
-                      >
-                        Mark Read
-                      </button>
-                    )}
-                  </div>
-                </div>
-
                 {/* 2. Role-Based Navigation Items */}
                 {currentUser && (
-                  <div className="space-y-1.5">
-                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-1">
+                  <div className="space-y-1">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-1 mb-1">
                       Navigation
                     </div>
                     <div className="space-y-1">
@@ -1056,21 +1049,21 @@ export const Navbar: React.FC<NavbarProps> = ({
                             key={tab.id}
                             type="button"
                             onClick={() => handleTabSelect(tab.id)}
-                            className={`w-full p-3 rounded-xl flex items-center justify-between text-xs font-bold transition cursor-pointer min-h-[44px] ${
+                            className={`w-full p-2.5 rounded-xl flex items-center justify-between text-xs font-bold transition cursor-pointer min-h-[40px] ${
                               isActive
-                                ? 'bg-indigo-600 text-white shadow-sm font-extrabold'
-                                : 'bg-slate-50 text-slate-800 hover:bg-slate-100 border border-slate-200/70'
+                                ? 'bg-indigo-600 text-white shadow-xs font-extrabold'
+                                : 'bg-slate-50 text-slate-800 hover:bg-slate-100 border border-slate-200/60'
                             }`}
                           >
                             <div className="flex items-center gap-2.5">
                               <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-indigo-600'}`} />
                               <span>{tab.label}</span>
                             </div>
-                            <div className="flex items-center gap-1.5">
+                            <div className="flex items-center gap-1">
                               {tab.badge && (
                                 <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
                               )}
-                              <ChevronRight className={`w-4 h-4 ${isActive ? 'text-white/80' : 'text-slate-400'}`} />
+                              <ChevronRight className={`w-3.5 h-3.5 ${isActive ? 'text-white/80' : 'text-slate-400'}`} />
                             </div>
                           </button>
                         );
@@ -1079,49 +1072,22 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </div>
                 )}
 
-                {/* 3. Download App / PWA Button in Mobile */}
-                <div className="space-y-1.5">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsMobileMenuOpen(false);
-                      handleInstallApp();
-                    }}
-                    className="w-full p-3 rounded-2xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white flex items-center justify-between text-xs font-black shadow-md shadow-indigo-500/20 transition cursor-pointer"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-xl bg-white/20 flex items-center justify-center">
-                        <Download className="w-4 h-4 text-white" />
-                      </div>
-                      <div className="text-left">
-                        <div className="text-xs font-black">Download Anvaya App</div>
-                        <div className="text-[10px] text-white/80 font-medium">Install Chrome / Android App</div>
-                      </div>
-                    </div>
-                    <span className="text-[10px] font-black bg-white text-indigo-900 px-2 py-0.5 rounded-full">
-                      Install
-                    </span>
-                  </button>
-                </div>
-
-                {/* 4. Helplines & Emergency (for victims/guests) */}
+                {/* 3. Emergency Support (24x7 MoSJE & USSD) */}
                 {!isPsychiatrist && (
                   <div className="space-y-1.5">
                     <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-1">
                       Emergency Support
                     </div>
-                    <div className="space-y-1.5">
+                    <div className="grid grid-cols-2 gap-2">
                       <a
                         href="tel:14566"
-                        className="w-full p-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-950 border border-emerald-200 flex items-center justify-between text-xs font-bold transition min-h-[44px]"
+                        className="p-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-950 border border-emerald-200 flex flex-col justify-center text-xs font-bold transition"
                       >
-                        <div className="flex items-center gap-2">
-                          <PhoneCall className="w-4 h-4 text-emerald-600" />
-                          <span>24x7 MoSJE Helpline: 14566</span>
+                        <div className="flex items-center gap-1.5 text-emerald-700">
+                          <PhoneCall className="w-3.5 h-3.5" />
+                          <span>14566</span>
                         </div>
-                        <span className="text-[10px] text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded font-black">
-                          Toll-Free
-                        </span>
+                        <span className="text-[9px] text-emerald-600 font-semibold">Toll-Free Helpline</span>
                       </a>
 
                       {onOpenUssdSimulator && (
@@ -1131,28 +1097,26 @@ export const Navbar: React.FC<NavbarProps> = ({
                             setIsMobileMenuOpen(false);
                             onOpenUssdSimulator();
                           }}
-                          className="w-full p-3 rounded-xl bg-slate-900 hover:bg-black text-white flex items-center justify-between text-xs font-bold shadow-2xs transition cursor-pointer min-h-[44px]"
+                          className="p-2.5 rounded-xl bg-slate-900 hover:bg-black text-white flex flex-col justify-center text-xs font-bold transition cursor-pointer text-left"
                         >
-                          <div className="flex items-center gap-2">
-                            <Radio className="w-4 h-4 text-emerald-400" />
-                            <span>*14566# USSD Mode</span>
+                          <div className="flex items-center gap-1.5 text-emerald-400">
+                            <Radio className="w-3.5 h-3.5" />
+                            <span>*14566#</span>
                           </div>
-                          <span className="text-[10px] text-emerald-300 bg-slate-800 px-2 py-0.5 rounded">
-                            2G Offline
-                          </span>
+                          <span className="text-[9px] text-slate-400 font-semibold">2G USSD Offline</span>
                         </button>
                       )}
                     </div>
                   </div>
                 )}
 
-                {/* 5. Language Selector */}
+                {/* 4. Language Selector */}
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 px-1">
                     <Globe className="w-3 h-3 text-indigo-600" />
                     <span>Language / भाषा</span>
                   </div>
-                  <div className="grid grid-cols-3 gap-1.5">
+                  <div className="grid grid-cols-3 gap-1">
                     {languages.map((lang) => {
                       const isCur = currentLang === lang.code;
                       return (
@@ -1160,7 +1124,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                           key={lang.code}
                           type="button"
                           onClick={() => onLanguageChange(lang.code)}
-                          className={`py-2 px-1 rounded-xl text-xs font-bold transition text-center cursor-pointer min-h-[38px] border ${
+                          className={`py-1.5 px-1 rounded-lg text-xs font-bold transition text-center cursor-pointer border ${
                             isCur
                               ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
                               : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
@@ -1173,22 +1137,22 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </div>
                 </div>
 
-                {/* 6. Accessibility Controls */}
-                <div className="space-y-2 p-3 bg-slate-50 rounded-2xl border border-slate-200/80">
+                {/* 5. Accessibility Controls */}
+                <div className="space-y-2 p-2.5 bg-slate-50 rounded-xl border border-slate-200/70">
                   <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                    Accessibility Controls
+                    Accessibility
                   </div>
 
-                  <div>
-                    <span className="text-[10px] font-bold text-slate-400 block mb-1">Text Scale</span>
-                    <div className="grid grid-cols-3 gap-1 bg-white p-1 rounded-xl border border-slate-200">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-bold text-slate-600">Text Size</span>
+                    <div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200">
                       {(['normal', 'large', 'xlarge'] as const).map((scale) => (
                         <button
                           key={scale}
                           type="button"
                           onClick={() => changeFontScale(scale)}
-                          className={`py-1.5 text-xs font-bold rounded-lg transition cursor-pointer ${
-                            fontScale === scale ? 'bg-indigo-600 text-white shadow-2xs' : 'text-slate-700'
+                          className={`px-2 py-0.5 text-[10px] font-bold rounded transition cursor-pointer ${
+                            fontScale === scale ? 'bg-indigo-600 text-white' : 'text-slate-600'
                           }`}
                         >
                           {scale === 'normal' ? '100%' : scale === 'large' ? '125%' : '150%'}
@@ -1200,23 +1164,36 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <button
                     type="button"
                     onClick={toggleHighContrast}
-                    className={`w-full py-2 px-3 rounded-xl border text-xs font-bold transition flex items-center justify-between cursor-pointer ${
+                    className={`w-full py-1.5 px-2.5 rounded-lg border text-xs font-bold transition flex items-center justify-between cursor-pointer ${
                       highContrast
-                        ? 'bg-black text-white border-black shadow-xs'
-                        : 'bg-white text-slate-800 border-slate-200 hover:bg-slate-50'
+                        ? 'bg-black text-white border-black'
+                        : 'bg-white text-slate-800 border-slate-200'
                     }`}
                   >
-                    <span className="flex items-center gap-1.5">
-                      <Eye className="w-3.5 h-3.5 text-indigo-600" />
-                      <span>High Contrast Mode</span>
-                    </span>
-                    <span className="font-mono text-[11px] font-bold">{highContrast ? 'ON' : 'OFF'}</span>
+                    <span>High Contrast Mode</span>
+                    <span className="font-mono text-[10px] font-bold">{highContrast ? 'ON' : 'OFF'}</span>
                   </button>
                 </div>
+
+                {/* 6. Install App CTA */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    handleInstallApp();
+                  }}
+                  className="w-full p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 flex items-center justify-between text-xs font-bold transition cursor-pointer border border-slate-200/80"
+                >
+                  <div className="flex items-center gap-2">
+                    <Download className="w-4 h-4 text-indigo-600" />
+                    <span>Install Anvaya App</span>
+                  </div>
+                  <span className="text-[10px] text-slate-500">Chrome/PWA</span>
+                </button>
               </div>
 
               {/* Drawer Footer */}
-              <div className="p-4 border-t border-slate-100 bg-slate-50/90 space-y-2 sticky bottom-0 z-10 backdrop-blur-md">
+              <div className="p-3 border-t border-slate-100 bg-slate-50/90 space-y-1.5 sticky bottom-0 z-10 backdrop-blur-md">
                 {currentUser && onLogout && (
                   <button
                     type="button"
@@ -1224,15 +1201,15 @@ export const Navbar: React.FC<NavbarProps> = ({
                       setIsMobileMenuOpen(false);
                       onLogout();
                     }}
-                    className="w-full py-2.5 px-4 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer min-h-[44px]"
+                    className="w-full py-2 px-3 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
                   >
-                    <LogOut className="w-4 h-4 text-rose-600" />
+                    <LogOut className="w-3.5 h-3.5 text-rose-600" />
                     <span>Sign Out</span>
                   </button>
                 )}
 
-                <div className="text-center text-[10px] text-slate-400 font-medium">
-                  ANVAYA Platform • MoSJE SC/ST Safety Net
+                <div className="text-center text-[9px] text-slate-400 font-medium">
+                  ANVAYA Platform • MoSJE Safety Net
                 </div>
               </div>
             </aside>
@@ -1255,8 +1232,8 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
 
               <div className="flex flex-col items-center text-center space-y-4">
-                <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 flex items-center justify-center shadow-lg shadow-indigo-500/30">
-                  <Heart className="w-9 h-9 fill-white text-white" />
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+                  <Heart className="w-8 h-8 fill-white text-white" />
                 </div>
 
                 <div>
