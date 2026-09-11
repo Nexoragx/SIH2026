@@ -18,11 +18,12 @@ import {
 } from 'lucide-react';
 import { UserProfile } from '../../types';
 import { supportApi } from '../../api';
+import { translations } from '../../utils/translations';
 
 interface CrisisModalProps {
   isOpen: boolean;
   onClose: () => void;
-  currentLang: string;
+  currentLang?: string;
   userProfile: UserProfile;
   onOpenChatbot?: () => void;
   onOpenSupportChat?: () => void;
@@ -31,10 +32,12 @@ interface CrisisModalProps {
 export const CrisisModal: React.FC<CrisisModalProps> = ({
   isOpen,
   onClose,
+  currentLang = 'en',
   userProfile,
   onOpenChatbot,
   onOpenSupportChat,
 }) => {
+  const t = translations[currentLang] || translations.en;
   const [dispatchStatus, setDispatchStatus] = useState<string | null>(null);
   const [isDispatching, setIsDispatching] = useState<boolean>(false);
 
@@ -172,7 +175,7 @@ export const CrisisModal: React.FC<CrisisModalProps> = ({
               Immediate Crisis Protection
             </span>
             <h2 className="text-xl sm:text-2xl font-black text-slate-950 tracking-tight mt-0.5">
-              You are safe & not alone.
+              {t.crisisTitle || 'You are safe & not alone.'}
             </h2>
           </div>
         </div>

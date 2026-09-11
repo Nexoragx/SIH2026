@@ -354,34 +354,34 @@ export const Navbar: React.FC<NavbarProps> = ({
   const getNavItems = (): NavItem[] => {
     if (isAdmin) {
       return [
-        { id: 'admin', label: 'Executive Panel', icon: Sparkles, highlight: true },
-        { id: 'analytics', label: 'National Analytics', icon: BarChart3 },
-        { id: 'observer', label: 'District Oversight', icon: Shield },
-        { id: 'resources', label: 'Statutory Directory', icon: Globe },
+        { id: 'admin', label: t.navExecutive || 'Executive Panel', icon: Sparkles, highlight: true },
+        { id: 'analytics', label: t.navAnalytics || 'National Analytics', icon: BarChart3 },
+        { id: 'observer', label: t.navOversight || 'District Oversight', icon: Shield },
+        { id: 'resources', label: t.navDirectory || 'Statutory Directory', icon: Globe },
       ];
     }
     if (isPsychiatrist) {
       return [
-        { id: 'psychiatrist' as NavTab, label: 'Telepsychiatry Station', icon: Activity, highlight: true },
+        { id: 'psychiatrist' as NavTab, label: t.navTelepsychiatry || 'Telepsychiatry Station', icon: Activity, highlight: true },
       ];
     }
     if (isNgo) {
       return [
-        { id: 'ngo' as NavTab, label: 'NGO Field Ops', icon: Users, highlight: true },
-        { id: 'resources' as NavTab, label: 'Ground Directory', icon: Globe },
+        { id: 'ngo' as NavTab, label: t.navNgo || 'NGO Field Ops', icon: Users, highlight: true },
+        { id: 'resources' as NavTab, label: t.navDirectory || 'Ground Directory', icon: Globe },
       ];
     }
     if (isObserver) {
       return [
         { id: 'observer' as NavTab, label: 'Caseload & Triage', icon: Shield, badge: true },
-        { id: 'analytics' as NavTab, label: 'District Analytics', icon: BarChart3 },
-        { id: 'resources' as NavTab, label: 'Resource Network', icon: Globe },
+        { id: 'analytics' as NavTab, label: t.navAnalytics || 'District Analytics', icon: BarChart3 },
+        { id: 'resources' as NavTab, label: t.navDirectory || 'Resource Network', icon: Globe },
       ];
     }
     // Default: Citizen / Survivor
     return [
-      { id: 'victim' as NavTab, label: 'Care & Wellbeing', icon: Heart },
-      { id: 'resources' as NavTab, label: 'Helplines & Directory', icon: Globe },
+      { id: 'victim' as NavTab, label: t.navCare || 'Care & Wellbeing', icon: Heart },
+      { id: 'resources' as NavTab, label: t.navDirectory || 'Helplines & Directory', icon: Globe },
     ];
   };
 
@@ -506,7 +506,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 title="Download / Install Anvaya Chrome App"
               >
                 <Download className="w-3.5 h-3.5 text-indigo-600 group-hover:-translate-y-0.5 transition-transform" />
-                <span>Download App</span>
+                <span>{t.navDownload || 'Download App'}</span>
               </button>
 
               {/* Notification Bell with Badge & Responsive Popover */}
@@ -784,7 +784,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                       title="Sign Out"
                     >
                       <LogOut className="w-3.5 h-3.5 text-rose-600" />
-                      <span>Logout</span>
+                      <span>{t.navLogout || 'Sign Out'}</span>
                     </button>
                   )}
                 </div>
@@ -797,14 +797,14 @@ export const Navbar: React.FC<NavbarProps> = ({
                     className="flex items-center gap-1.5 bg-white hover:bg-slate-50 text-indigo-600 font-bold text-xs px-3.5 py-2 rounded-xl border border-slate-200 shadow-2xs transition cursor-pointer"
                   >
                     <User className="w-3.5 h-3.5" />
-                    <span>Sign In</span>
+                    <span>{t.navSignIn || 'Sign In'}</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => onOpenAuthModal && onOpenAuthModal('register')}
                     className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-sm transition cursor-pointer"
                   >
-                    <span>Register</span>
+                    <span>{t.navRegister || 'Register'}</span>
                   </button>
                   {onOpenAdminLogin && (
                     <button
@@ -814,7 +814,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                       title="Administrative Staff Portal"
                     >
                       <Shield className="w-3.5 h-3.5 text-amber-700" />
-                      <span>Admin</span>
+                      <span>{t.navAdmin || 'Admin'}</span>
                     </button>
                   )}
                 </div>
@@ -830,8 +830,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 >
                   <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping"></span>
                   <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
-                  <span className="hidden sm:inline font-black">SOS</span>
-                  <span className="sm:hidden font-black">SOS</span>
+                  <span className="font-black">{t.sosButton || 'SOS'}</span>
                 </button>
               )}
 

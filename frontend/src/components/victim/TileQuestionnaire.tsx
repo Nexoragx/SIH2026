@@ -326,7 +326,7 @@ export const TileQuestionnaire: React.FC<TileQuestionnaireProps> = ({
             onClick={onOpenVoiceModal}
             className="px-4 py-2 rounded-xl text-xs font-black border border-sky-300 bg-white text-sky-900 hover:bg-sky-50 transition whitespace-nowrap cursor-pointer shadow-xs"
           >
-            {voiceCheckinDone ? 'Re-record Voice' : 'Record Voice'}
+            {voiceCheckinDone ? (t.recordVoice ? `✓ ${t.recordVoice}` : 'Re-record Voice') : (t.recordVoice || 'Record Voice')}
           </button>
         </div>
 
@@ -343,7 +343,7 @@ export const TileQuestionnaire: React.FC<TileQuestionnaireProps> = ({
             }`}
           >
             <ArrowLeft className="w-4 h-4" />
-            <span>Back</span>
+            <span>{t.back || 'Back'}</span>
           </button>
 
           <button
@@ -351,7 +351,7 @@ export const TileQuestionnaire: React.FC<TileQuestionnaireProps> = ({
             onClick={handleSkip}
             className="px-4 py-2 rounded-xl text-slate-500 hover:text-indigo-700 hover:bg-indigo-50 transition cursor-pointer font-bold"
           >
-            Skip question →
+            {t.skip ? `${t.skip} →` : 'Skip question →'}
           </button>
         </div>
       </div>

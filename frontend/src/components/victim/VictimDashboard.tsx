@@ -30,6 +30,7 @@ import { assessmentApi, supportApi, authApi, getStoredUser } from '../../api';
 import { DistressMeter } from './DistressMeter';
 import { AssessmentResultData, RiskLevel } from '../../types';
 import { PageLoader, HopeWallSkeleton, DoctorDirectorySkeleton, CardGridSkeleton } from '../common/Skeleton';
+import { translations } from '../../utils/translations';
 
 const PersonalizedActivities = React.lazy(() =>
   import('./PersonalizedActivities').then((m) => ({ default: m.PersonalizedActivities }))
@@ -70,6 +71,7 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
   targetExercise,
   userProfile,
 }) => {
+  const t = translations[currentLang] || translations.en;
   const [activeSubTab, setActiveSubTab] = useState<'overview' | 'exercises' | 'scale' | 'community'>(initialSubTab);
   const [currentSelectedExercise, setCurrentSelectedExercise] = useState<string | undefined>(targetExercise);
   const resolveAssignedObserver = () => {
@@ -549,7 +551,7 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
           }`}
         >
           <Sparkles className="w-4 h-4 flex-shrink-0" />
-          <span>Overview</span>
+          <span>{t.tabOverview || 'Overview'}</span>
         </button>
 
         <button
@@ -565,7 +567,7 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
           }`}
         >
           <Wind className="w-4 h-4 flex-shrink-0" />
-          <span>Exercises</span>
+          <span>{t.tabExercises || 'Exercises'}</span>
         </button>
 
         <button
@@ -578,7 +580,7 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
           }`}
         >
           <Activity className="w-4 h-4 flex-shrink-0" />
-          <span>Distress Scale</span>
+          <span>{t.tabDistressScale || 'Distress Scale'}</span>
         </button>
 
         <button
@@ -591,7 +593,7 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
           }`}
         >
           <Users className="w-4 h-4 flex-shrink-0" />
-          <span>Hope Wall</span>
+          <span>{t.tabHopeWall || 'Hope Wall'}</span>
         </button>
       </div>
 
@@ -605,7 +607,7 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
             <div className="flex items-center gap-2.5">
               <span className="text-xl">🌱</span>
               <p className="text-xs sm:text-sm font-bold text-amber-950 leading-snug">
-                "Every gentle step you take is an act of courage, {firstName}."
+                {t.dailyAffirmation || `"Every gentle step you take is an act of courage, ${firstName}."`}
               </p>
             </div>
 
@@ -635,10 +637,10 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
                   </span>
                 </div>
                 <h2 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">
-                  How are you feeling today, {firstName}?
+                  {t.howFeeling ? `${t.howFeeling}` : `How are you feeling today, ${firstName}?`}
                 </h2>
                 <p className="text-xs sm:text-sm text-slate-600 font-medium">
-                  Take a quick check-in to reflect on your sleep, mood, and emotional wellbeing.
+                  {t.takesTime || 'Take a quick check-in to reflect on your sleep, mood, and emotional wellbeing.'}
                 </p>
               </div>
 
@@ -647,7 +649,7 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
                 onClick={onStartCheckin}
                 className="w-full sm:w-auto px-6 py-3 btn-primary font-extrabold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-indigo-500/25 hover:scale-[1.02] active:scale-95 transition"
               >
-                <span>Start Check-in</span>
+                <span>{t.startCheckin || 'Start Check-in'}</span>
                 <ArrowRight className="w-4 h-4 text-white" />
               </button>
             </div>
@@ -725,7 +727,7 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
                   className="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition cursor-pointer flex items-center justify-center gap-1.5 border border-indigo-400/30"
                 >
                   <Stethoscope className="w-3.5 h-3.5 text-indigo-200" />
-                  <span>Doctors</span>
+                  <span>{t.doctorDirectory || 'Doctors'}</span>
                 </button>
                 <button
                   type="button"
@@ -733,7 +735,7 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
                   className="px-3.5 py-2 rounded-xl bg-white text-slate-900 hover:bg-slate-100 font-bold text-xs transition cursor-pointer flex items-center justify-center gap-1.5"
                 >
                   <MessageSquare className="w-3.5 h-3.5" />
-                  <span>Message</span>
+                  <span>{t.messageObserver || 'Message'}</span>
                 </button>
               </div>
             </div>
@@ -898,7 +900,7 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
           {/* Immediate Support Channels */}
           <div className="space-y-2.5">
             <h3 className="text-sm font-black text-slate-900">
-              Immediate Support Channels
+              {t.immediateSupport || 'Immediate Support Channels'}
             </h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -913,7 +915,7 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
                   </div>
                   <div>
                     <h4 className="text-xs font-black text-indigo-950 group-hover:underline">
-                      AI Companion
+                      {t.aiCompanion || 'AI Companion'}
                     </h4>
                     <p className="text-[11px] font-medium text-indigo-800">
                       ANVAYA Saathi
@@ -939,7 +941,7 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
                   </div>
                   <div>
                     <h4 className="text-xs font-black text-emerald-950 group-hover:underline">
-                      Helplines
+                      {t.telemanas || 'Helplines'}
                     </h4>
                     <p className="text-[11px] font-medium text-emerald-800">
                       24x7 Toll-Free
@@ -965,7 +967,7 @@ export const VictimDashboard: React.FC<VictimDashboardProps> = ({
                   </div>
                   <div>
                     <h4 className="text-xs font-black text-rose-950">
-                      Emergency
+                      {t.emergencyAmbulance || 'Emergency'}
                     </h4>
                     <p className="text-[11px] font-medium text-rose-800">
                       Immediate Aid

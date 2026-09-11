@@ -18,6 +18,8 @@ import {
   Scale
 } from 'lucide-react';
 
+import { translations } from '../../utils/translations';
+
 interface LandingPageProps {
   onOpenAuth: (mode?: 'login' | 'register') => void;
   onInstantLogin?: (role: 'citizen' | 'observer' | 'psychiatrist' | 'ngo' | 'admin') => void;
@@ -33,6 +35,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   onTriggerCrisis,
   currentLang,
 }) => {
+  const t = translations[currentLang] || translations.en;
+
   return (
     <div className="space-y-16 py-6 sm:py-12 animate-fadeIn">
       {/* 1. Hero Section */}
@@ -40,17 +44,23 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         {/* Ministry Badge */}
         <div className="inline-flex items-center gap-2 bg-indigo-50 border border-indigo-200/80 px-4 py-1.5 rounded-full text-indigo-700 text-xs font-extrabold shadow-xs">
           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-          <span>ANVAYA (अन्वय) • MoSJE Government of India Safety Net</span>
+          <span>{t.ministryBadge || 'ANVAYA (अन्वय) • MoSJE Government of India Safety Net'}</span>
         </div>
 
         {/* Hero Title */}
         <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-slate-900 tracking-tight max-w-4xl mx-auto leading-tight sm:leading-none">
-          AI-Powered Dynamic <span className="bg-gradient-to-r from-indigo-600 via-purple-600 to-teal-600 bg-clip-text text-transparent">Mental Health Monitoring</span> & Distress Prediction
+          {t.heroHeadline ? (
+            <span>{t.heroHeadline}</span>
+          ) : (
+            <>
+              AI-Powered Dynamic <span className="bg-gradient-to-r from-indigo-600 via-purple-600 to-teal-600 bg-clip-text text-transparent">Mental Health Monitoring</span> & Distress Prediction
+            </>
+          )}
         </h1>
 
         {/* Hero Subtitle */}
         <p className="text-slate-600 text-sm sm:text-base max-w-2xl mx-auto font-medium leading-relaxed">
-          A confidential, multi-modal psychological safeguarding platform for survivors of atrocities under the SC/ST (PoA) Act. Fusing clinical MADRS questionnaires, NLP trauma detection, and real-time voice acoustic biomarkers.
+          {t.heroSubheadline || 'A confidential, multi-modal psychological safeguarding platform for survivors of atrocities under the SC/ST (PoA) Act. Fusing clinical MADRS questionnaires, NLP trauma detection, and real-time voice acoustic biomarkers.'}
         </p>
 
         {/* CTA Button Group */}
@@ -60,7 +70,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             onClick={() => onOpenAuth('register')}
             className="px-6 py-3.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-extrabold text-sm shadow-xl shadow-indigo-600/30 transition flex items-center gap-2 cursor-pointer"
           >
-            <span>Create Account (Register)</span>
+            <span>{t.createAccountCta || 'Create Account (Register)'}</span>
             <ArrowRight className="w-4 h-4" />
           </button>
 
@@ -69,7 +79,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             onClick={() => onOpenAuth('login')}
             className="px-6 py-3.5 rounded-2xl bg-white hover:bg-slate-50 active:scale-95 text-slate-800 font-extrabold text-sm border border-slate-200 shadow-md transition flex items-center gap-2 cursor-pointer"
           >
-            <span>Sign In to Portal</span>
+            <span>{t.signInCta || 'Sign In to Portal'}</span>
           </button>
 
           {onStartGuestScreening && (
@@ -79,7 +89,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               className="px-5 py-3.5 rounded-2xl bg-emerald-50 hover:bg-emerald-100 active:scale-95 text-emerald-800 font-extrabold text-xs sm:text-sm border border-emerald-300 transition flex items-center gap-2 cursor-pointer"
             >
               <Heart className="w-4 h-4 text-emerald-600 fill-emerald-600" />
-              <span>Try Anonymous Check-in</span>
+              <span>{t.anonymousCheckinCta || 'Try Anonymous Check-in'}</span>
             </button>
           )}
         </div>
@@ -89,7 +99,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           <div className="max-w-3xl mx-auto p-4 rounded-2xl bg-slate-50 border border-slate-200/80 shadow-xs space-y-2.5">
             <div className="text-[11px] font-black uppercase tracking-wider text-black flex items-center justify-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-              <span>SIH Evaluation 1-Click Role Portals (Instant Persona Switch)</span>
+              <span>{t.rolePortalsTitle || 'SIH Evaluation 1-Click Role Portals (Instant Persona Switch)'}</span>
             </div>
             <div className="flex flex-wrap items-center justify-center gap-2">
               <button
@@ -135,15 +145,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         <div className="flex flex-wrap items-center justify-center gap-6 pt-6 text-xs text-slate-500 font-bold">
           <div className="flex items-center gap-1.5">
             <Lock className="w-4 h-4 text-emerald-600" />
-            <span>MongoDB Encrypted Storage</span>
+            <span>{t.encryptedStorageBadge || 'MongoDB Encrypted Storage'}</span>
           </div>
           <div className="flex items-center gap-1.5">
             <Shield className="w-4 h-4 text-indigo-600" />
-            <span>100% Confidentiality & Zero Name Exposure</span>
+            <span>{t.confidentialityBadge || '100% Confidentiality & Zero Name Exposure'}</span>
           </div>
           <div className="flex items-center gap-1.5">
             <Ambulance className="w-4 h-4 text-rose-600" />
-            <span>Integrated 108 Emergency Ambulance Protocol</span>
+            <span>{t.emergencyProtocolBadge || 'Integrated 108 Emergency Ambulance Protocol'}</span>
           </div>
         </div>
       </section>

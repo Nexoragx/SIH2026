@@ -12,9 +12,10 @@ import {
   Sparkles
 } from 'lucide-react';
 import { AssessmentResultData, UserProfile } from '../../types';
+import { translations } from '../../utils/translations';
 
 interface AssessmentResultProps {
-  currentLang: string;
+  currentLang?: string;
   resultData: AssessmentResultData;
   userProfile: UserProfile;
   onRestart: () => void;
@@ -27,6 +28,7 @@ interface AssessmentResultProps {
 }
 
 export const AssessmentResult: React.FC<AssessmentResultProps> = ({
+  currentLang = 'en',
   resultData,
   onOpenChatbot,
   onOpenObserverChat,
@@ -34,6 +36,7 @@ export const AssessmentResult: React.FC<AssessmentResultProps> = ({
   onDone,
   onOpenCalmingReport,
 }) => {
+  const t = translations[currentLang] || translations.en;
   const [activeExercise, setActiveExercise] = useState<boolean>(false);
   const [exerciseCount, setExerciseCount] = useState<number>(4);
 
@@ -89,7 +92,7 @@ export const AssessmentResult: React.FC<AssessmentResultProps> = ({
             className="p-3.5 bg-black hover:bg-slate-900 active:scale-95 text-white font-extrabold text-xs rounded-xl transition flex items-center justify-center gap-2 shadow-sm cursor-pointer"
           >
             <Bot className="w-4 h-4 text-white" />
-            <span>Talk to someone</span>
+            <span>{t.talkToCounsellor || 'Talk to someone'}</span>
           </button>
 
           <button
@@ -98,7 +101,7 @@ export const AssessmentResult: React.FC<AssessmentResultProps> = ({
             className="p-3.5 bg-white hover:bg-slate-50 active:scale-95 border border-slate-300 text-black font-extrabold text-xs rounded-xl transition flex items-center justify-center gap-2 cursor-pointer"
           >
             <PhoneCall className="w-4 h-4 text-black" />
-            <span>View support</span>
+            <span>{t.navDirectory || 'View support'}</span>
           </button>
 
           <button
@@ -107,7 +110,7 @@ export const AssessmentResult: React.FC<AssessmentResultProps> = ({
             className="p-3.5 bg-slate-100 hover:bg-slate-200 active:scale-95 border border-slate-200 text-black font-extrabold text-xs rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer"
           >
             <CheckCircle2 className="w-4 h-4 text-black" />
-            <span>Done</span>
+            <span>{t.submit || 'Done'}</span>
           </button>
         </div>
       </div>
